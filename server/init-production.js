@@ -9,7 +9,7 @@ function initProductionData() {
     
     const db = new Database(dbPath);
     
-    // Verificar si ya hay datos
+    // Verificar si ya hay negocios
     const negociosCount = db.prepare('SELECT COUNT(*) as count FROM negocios').get().count;
     
     if (negociosCount > 0) {
@@ -18,44 +18,103 @@ function initProductionData() {
         return;
     }
     
-    console.log('Inicializando base de datos con datos de ejemplo...');
+    console.log('Inicializando base de datos con estructura completa...');
     
-    // Crear negocio principal
+    // ============================================
+    // CREAR NEGOCIO PRINCIPAL (TU NEGOCIO)
+    // ============================================
     const negocioResult = db.prepare(`
-        INSERT INTO negocios (nombre, slug, telefono, email, estado, licencia_plan, licencia_fecha_inicio) 
-        VALUES (?, ?, ?, ?, 'activo', 'premium', datetime('now'))
-    `).run('Nexora Demo', 'nexora-demo', '809-000-0000', 'demo@nexora.com');
+        INSERT INTO negocios (
+            nombre, slug, telefono, email, 
+            estado, licencia_plan, licencia_fecha_inicio,
+            hora_apertura, hora_cierre, dias_laborales,
+            moneda, booking_activo
+        ) VALUES (?, ?, ?, ?, 'activo', 'premium', datetime('now'), '08:00', '18:00', '1,2,3,4,5', 'RD$', 1)
+    `).run(
+        'Ava Shop Express',
+        'ava-shop-express',
+        '(809) 775-8962',
+        'azdelmicha@gmail.com'
+    );
     
     const negocioId = negocioResult.lastInsertRowid;
+    console.log(`✅ Negocio creado: ID ${negocioId}`);
     
-    // Crear usuario admin
-    const hashedPassword = bcrypt.hashSync('Demo2026!', 10);
+    // ============================================
+    // CREAR TU USUARIO ADMIN PRINCIPAL
+    // ============================================
+    const hashedPassword = bcrypt.hashSync('Admin2026!', 10);
     
     db.prepare(`
-        INSERT INTO usuarios (negocio_id, nombre, email, password, rol, estado) 
-        VALUES (?, ?, ?, ?, 'admin', 'activo')
-    `).run(negocioId, 'Admin Demo', 'admin@nexora.com', hashedPassword);
+        INSERT INTO usuarios (negocio_id, nombre, email, password, rol, estado, horario_tipo, hora_entrada, hora_salida) 
+        VALUES (?, ?, ?, ?, 'admin', 'activo', 'completo', '08:00', '18:00')
+    `).run(negocioId, 'Arsedo Zabala', 'azdelmicha@gmail.com', hashedPassword);
     
-    // Crear categorías de ejemplo
-    const cat1 = db.prepare('INSERT INTO categorias (negocio_id, nombre) VALUES (?, ?)').run(negocioId, 'Corte de Cabello').lastInsertRowid;
-    const cat2 = db.prepare('INSERT INTO categorias (negocio_id, nombre) VALUES (?, ?)').run(negocioId, 'Barba').lastInsertRowid;
+    console.log('✅ Usuario admin creado: azdelmicha@gmail.com');
     
-    // Crear servicios de ejemplo
-    db.prepare('INSERT INTO servicios (negocio_id, nombre, precio, duracion, categoria_id) VALUES (?, ?, ?, ?, ?)').run(negocioId, 'Corte Clásico', 250, 30, cat1);
-    db.prepare('INSERT INTO servicios (negocio_id, nombre, precio, duracion, categoria_id) VALUES (?, ?, ?, ?, ?)').run(negocioId, 'Corte Moderno', 350, 45, cat1);
-    db.prepare('INSERT INTO servicios (negocio_id, nombre, precio, duracion, categoria_id) VALUES (?, ?, ?, ?, ?)').run(negocioId, 'Arreglo de Barba', 150, 20, cat2);
-    db.prepare('INSERT INTO servicios (negocio_id, nombre, precio, duracion, categoria_id) VALUES (?, ?, ?, ?, ?)').run(negocioId, 'Barba Completa', 250, 30, cat2);
+    // ============================================
+    // CREAR CATEGORÍAS DE EJEMPLO
+    // ============================================
+    const categorias = [
+        { nombre: 'Depilación' },
+        { nombre: 'Manicura' },
+        { nombre: 'Pedicure' },
+        { nombre: 'Corte de Cabello' }
+    ];
     
-    // Crear clientes de ejemplo
-    db.prepare('INSERT INTO clientes (negocio_id, nombre, telefono, email) VALUES (?, ?, ?, ?)').run(negocioId, 'Juan Pérez', '809-123-4567', 'juan@email.com');
-    db.prepare('INSERT INTO clientes (negocio_id, nombre, telefono, email) VALUES (?, ?, ?, ?)').run(negocioId, 'María García', '809-234-5678', 'maria@email.com');
+    const categoriaIds = {};
+    for (const cat of categorias) {
+        const result = db.prepare('INSERT INTO categorias (negocio_id, nombre, estado) VALUES (?, ?, ?)').run(negocioId, cat.nombre, 'activo');
+        categoriaIds[cat.nombre] = result.lastInsertRowid;
+    }
+    console.log('✅ Categorías creadas');
     
-    console.log('✅ Base de datos inicializada con datos de ejemplo');
+    // ============================================
+    // CREAR SERVICIOS DE EJEMPLO
+    // ============================================
+    const servicios = [
+        { nombre: 'Despigmentación', precio: 850, duracion: 30, categoria: 'Depilación' },
+        { nombre: 'Soft Gel XS', precio: 500, duracion: 60, categoria: 'Manicura' },
+        { nombre: 'Soft Gel S', precio: 550, duracion: 60, categoria: 'Manicura' },
+        { nombre: 'Soft Gel M', precio: 650, duracion: 60, categoria: 'Manicura' },
+        { nombre: 'Corte de Pelo', precio: 350, duracion: 30, categoria: 'Corte de Cabello' },
+        { nombre: 'Cejas', precio: 500, duracion: 10, categoria: 'Pedicure' },
+        { nombre: 'Labios', precio: 500, duracion: 5, categoria: 'Pedicure' },
+        { nombre: 'Barba', precio: 150, duracion: 15, categoria: 'Depilación' }
+    ];
+    
+    for (const serv of servicios) {
+        db.prepare('INSERT INTO servicios (negocio_id, nombre, precio, duracion, categoria_id, estado) VALUES (?, ?, ?, ?, ?, ?)').run(
+            negocioId, serv.nombre, serv.precio, serv.duracion, categoriaIds[serv.categoria], 'activo'
+        );
+    }
+    console.log('✅ Servicios creados');
+    
+    // ============================================
+    // CREAR CLIENTES DE EJEMPLO
+    // ============================================
+    const clientes = [
+        { nombre: 'Cliente Ejemplo 1', telefono: '809-123-4567', email: 'cliente1@email.com' },
+        { nombre: 'Cliente Ejemplo 2', telefono: '809-234-5678', email: 'cliente2@email.com' }
+    ];
+    
+    for (const cliente of clientes) {
+        db.prepare('INSERT INTO clientes (negocio_id, nombre, telefono, email) VALUES (?, ?, ?, ?)').run(
+            negocioId, cliente.nombre, cliente.telefono, cliente.email
+        );
+    }
+    console.log('✅ Clientes creados');
+    
     console.log('');
-    console.log('📧 Email: admin@nexora.com');
-    console.log('🔑 Contraseña: Demo2026!');
+    console.log('========================================');
+    console.log('✅ BASE DE DATOS INICIALIZADA');
+    console.log('========================================');
+    console.log('');
+    console.log('📧 Email: azdelmicha@gmail.com');
+    console.log('🔑 Contraseña: Admin2026!');
     console.log('');
     console.log('⚠️  IMPORTANTE: Cambia la contraseña después del primer inicio de sesión.');
+    console.log('');
     
     db.close();
 }
