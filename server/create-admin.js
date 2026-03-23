@@ -10,33 +10,33 @@ const ADMIN_CONFIG = {
     email: 'azdelmicha@gmail.com',
     password: 'Admin2026!',  // Cambiar esta contraseña
     nombre: 'Arsedo Zabala',
-    negocioId: 1  // ID del negocio principal
+    negocioNombre: 'Nexora Admin',
+    negocioSlug: 'nexora-admin'
 };
 
 function createMainAdmin() {
     console.log('Verificando administrador principal...');
     
-    // Verificar si el negocio principal existe
-    let negocio = db.prepare('SELECT id FROM negocios WHERE id = ?').get(ADMIN_CONFIG.negocioId);
+    // Verificar si el usuario admin existe
+    const existingUser = db.prepare('SELECT id, email FROM usuarios WHERE email = ?').get(ADMIN_CONFIG.email);
+    
+    if (existingUser) {
+        console.log(`✅ Administrador ya existe: ${existingUser.email} (ID: ${existingUser.id})`);
+        return;
+    }
+    
+    // Verificar si el negocio existe
+    let negocio = db.prepare('SELECT id FROM negocios WHERE email = ?').get(ADMIN_CONFIG.email);
     
     if (!negocio) {
         console.log('Creando negocio principal...');
         const result = db.prepare(`
             INSERT INTO negocios (nombre, slug, telefono, email, estado, licencia_plan, licencia_fecha_inicio) 
             VALUES (?, ?, ?, ?, 'activo', 'premium', datetime('now'))
-        `).run('Nexora Admin', 'nexora-admin', '809-000-0000', ADMIN_CONFIG.email);
+        `).run(ADMIN_CONFIG.negocioNombre, ADMIN_CONFIG.negocioSlug, '809-000-0000', ADMIN_CONFIG.email);
         
-        console.log(`Negocio creado con ID: ${result.lastInsertRowid}`);
-        ADMIN_CONFIG.negocioId = result.lastInsertRowid;
-    }
-    
-    // Verificar si el usuario admin existe
-    const existingUser = db.prepare('SELECT id, email FROM usuarios WHERE email = ?').get(ADMIN_CONFIG.email);
-    
-    if (existingUser) {
-        console.log(`Administrador ya existe: ${existingUser.email} (ID: ${existingUser.id})`);
-        console.log('Para resetear la contraseña, elimina este usuario manualmente y vuelve a ejecutar este script.');
-        return;
+        console.log(`✅ Negocio creado con ID: ${result.lastInsertRowid}`);
+        negocio = { id: result.lastInsertRowid };
     }
     
     // Hash de la contraseña
@@ -47,7 +47,7 @@ function createMainAdmin() {
         INSERT INTO usuarios (negocio_id, nombre, email, password, rol, estado, fecha_creacion) 
         VALUES (?, ?, ?, ?, 'admin', 'activo', datetime('now'))
     `).run(
-        ADMIN_CONFIG.negocioId,
+        negocio.id,
         ADMIN_CONFIG.nombre,
         ADMIN_CONFIG.email,
         hashedPassword
@@ -56,7 +56,7 @@ function createMainAdmin() {
     console.log('✅ Administrador principal creado exitosamente:');
     console.log(`   Email: ${ADMIN_CONFIG.email}`);
     console.log(`   Contraseña: ${ADMIN_CONFIG.password}`);
-    console.log(`   Negocio ID: ${ADMIN_CONFIG.negocioId}`);
+    console.log(`   Negocio ID: ${negocio.id}`);
     console.log('');
     console.log('⚠️  IMPORTANTE: Cambia la contraseña después del primer inicio de sesión.');
 }

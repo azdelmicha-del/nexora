@@ -21,6 +21,11 @@ function isLocalInstallation() {
 
 function getMachineId() {
     try {
+        // En producción (Render), usar un ID fijo basado en variable de entorno
+        if (process.env.NODE_ENV === 'production') {
+            return process.env.RENDER_SERVICE_ID || 'render-production';
+        }
+        
         const networkInterfaces = os.networkInterfaces();
         const cpus = os.cpus();
         const hostname = os.hostname();
@@ -142,6 +147,18 @@ function recordTrialStart(negocioId = null) {
 }
 
 function isLicenseValid(negocioId = null) {
+    // En producción (Render), siempre devolver válido
+    if (process.env.NODE_ENV === 'production') {
+        return { 
+            valid: true, 
+            type: 'production', 
+            daysRemaining: 9999,
+            licenciaPlan: 'premium',
+            licenciaFechaInicio: new Date().toISOString(),
+            licenciaFechaExpiracion: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+        };
+    }
+    
     const result = getDaysRemaining(negocioId);
     if (!result.valid && result.type === 'wrong_hardware') {
         return { valid: false, type: 'wrong_hardware', daysRemaining: 0, message: result.message };
