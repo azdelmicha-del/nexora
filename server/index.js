@@ -18,6 +18,7 @@ const reportsRoutes = require('./routes/reports');
 const notificationsRoutes = require('./routes/notifications');
 const licenseRoutes = require('./routes/license');
 const publicRoutes = require('./routes/public');
+const superAdminRoutes = require('./routes/superadmin');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -28,6 +29,10 @@ initLicense();
 // Crear administrador principal si no existe (DESPUÉS de initDatabase)
 const { createMainAdmin } = require('./create-admin');
 createMainAdmin();
+
+// Crear super administrador si no existe
+const { createSuperAdmin } = require('./create-superadmin');
+createSuperAdmin();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -58,9 +63,14 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/license', licenseRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api/superadmin', superAdminRoutes);
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+});
+
+app.get('/superadmin', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'superadmin.html'));
 });
 
 app.get('/registro', (req, res) => {
