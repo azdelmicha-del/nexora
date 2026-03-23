@@ -6,9 +6,6 @@ const { sanitizeInput } = require('./middleware/sanitize');
 const { initLicense, isLicenseValid } = require('./license');
 const { requireAuth, requireAdmin } = require('./middleware/auth');
 
-// Crear administrador principal si no existe
-const { createMainAdmin } = require('./create-admin');
-
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const configRoutes = require('./routes/config');
@@ -28,7 +25,8 @@ const PORT = process.env.PORT || 3000;
 initDatabase();
 initLicense();
 
-// Crear administrador principal si no existe
+// Crear administrador principal si no existe (DESPUÉS de initDatabase)
+const { createMainAdmin } = require('./create-admin');
 createMainAdmin();
 
 app.use(express.json());

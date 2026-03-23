@@ -61,8 +61,4 @@ function createMainAdmin() {
     console.log('⚠️  IMPORTANTE: Cambia la contraseña después del primer inicio de sesión.');
 }
 
-// Ejecutar
-createMainAdmin();
-
-// Cerrar base de datos
-db.close();
+module.exports = { createMainAdmin };
