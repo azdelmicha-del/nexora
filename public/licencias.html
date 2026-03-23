@@ -1,0 +1,1215 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Nexora - Gestionar Licencias</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .licencia-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+        }
+        
+        .generar-keys {
+            display: flex;
+            gap: 1rem;
+            align-items: flex-end;
+            margin-bottom: 2rem;
+            padding: 1.5rem;
+            background: var(--gray-50);
+            border-radius: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .generar-keys .form-group {
+            margin: 0;
+        }
+        
+        .generar-keys select {
+            min-width: 150px;
+        }
+        
+        .generar-keys input {
+            width: 80px;
+            text-align: center;
+        }
+        
+        .keys-stats {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .stat-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            text-align: center;
+        }
+        
+        .stat-card .amount {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        .stat-card.monthly { border-left: 4px solid #3b82f6; }
+        .stat-card.semiannual { border-left: 4px solid #8b5cf6; }
+        .stat-card.annual { border-left: 4px solid #10b981; }
+        
+        .keys-list {
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .key-filter {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .key-filter button {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--gray-200);
+            background: white;
+            border-radius: 0.5rem;
+            cursor: pointer;
+            font-size: 0.875rem;
+            transition: all 0.2s;
+        }
+        
+        .key-filter button:hover {
+            border-color: var(--primary);
+        }
+        
+        .key-filter button.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .key-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .key-item .key-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .key-item .key-plan {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .key-plan.monthly {
+            background: #dbeafe;
+            color: #1e40af;
+        }
+        
+        .key-plan.semiannual {
+            background: #ede9fe;
+            color: #6d28d9;
+        }
+        
+        .key-plan.annual {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        
+        .key-code {
+            font-family: monospace;
+            font-size: 1.1rem;
+            letter-spacing: 1px;
+        }
+        
+        .key-meta {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+        }
+        
+        .btn-copy, .btn-delete {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 0.5rem;
+            color: var(--gray-400);
+            transition: color 0.2s;
+        }
+        
+        .btn-copy:hover {
+            color: var(--primary);
+        }
+        
+        .btn-delete:hover {
+            color: var(--danger);
+        }
+        
+        @media (max-width: 768px) {
+            .keys-stats {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        .tabs-container {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            border-bottom: 2px solid var(--gray-200);
+            padding-bottom: 0.5rem;
+        }
+        
+        .tab-btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            background: none;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 500;
+            color: var(--gray-500);
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab-btn:hover {
+            color: var(--primary);
+        }
+        
+        .tab-btn.active {
+            color: var(--primary);
+            border-bottom-color: var(--primary);
+        }
+        
+        .tab-content {
+            display: none;
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .negocio-card {
+            background: white;
+            border: 1px solid var(--gray-200);
+            border-radius: 0.75rem;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+        
+        .negocio-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .negocio-info h4 {
+            margin: 0 0 0.25rem 0;
+            color: var(--gray-900);
+        }
+        
+        .negocio-info p {
+            margin: 0;
+            font-size: 0.875rem;
+            color: var(--gray-500);
+        }
+        
+        .negocio-stats {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid var(--gray-100);
+        }
+        
+        .negocio-stat {
+            text-align: center;
+        }
+        
+        .negocio-stat .value {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+        
+        .negocio-stat .label {
+            font-size: 0.75rem;
+            color: var(--gray-500);
+        }
+        
+        .plan-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            font-weight: 600;
+        }
+        
+        .plan-badge.trial { background: #fef3c7; color: #92400e; }
+        .plan-badge.monthly { background: #dbeafe; color: #1e40af; }
+        .plan-badge.semiannual { background: #ede9fe; color: #6d28d9; }
+        .plan-badge.annual { background: #d1fae5; color: #065f46; }
+        
+        @media (max-width: 768px) {
+            .negocio-stats {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Nexora</h2>
+                <p>Panel de gestión</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard
+                </a>
+                <a href="/configuracion" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Configuración
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <span>Propietario</span>
+                    </div>
+                </div>
+                <button onclick="logout()" class="btn btn-secondary btn-sm mt-2" style="width: 100%;">Cerrar Sesión</button>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <div class="licencia-header">
+                <h1>Gestión de Licencias</h1>
+            </div>
+            
+            <div class="tabs-container">
+                <button class="tab-btn" onclick="showTab('keys', this)">Claves</button>
+                <button class="tab-btn" onclick="showTab('businesses', this)">Negocios</button>
+                <button class="tab-btn" onclick="showTab('growth', this)">Crecimiento</button>
+            </div>
+            
+            <div id="tab-keys" class="tab-content active">
+            
+            <div class="generar-keys">
+                <div class="form-group">
+                    <label>Plan</label>
+                    <select id="planSelect">
+                        <option value="monthly">Mensual (30 días)</option>
+                        <option value="semiannual" selected>6 Meses (180 días)</option>
+                        <option value="annual">Anual (365 días)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Cantidad</label>
+                    <input type="number" id="cantidadKeys" value="1" min="1" max="50">
+                </div>
+                <button class="btn btn-primary" onclick="generarKeys()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Generar Claves
+                </button>
+            </div>
+            
+            <div class="keys-stats" id="keysStats">
+                <div class="stat-card monthly">
+                    <div class="amount" id="countMonthly">0</div>
+                    <div class="label">Claves Mensuales</div>
+                </div>
+                <div class="stat-card semiannual">
+                    <div class="amount" id="countSemiannual">0</div>
+                    <div class="label">Claves 6 Meses</div>
+                </div>
+                <div class="stat-card annual">
+                    <div class="amount" id="countAnnual">0</div>
+                    <div class="label">Claves Anuales</div>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="card-header">
+                    <h3>Claves de Licencia</h3>
+                </div>
+                <div class="card-body">
+                    <div class="key-filter">
+                        <button class="active" onclick="filterKeys('all', this)">Todas</button>
+                        <button onclick="filterKeys('monthly', this)">Mensual</button>
+                        <button onclick="filterKeys('semiannual', this)">6 Meses</button>
+                        <button onclick="filterKeys('annual', this)">Anual</button>
+                    </div>
+                    <div class="keys-list" id="keysList">
+                        <p class="text-muted text-center">Cargando...</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h3>Planes de Suscripción</h3>
+                </div>
+                <div class="card-body">
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--gray-200);">
+                                <th style="text-align: left; padding: 0.75rem; color: var(--gray-600);">Plan</th>
+                                <th style="text-align: center; padding: 0.75rem; color: var(--gray-600);">Precio</th>
+                                <th style="text-align: center; padding: 0.75rem; color: var(--gray-600);">Duración</th>
+                                <th style="text-align: center; padding: 0.75rem; color: var(--gray-600);">Claves</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr style="border-bottom: 1px solid var(--gray-100);">
+                                <td style="padding: 0.75rem;"><strong>Mensual</strong></td>
+                                <td style="text-align: center; padding: 0.75rem;">$13</td>
+                                <td style="text-align: center; padding: 0.75rem;">30 días</td>
+                                <td style="text-align: center; padding: 0.75rem;" id="statsMonthly">0</td>
+                            </tr>
+                            <tr style="border-bottom: 1px solid var(--gray-100);">
+                                <td style="padding: 0.75rem;"><strong>6 Meses</strong></td>
+                                <td style="text-align: center; padding: 0.75rem;">$80</td>
+                                <td style="text-align: center; padding: 0.75rem;">180 días</td>
+                                <td style="text-align: center; padding: 0.75rem;" id="statsSemiannual">0</td>
+                            </tr>
+                            <tr>
+                                <td style="padding: 0.75rem;"><strong>Anual</strong></td>
+                                <td style="text-align: center; padding: 0.75rem;">$167</td>
+                                <td style="text-align: center; padding: 0.75rem;">365 días</td>
+                                <td style="text-align: center; padding: 0.75rem;" id="statsAnnual">0</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            
+            </div>
+            
+            <div id="tab-businesses" class="tab-content">
+                <div class="keys-stats" id="businessesStats">
+                    <div class="stat-card">
+                        <div class="amount" id="countNegocios">0</div>
+                        <div class="label">Total Negocios</div>
+                    </div>
+                    <div class="stat-card monthly">
+                        <div class="amount" id="countActivos">0</div>
+                        <div class="label">Con Licencia Activa</div>
+                    </div>
+                    <div class="stat-card annual">
+                        <div class="amount" id="countTrial">0</div>
+                        <div class="label">En Prueba</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #ef4444;">
+                        <div class="amount" id="countSuspendidos" style="color: #ef4444;">0</div>
+                        <div class="label">Suspendidos</div>
+                    </div>
+                </div>
+                
+                <div style="display: flex; gap: 1rem; margin-bottom: 1rem; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <input type="text" id="buscarNegocio" placeholder="Buscar por nombre, email o teléfono..." 
+                               onkeyup="buscarNegocios()" style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 0.5rem;">
+                    </div>
+                    <button class="btn btn-primary" onclick="buscarNegocios()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                        Buscar
+                    </button>
+                    <button class="btn btn-secondary" onclick="exportarCSV()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path></svg>
+                        Exportar CSV
+                    </button>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Todos los Negocios</h3>
+                    </div>
+                    <div class="card-body">
+                        <div class="keys-list" id="negociosList">
+                            <p class="text-muted text-center">Cargando...</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="tab-growth" class="tab-content">
+                <div class="keys-stats">
+                    <div class="stat-card">
+                        <div class="amount" id="growthTotal">0</div>
+                        <div class="label">Total Registrados</div>
+                    </div>
+                    <div class="stat-card monthly">
+                        <div class="amount" id="growthActivos">0</div>
+                        <div class="label">Con Licencia</div>
+                    </div>
+                    <div class="stat-card annual">
+                        <div class="amount" id="growthTrial">0</div>
+                        <div class="label">En Prueba</div>
+                    </div>
+                    <div class="stat-card" style="border-left-color: #ef4444;">
+                        <div class="amount" id="growthSuspendidos">0</div>
+                        <div class="label">Suspendidos</div>
+                    </div>
+                </div>
+                
+                <div class="card">
+                    <div class="card-header">
+                        <h3>Registro de Negocios por Mes</h3>
+                    </div>
+                    <div class="card-body">
+                        <div id="growthChart" style="height: 300px; display: flex; align-items: flex-end; gap: 8px; padding: 1rem 0;">
+                            <p class="text-muted text-center" style="width: 100%;">Cargando...</p>
+                        </div>
+                        <div id="growthLegend" style="display: flex; flex-wrap: wrap; gap: 1rem; justify-content: center; margin-top: 1rem;"></div>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="modal-overlay" id="modalDetalle">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Detalle del Negocio</h3>
+                <button class="modal-close" onclick="cerrarModalDetalle()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="modal-body" id="detalleContent"></div>
+            <div class="modal-footer" id="detalleFooter"></div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="modalRenovar">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Renovar Licencia</h3>
+                <button class="modal-close" onclick="cerrarModalRenovar()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>Negocio: <strong id="renovarNegocioNombre"></strong></p>
+                <div class="form-group">
+                    <label>Plan</label>
+                    <select id="renovarPlan">
+                        <option value="monthly">Mensual (30 días)</option>
+                        <option value="semiannual">6 Meses (180 días)</option>
+                        <option value="annual">Anual (365 días)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Días</label>
+                    <input type="number" id="renovarDias" value="30" min="1" max="365">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="cerrarModalRenovar()">Cancelar</button>
+                <button class="btn btn-primary" onclick="confirmarRenovar()">Renovar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/api.js"></script>
+    <script>
+        const MASTER_KEY = 'NX-admin-7x9k-2026-m3f8';
+        let allKeys = [];
+        let currentFilter = 'all';
+        
+        const OWNER_EMAIL = 'azdelmicha@gmail.com';
+        
+        async function checkAccess() {
+            try {
+                const session = await checkSession();
+                console.log('Session:', session);
+                
+                if (!session || !session.authenticated) {
+                    window.location.href = '/';
+                    return false;
+                }
+                
+                const userEmail = session.user?.email;
+                console.log('User email:', userEmail);
+                console.log('Owner email:', OWNER_EMAIL);
+                console.log('Match:', userEmail === OWNER_EMAIL);
+                
+                if (userEmail !== OWNER_EMAIL) {
+                    document.body.innerHTML = `
+                        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; text-align: center;">
+                            <div>
+                                <h2 style="color: #ef4444;">Acceso Denegado</h2>
+                                <p>Solo el propietario puede acceder a esta página.</p>
+                                <p><small>Tu email: ${userEmail || 'no disponible'}</small></p>
+                                <a href="/dashboard" style="color: var(--primary);">Volver al Dashboard</a>
+                            </div>
+                        </div>
+                    `;
+                    return false;
+                }
+                
+                document.getElementById('userName').textContent = session.user.nombre;
+                document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
+                
+                return true;
+            } catch (error) {
+                console.error('Error en checkAccess:', error);
+                document.body.innerHTML = `
+                    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; text-align: center;">
+                        <div>
+                            <h2 style="color: #ef4444;">Error de Acceso</h2>
+                            <p>${error.message}</p>
+                            <a href="/" style="color: var(--primary);">Ir al login</a>
+                        </div>
+                    </div>
+                `;
+                return false;
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            const hasAccess = await checkAccess();
+            if (!hasAccess) return;
+            
+            loadKeys();
+        });
+        
+        async function logout() {
+            await apiCall('/auth/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
+        
+        async function loadKeys() {
+            try {
+                const res = await fetch('/api/license/keys', {
+                    headers: { 'x-master-key': MASTER_KEY }
+                });
+                
+                if (!res.ok) {
+                    document.getElementById('keysList').innerHTML = '<p class="text-danger text-center">Acceso denegado</p>';
+                    return;
+                }
+                
+                allKeys = await res.json();
+                updateStats();
+                renderKeys();
+            } catch (e) {
+                document.getElementById('keysList').innerHTML = '<p class="text-danger text-center">Error al cargar</p>';
+            }
+        }
+        
+        function updateStats() {
+            const monthly = allKeys.filter(k => k.plan === 'monthly').length;
+            const semiannual = allKeys.filter(k => k.plan === 'semiannual').length;
+            const annual = allKeys.filter(k => k.plan === 'annual').length;
+            
+            document.getElementById('countMonthly').textContent = monthly;
+            document.getElementById('countSemiannual').textContent = semiannual;
+            document.getElementById('countAnnual').textContent = annual;
+            
+            document.getElementById('statsMonthly').textContent = monthly;
+            document.getElementById('statsSemiannual').textContent = semiannual;
+            document.getElementById('statsAnnual').textContent = annual;
+        }
+        
+        function renderKeys() {
+            let filtered = allKeys;
+            if (currentFilter !== 'all') {
+                filtered = allKeys.filter(k => k.plan === currentFilter);
+            }
+            
+            if (filtered.length === 0) {
+                document.getElementById('keysList').innerHTML = '<p class="text-muted text-center">No hay claves para este filtro</p>';
+                return;
+            }
+            
+            const planNames = {
+                monthly: 'Mensual',
+                semiannual: '6 Meses',
+                annual: 'Anual'
+            };
+            
+            document.getElementById('keysList').innerHTML = filtered.map(k => `
+                <div class="key-item">
+                    <div class="key-info">
+                        <span class="key-plan ${k.plan}">${planNames[k.plan] || k.plan}</span>
+                        <div>
+                            <div class="key-code">${k.key}</div>
+                            <div class="key-meta">
+                                Creada: ${new Date(k.created).toLocaleDateString('es-DO')} • ${k.planDays || 0} días
+                            </div>
+                        </div>
+                    </div>
+                    <div style="display: flex; gap: 0.5rem;">
+                        <button class="btn-copy" onclick="copyKey('${k.key}')" title="Copiar">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path></svg>
+                        </button>
+                        <button class="btn-delete" onclick="deleteKey('${k.key}')" title="Eliminar">
+                            <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function filterKeys(plan, btn) {
+            currentFilter = plan;
+            document.querySelectorAll('.key-filter button').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderKeys();
+        }
+        
+        async function generarKeys() {
+            const cantidad = parseInt(document.getElementById('cantidadKeys').value) || 1;
+            const plan = document.getElementById('planSelect').value;
+            
+            try {
+                const res = await fetch('/api/license/keys/generate', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-master-key': MASTER_KEY
+                    },
+                    body: JSON.stringify({ count: cantidad, plan: plan })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`${cantidad} clave(s) de ${plan} generada(s)`, 'success');
+                    loadKeys();
+                }
+            } catch (e) {
+                showToast('Error al generar claves', 'error');
+            }
+        }
+        
+        function copyKey(key) {
+            navigator.clipboard.writeText(key).then(() => {
+                showToast('Clave copiada', 'success');
+            });
+        }
+        
+        async function deleteKey(key) {
+            if (!confirm('¿Eliminar esta clave?')) return;
+            
+            try {
+                const res = await fetch(`/api/license/keys/${key}`, {
+                    method: 'DELETE',
+                    headers: { 'x-master-key': MASTER_KEY }
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Clave eliminada', 'success');
+                    loadKeys();
+                }
+            } catch (e) {
+                showToast('Error al eliminar', 'error');
+            }
+        }
+        
+        loadKeys();
+        
+        function showTab(tabName, btn) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
+            document.querySelectorAll('.tab-btn').forEach(el => el.classList.remove('active'));
+            
+            document.getElementById('tab-' + tabName).classList.add('active');
+            btn.classList.add('active');
+            
+            if (tabName === 'businesses' && allNegocios.length === 0) {
+                loadNegocios();
+            }
+            
+            if (tabName === 'growth' && growthData.length === 0) {
+                loadGrowthStats();
+            }
+        }
+        
+        let allNegocios = [];
+        let growthData = [];
+        let negocioActualId = null;
+        
+        async function loadNegocios(buscar = '') {
+            try {
+                let url = '/api/license/businesses';
+                if (buscar) {
+                    url += `?buscar=${encodeURIComponent(buscar)}`;
+                }
+                
+                const res = await fetch(url, {
+                    headers: { 'x-master-key': MASTER_KEY }
+                });
+                
+                if (!res.ok) {
+                    document.getElementById('negociosList').innerHTML = '<p class="text-danger text-center">Acceso denegado</p>';
+                    return;
+                }
+                
+                allNegocios = await res.json();
+                updateBusinessStats();
+                renderNegocios();
+            } catch (e) {
+                document.getElementById('negociosList').innerHTML = '<p class="text-danger text-center">Error al cargar negocios</p>';
+            }
+        }
+        
+        function buscarNegocios() {
+            const texto = document.getElementById('buscarNegocio').value;
+            loadNegocios(texto);
+        }
+        
+        function updateBusinessStats() {
+            document.getElementById('countNegocios').textContent = allNegocios.length;
+            
+            const activos = allNegocios.filter(n => {
+                if (n.licencia_plan === 'trial' || !n.licencia_plan) return false;
+                if (!n.licencia_fecha_expiracion) return false;
+                return new Date(n.licencia_fecha_expiracion) > new Date();
+            }).length;
+            
+            const trial = allNegocios.filter(n => {
+                if (n.licencia_plan && n.licencia_plan !== 'trial') return false;
+                if (!n.licencia_fecha_inicio) return true;
+                const daysLeft = getTrialDaysLeft(n.licencia_fecha_inicio);
+                return daysLeft > 0;
+            }).length;
+            
+            const suspendidos = allNegocios.filter(n => n.estado === 'suspendido').length;
+            
+            document.getElementById('countActivos').textContent = activos;
+            document.getElementById('countTrial').textContent = trial;
+            document.getElementById('countSuspendidos').textContent = suspendidos;
+        }
+        
+        function getDaysLeft(expiracion) {
+            if (!expiracion) return null;
+            const exp = new Date(expiracion);
+            const now = new Date();
+            const days = Math.ceil((exp - now) / (1000 * 60 * 60 * 24));
+            return days;
+        }
+        
+        function getTrialDaysLeft(fechaInicio) {
+            if (!fechaInicio) return null;
+            const TRIAL_DAYS = 7;
+            const startDate = new Date(fechaInicio);
+            const now = new Date();
+            const daysUsed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
+            return Math.max(0, TRIAL_DAYS - daysUsed);
+        }
+        
+        function getExpiryText(negocio) {
+            if (negocio.licencia_plan && negocio.licencia_plan !== 'trial') {
+                if (!negocio.licencia_fecha_expiracion) return 'Sin límite';
+                const daysLeft = getDaysLeft(negocio.licencia_fecha_expiracion);
+                if (daysLeft === null) return 'Sin límite';
+                return daysLeft > 0 ? `${daysLeft} días` : 'Expirada';
+            } else {
+                const daysLeft = getTrialDaysLeft(negocio.licencia_fecha_inicio);
+                if (daysLeft === null) return '7 días';
+                return `${daysLeft} días`;
+            }
+        }
+        
+        function formatCurrency(value) {
+            return '$' + parseFloat(value || 0).toFixed(2);
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return 'N/A';
+            return new Date(dateStr).toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+        
+        function renderNegocios() {
+            const container = document.getElementById('negociosList');
+            
+            if (allNegocios.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center">No hay negocios registrados</p>';
+                return;
+            }
+            
+            container.innerHTML = allNegocios.map(n => {
+                const planClass = n.licencia_plan || 'trial';
+                const planName = {
+                    'trial': 'Prueba',
+                    'monthly': 'Mensual',
+                    'semiannual': '6 Meses',
+                    'annual': 'Anual'
+                }[planClass] || 'Prueba';
+                
+                const expiryText = getExpiryText(n);
+                const isSuspendido = n.estado === 'suspendido';
+                
+                return `
+                    <div class="negocio-card" style="${isSuspendido ? 'opacity: 0.7; border-left: 4px solid #ef4444;' : ''}">
+                        <div class="negocio-header">
+                            <div class="negocio-info">
+                                <h4>${escapeHtml(n.nombre)} ${isSuspendido ? '<span style="color: #ef4444; font-size: 0.75rem;">(SUSPENDIDO)</span>' : ''}</h4>
+                                <p>${escapeHtml(n.email || 'Sin email')} • ${escapeHtml(n.telefono || 'Sin teléfono')}</p>
+                            </div>
+                            <div style="text-align: right;">
+                                <span class="plan-badge ${planClass}">${planName}</span>
+                                <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
+                                    ${expiryText}
+                                </div>
+                            </div>
+                        </div>
+                        <div class="negocio-stats">
+                            <div class="negocio-stat">
+                                <div class="value">${n.total_usuarios}</div>
+                                <div class="label">Usuarios</div>
+                            </div>
+                            <div class="negocio-stat">
+                                <div class="value">${n.total_clientes}</div>
+                                <div class="label">Clientes</div>
+                            </div>
+                            <div class="negocio-stat">
+                                <div class="value">${n.total_servicios}</div>
+                                <div class="label">Servicios</div>
+                            </div>
+                            <div class="negocio-stat">
+                                <div class="value">${formatCurrency(n.total_ventas)}</div>
+                                <div class="label">Ventas Totales</div>
+                            </div>
+                            <div class="negocio-stat">
+                                <div class="value">${n.ventas_hoy || 0}</div>
+                                <div class="label">Ventas Hoy</div>
+                            </div>
+                        </div>
+                        <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--gray-100); display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                            <button class="btn btn-secondary btn-sm" onclick="verDetalle(${n.id})">Ver Detalle</button>
+                            <button class="btn btn-secondary btn-sm" onclick="verRenovar(${n.id}, '${escapeHtml(n.nombre)}')">Renovar</button>
+                            <button class="btn btn-secondary btn-sm" onclick="notificarCliente(${n.id}, '${escapeHtml(n.email)}')">Notificar</button>
+                            <button class="btn btn-secondary btn-sm" onclick="toggleSuspender(${n.id}, ${!isSuspendido})" style="${isSuspendido ? 'color: #10b981;' : 'color: #f59e0b;'}">
+                                ${isSuspendido ? 'Reactivar' : 'Suspender'}
+                            </button>
+                            <button class="btn btn-danger btn-sm" onclick="eliminarNegocio(${n.id}, '${escapeHtml(n.nombre)}')">Eliminar</button>
+                        </div>
+                        <div style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--gray-500);">
+                            ID: ${n.id} • Última actividad: ${formatDate(n.ultima_actividad)}
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+        
+        async function verDetalle(id) {
+            try {
+                const res = await fetch(`/api/license/businesses/${id}`, {
+                    headers: { 'x-master-key': MASTER_KEY }
+                });
+                
+                if (!res.ok) {
+                    showToast('Error al cargar detalle', 'error');
+                    return;
+                }
+                
+                const data = await res.json();
+                negocioActualId = id;
+                
+                const planClass = data.licencia_plan || 'trial';
+                const planName = {
+                    'trial': 'Prueba',
+                    'monthly': 'Mensual',
+                    'semiannual': '6 Meses',
+                    'annual': 'Anual'
+                }[planClass] || 'Prueba';
+                
+                const expiryText = getExpiryText(data);
+                
+                document.getElementById('detalleContent').innerHTML = `
+                    <div style="margin-bottom: 1.5rem;">
+                        <h4 style="margin: 0 0 0.5rem 0;">${escapeHtml(data.nombre)}</h4>
+                        <p style="margin: 0; color: var(--gray-500);">${escapeHtml(data.email || 'Sin email')}</p>
+                        <p style="margin: 0.25rem 0; color: var(--gray-500);">${escapeHtml(data.telefono || 'Sin teléfono')}</p>
+                    </div>
+                    
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; margin-bottom: 1.5rem;">
+                        <div style="background: var(--gray-50); padding: 1rem; border-radius: 0.5rem;">
+                            <div style="font-size: 0.75rem; color: var(--gray-500);">Plan</div>
+                            <div><span class="plan-badge ${planClass}">${planName}</span></div>
+                        </div>
+                        <div style="background: var(--gray-50); padding: 1rem; border-radius: 0.5rem;">
+                            <div style="font-size: 0.75rem; color: var(--gray-500);">Vence</div>
+                            <div style="font-weight: 600;">${expiryText}</div>
+                        </div>
+                        <div style="background: var(--gray-50); padding: 1rem; border-radius: 0.5rem;">
+                            <div style="font-size: 0.75rem; color: var(--gray-500);">Inicio Licencia</div>
+                            <div style="font-weight: 600;">${formatDate(data.licencia_fecha_inicio)}</div>
+                        </div>
+                        <div style="background: var(--gray-50); padding: 1rem; border-radius: 0.5rem;">
+                            <div style="font-size: 0.75rem; color: var(--gray-500);">Hardware ID</div>
+                            <div style="font-size: 0.75rem; font-family: monospace;">${data.licencia_hardware_id || 'N/A'}</div>
+                        </div>
+                    </div>
+                    
+                    <h5 style="margin-bottom: 0.5rem;">Usuarios (${data.usuarios?.length || 0})</h5>
+                    <div style="max-height: 150px; overflow-y: auto; margin-bottom: 1rem;">
+                        ${(data.usuarios || []).map(u => `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; border-bottom: 1px solid var(--gray-100);">
+                                <span>${escapeHtml(u.nombre)}</span>
+                                <span style="font-size: 0.75rem; color: var(--gray-500);">${u.rol}</span>
+                            </div>
+                        `).join('') || '<p class="text-muted">Sin usuarios</p>'}
+                    </div>
+                    
+                    <h5 style="margin-bottom: 0.5rem;">Últimas Ventas</h5>
+                    <div style="max-height: 150px; overflow-y: auto;">
+                        ${(data.ventasRecientes || []).map(v => `
+                            <div style="display: flex; justify-content: space-between; padding: 0.5rem; border-bottom: 1px solid var(--gray-100); font-size: 0.875rem;">
+                                <span>${formatDate(v.fecha)}</span>
+                                <span>${escapeHtml(v.cliente || 'Venta rápida')}</span>
+                                <span style="font-weight: 600;">${formatCurrency(v.total)}</span>
+                            </div>
+                        `).join('') || '<p class="text-muted">Sin ventas</p>'}
+                    </div>
+                `;
+                
+                document.getElementById('detalleFooter').innerHTML = `
+                    <button class="btn btn-secondary" onclick="cerrarModalDetalle()">Cerrar</button>
+                `;
+                
+                document.getElementById('modalDetalle').classList.add('active');
+            } catch (e) {
+                showToast('Error al cargar detalle', 'error');
+            }
+        }
+        
+        function cerrarModalDetalle() {
+            document.getElementById('modalDetalle').classList.remove('active');
+        }
+        
+        function verRenovar(id, nombre) {
+            negocioActualId = id;
+            document.getElementById('renovarNegocioNombre').textContent = nombre;
+            document.getElementById('renovarPlan').value = 'monthly';
+            document.getElementById('renovarDias').value = '30';
+            document.getElementById('modalRenovar').classList.add('active');
+        }
+        
+        function cerrarModalRenovar() {
+            document.getElementById('modalRenovar').classList.remove('active');
+        }
+        
+        function actualizarDiasPlan() {
+            const plan = document.getElementById('renovarPlan').value;
+            const dias = { monthly: 30, semiannual: 180, annual: 365 };
+            document.getElementById('renovarDias').value = dias[plan];
+        }
+        
+        document.getElementById('renovarPlan').addEventListener('change', actualizarDiasPlan);
+        
+        async function confirmarRenovar() {
+            if (!negocioActualId) return;
+            
+            const plan = document.getElementById('renovarPlan').value;
+            const dias = parseInt(document.getElementById('renovarDias').value);
+            
+            try {
+                const res = await fetch(`/api/license/businesses/${negocioActualId}/renew`, {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-master-key': MASTER_KEY
+                    },
+                    body: JSON.stringify({ plan, dias })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    cerrarModalRenovar();
+                    loadNegocios();
+                } else {
+                    showToast(data.error || 'Error', 'error');
+                }
+            } catch (e) {
+                showToast('Error al renovar', 'error');
+            }
+        }
+        
+        async function toggleSuspender(id, suspender) {
+            const accion = suspender ? 'suspender' : 'reactivar';
+            if (!confirm(`¿Estás seguro de ${accion} este negocio?`)) return;
+            
+            try {
+                const res = await fetch(`/api/license/businesses/${id}/suspend`, {
+                    method: 'PUT',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'x-master-key': MASTER_KEY
+                    },
+                    body: JSON.stringify({ suspendido: suspender })
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadNegocios();
+                } else {
+                    showToast(data.error || 'Error', 'error');
+                }
+            } catch (e) {
+                showToast('Error', 'error');
+            }
+        }
+        
+        async function eliminarNegocio(id, nombre) {
+            if (!confirm(`¿ELIMINAR permanentemente "${nombre}"?\n\nEsta acción eliminará TODOS los datos: usuarios, clientes, servicios, ventas, etc.\n\nEsta acción NO se puede deshacer.`)) return;
+            
+            if (!confirm('¿CONFIRMAR eliminación? Escribe "SI" mentalmente y haz clic en Aceptar.')) return;
+            
+            try {
+                const res = await fetch(`/api/license/businesses/${id}`, {
+                    method: 'DELETE',
+                    headers: { 'x-master-key': MASTER_KEY }
+                });
+                
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Negocio eliminado', 'success');
+                    loadNegocios();
+                } else {
+                    showToast(data.error || 'Error', 'error');
+                }
+            } catch (e) {
+                showToast('Error al eliminar', 'error');
+            }
+        }
+        
+        function notificarCliente(id, email) {
+            if (!email) {
+                showToast('Este negocio no tiene email registrado', 'error');
+                return;
+            }
+            
+            showToast(`mailto:${email}?subject=Nexora - Recordatorio&body=Tu licencia de Nexora está por expirar...`, 'success');
+            
+            window.open(`mailto:${email}?subject=Nexora%20-%20Recordatorio&body=Hola%2C%0A%0AEste%20es%20un%20recordatorio%20sobre%20tu%20suscripción%20a%20Nexora.%0A%0ASaludos`);
+        }
+        
+        function exportarCSV() {
+            if (allNegocios.length === 0) {
+                showToast('No hay datos para exportar', 'error');
+                return;
+            }
+            
+            const headers = ['ID', 'Nombre', 'Email', 'Teléfono', 'Plan', 'Fecha Inicio', 'Fecha Expiración', 'Usuarios', 'Clientes', 'Servicios', 'Ventas Totales', 'Suspendido'];
+            const rows = allNegocios.map(n => [
+                n.id,
+                n.nombre,
+                n.email || '',
+                n.telefono || '',
+                n.licencia_plan || 'trial',
+                n.licencia_fecha_inicio || '',
+                n.licencia_fecha_expiracion || '',
+                n.total_usuarios,
+                n.total_clientes,
+                n.total_servicios,
+                n.total_ventas,
+                n.suspendido == 1 ? 'Sí' : 'No'
+            ]);
+            
+            let csv = headers.join(',') + '\n';
+            rows.forEach(row => {
+                csv += row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(',') + '\n';
+            });
+            
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement('a');
+            link.href = url;
+            link.download = `nexora_negocios_${new Date().toISOString().split('T')[0]}.csv`;
+            link.click();
+            URL.revokeObjectURL(url);
+            
+            showToast('CSV exportado', 'success');
+        }
+        
+        async function loadGrowthStats() {
+            try {
+                const res = await fetch('/api/license/businesses/stats/growth', {
+                    headers: { 'x-master-key': MASTER_KEY }
+                });
+                
+                if (!res.ok) return;
+                
+                const data = await res.json();
+                growthData = data;
+                
+                document.getElementById('growthTotal').textContent = data.resumen?.total || 0;
+                document.getElementById('growthActivos').textContent = data.resumen?.activos || 0;
+                document.getElementById('growthTrial').textContent = data.resumen?.en_trial || 0;
+                document.getElementById('growthSuspendidos').textContent = data.resumen?.suspendidos || 0;
+                
+                renderGrowthChart(data.mensual || []);
+            } catch (e) {
+                console.error('Error loading growth stats:', e);
+            }
+        }
+        
+        function renderGrowthChart(datos) {
+            const container = document.getElementById('growthChart');
+            
+            if (datos.length === 0) {
+                container.innerHTML = '<p class="text-muted text-center" style="width: 100%;">No hay datos de crecimiento</p>';
+                return;
+            }
+            
+            const maxCantidad = Math.max(...datos.map(d => d.cantidad), 1);
+            const mesesNombres = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+            
+            container.innerHTML = datos.map(d => {
+                const altura = Math.max((d.cantidad / maxCantidad) * 250, 20);
+                const [year, month] = d.mes.split('-');
+                const mesNombre = mesesNombres[parseInt(month) - 1];
+                
+                return `
+                    <div style="flex: 1; display: flex; flex-direction: column; align-items: center; gap: 0.5rem;">
+                        <div style="height: ${altura}px; background: var(--primary); width: 100%; max-width: 50px; border-radius: 4px 4px 0 0; display: flex; align-items: flex-end; justify-content: center;">
+                            <span style="color: white; font-weight: 700; font-size: 0.75rem; padding-bottom: 4px;">${d.cantidad}</span>
+                        </div>
+                        <span style="font-size: 0.7rem; color: var(--gray-500);">${mesNombre}</span>
+                    </div>
+                `;
+            }).join('');
+            
+            const totalNegocios = datos.reduce((sum, d) => sum + d.cantidad, 0);
+            document.getElementById('growthLegend').innerHTML = `
+                <span><strong>${totalNegocios}</strong> nuevos negocios en los últimos 12 meses</span>
+                <span><strong>${datos.length}</strong> meses con registros</span>
+            `;
+        }
+    </script>
+</body>
+</html>

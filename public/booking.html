@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Agendar Cita</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background: #f5f5f5; min-height: 100vh; }
+        
+        .business-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 24px 16px;
+            text-align: center;
+        }
+        .business-logo {
+            width: 70px; height: 70px; border-radius: 50%;
+            background: rgba(255,255,255,0.2);
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 12px; font-size: 28px; font-weight: 700;
+        }
+        .business-logo img { width: 100%; height: 100%; border-radius: 50%; object-fit: cover; }
+        .business-name { font-size: 20px; font-weight: 700; margin-bottom: 6px; }
+        .business-info { font-size: 12px; opacity: 0.9; line-height: 1.5; }
+        
+        .container { max-width: 500px; margin: 0 auto; padding: 16px; }
+        
+        .card {
+            background: white; border-radius: 16px; padding: 20px;
+            margin-bottom: 16px; box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+        }
+        
+        .card-title {
+            font-size: 15px; font-weight: 600; color: #1a1a2e;
+            margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+        }
+        .card-title .icon {
+            width: 24px; height: 24px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 6px; display: flex; align-items: center; justify-content: center;
+            color: white; font-size: 12px;
+        }
+        
+        .form-group { margin-bottom: 14px; }
+        .form-label { display: block; font-size: 13px; font-weight: 500; color: #444; margin-bottom: 5px; }
+        .form-required { color: #ef4444; }
+        
+        .form-input, .form-select {
+            width: 100%; padding: 12px 14px; border: 2px solid #e5e7eb;
+            border-radius: 10px; font-size: 15px; font-family: inherit;
+            background: white; transition: border-color 0.2s;
+        }
+        .form-input:focus, .form-select:focus { outline: none; border-color: #667eea; }
+        .form-textarea { resize: vertical; min-height: 70px; }
+        
+        .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+        
+        /* Buscador de servicios */
+        .search-box {
+            position: relative; margin-bottom: 12px;
+        }
+        .search-input {
+            width: 100%; padding: 10px 14px 10px 36px;
+            border: 2px solid #e5e7eb; border-radius: 10px;
+            font-size: 14px; font-family: inherit;
+        }
+        .search-input:focus { outline: none; border-color: #667eea; }
+        .search-icon {
+            position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+            color: #999; font-size: 16px;
+        }
+        
+        .service-list {
+            max-height: 250px; overflow-y: auto;
+            border: 2px solid #e5e7eb; border-radius: 10px;
+        }
+        .service-option {
+            padding: 12px 14px; border-bottom: 1px solid #f0f0f0;
+            cursor: pointer; transition: background 0.2s;
+        }
+        .service-option:last-child { border-bottom: none; }
+        .service-option:hover { background: #f8f9fa; }
+        .service-option.selected { background: #f0f4ff; }
+        .service-option .name { font-weight: 600; font-size: 14px; color: #1a1a2e; }
+        .service-option .details { font-size: 12px; color: #666; margin-top: 2px; }
+        .service-option .category { font-size: 10px; color: #888; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 2px; }
+        .service-hidden { display: none; }
+        
+        /* Selección resumida */
+        .selection-summary {
+            background: #f0f4ff; border: 1px solid #667eea; border-radius: 10px;
+            padding: 12px; margin-top: 10px; display: none;
+        }
+        .selection-summary.show { display: block; }
+        .selection-summary .item {
+            display: flex; justify-content: space-between; padding: 6px 0;
+            font-size: 13px;
+        }
+        .selection-summary .item:not(:last-child) { border-bottom: 1px solid #d4d4f7; }
+        .selection-summary .label { color: #666; }
+        .selection-summary .value { font-weight: 600; color: #1a1a2e; }
+        .selection-summary .edit-btn {
+            color: #667eea; font-size: 12px; cursor: pointer;
+            text-decoration: underline; margin-top: 8px; display: inline-block;
+        }
+        
+        .horarios-grid {
+            display: grid; grid-template-columns: repeat(3, 1fr);
+            gap: 8px; margin-top: 8px;
+        }
+        .horario-btn {
+            padding: 10px 8px; border: 2px solid #e5e7eb; border-radius: 8px;
+            background: white; font-size: 14px; font-weight: 600;
+            cursor: pointer; transition: all 0.2s;
+        }
+        .horario-btn:hover:not(:disabled) { border-color: #667eea; }
+        .horario-btn.selected { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-color: transparent; color: white; }
+        .horario-btn:disabled { opacity: 0.3; cursor: not-allowed; }
+        
+        .no-horarios { text-align: center; padding: 20px; color: #666; font-size: 14px; }
+        .loading { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 20px; color: #666; }
+        .spinner { width: 18px; height: 18px; border: 2px solid #e5e7eb; border-top-color: #667eea; border-radius: 50%; animation: spin 0.8s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        
+        .btn {
+            width: 100%; padding: 14px; border: none; border-radius: 10px;
+            font-size: 15px; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; font-family: inherit;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;
+        }
+        .btn-primary:hover { transform: translateY(-1px); box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4); }
+        .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+        .btn-secondary { background: #f0f0f0; color: #333; margin-top: 10px; }
+        
+        .error-msg {
+            background: #fee2e2; color: #dc2626; padding: 10px 14px;
+            border-radius: 8px; margin-bottom: 14px; font-size: 13px; display: none;
+        }
+        .error-msg.show { display: block; }
+        
+        /* Preview de confirmación */
+        .preview-section { display: none; }
+        .preview-section.show { display: block; }
+        .preview-title { font-size: 16px; font-weight: 700; margin-bottom: 14px; color: #1a1a2e; }
+        .preview-row {
+            display: flex; justify-content: space-between; padding: 10px 0;
+            border-bottom: 1px solid #f0f0f0; font-size: 14px;
+        }
+        .preview-row:last-child { border-bottom: none; }
+        .preview-label { color: #666; }
+        .preview-value { font-weight: 600; text-align: right; max-width: 60%; }
+        .preview-edit {
+            display: block; text-align: center; color: #667eea;
+            font-size: 13px; cursor: pointer; margin-top: 12px;
+            text-decoration: underline;
+        }
+        
+        /* Pantalla de éxito */
+        .success-screen { display: none; text-align: center; padding: 30px 16px; }
+        .success-screen.show { display: block; }
+        .success-icon {
+            width: 70px; height: 70px; background: #10b981; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            margin: 0 auto 16px; font-size: 35px; color: white;
+        }
+        .success-title { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+        .success-message { color: #666; margin-bottom: 20px; font-size: 14px; }
+        
+        .summary-card {
+            background: #f8f9fa; border-radius: 12px; padding: 14px; text-align: left; margin: 20px 0;
+        }
+        .summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #e5e7eb; }
+        .summary-row:last-child { border-bottom: none; }
+        .summary-label { color: #666; font-size: 13px; }
+        .summary-value { font-weight: 600; font-size: 14px; }
+        
+        .whatsapp-btn {
+            display: inline-flex; align-items: center; gap: 6px;
+            background: #25d366; color: white; padding: 12px 24px;
+            border-radius: 25px; text-decoration: none; font-weight: 600; font-size: 14px; margin-top: 10px;
+        }
+        .whatsapp-btn:hover { background: #128c7e; }
+        
+        .powered-by { text-align: center; padding: 16px; font-size: 11px; color: #999; }
+        .powered-by a { color: #667eea; text-decoration: none; }
+        
+        .form-container.hidden { display: none; }
+        .form-section { display: none; }
+        .form-section.show { display: block; }
+    </style>
+</head>
+<body>
+    <div class="business-header" id="business-header">
+        <div class="business-logo" id="business-logo">N</div>
+        <div class="business-name" id="business-name">Cargando...</div>
+        <div class="business-info" id="business-info"></div>
+    </div>
+    
+    <div class="container">
+        <div class="form-container" id="form-container">
+            <div id="error-container" class="error-msg"></div>
+            
+            <form id="booking-form">
+            
+            <!-- SECCIÓN: Selección de servicio -->
+            <div class="form-section show" id="section-servicio">
+                <div class="card">
+                    <div class="card-title"><span class="icon">1</span> Selecciona un servicio</div>
+                    <div class="search-box">
+                        <span class="search-icon">&#128269;</span>
+                        <input type="text" class="search-input" id="search-service" placeholder="Buscar servicio...">
+                    </div>
+                    <div class="service-list" id="service-list">
+                        <div class="loading"><div class="spinner"></div> Cargando...</div>
+                    </div>
+                </div>
+                <button type="button" class="btn btn-primary" id="btn-next-servicio" disabled>Siguiente</button>
+            </div>
+            
+            <!-- SECCIÓN: Selección de fecha/hora -->
+            <div class="form-section" id="section-fecha">
+                <div class="card">
+                    <div class="card-title"><span class="icon">2</span> Fecha y hora</div>
+                    <div class="form-group">
+                        <label class="form-label">Fecha <span class="form-required">*</span></label>
+                        <input type="date" class="form-input" id="fecha">
+                    </div>
+                    <div class="form-group" id="horarios-container" style="display:none;">
+                        <label class="form-label">Horario disponible</label>
+                        <div class="horarios-grid" id="horarios-grid"></div>
+                    </div>
+                    <input type="hidden" id="hora">
+                    <input type="hidden" id="hora_fin">
+                </div>
+                <div class="selection-summary" id="summary-servicio">
+                    <div class="item"><span class="label">Servicio</span><span class="value" id="summary-servicio-nombre">-</span></div>
+                    <div class="item"><span class="label">Duración</span><span class="value" id="summary-servicio-duracion">-</span></div>
+                    <div class="item"><span class="label">Precio</span><span class="value" id="summary-servicio-precio">-</span></div>
+                    <span class="edit-btn" onclick="goToSection('servicio')">Cambiar servicio</span>
+                </div>
+                <button type="button" class="btn btn-primary" id="btn-next-fecha" disabled>Siguiente</button>
+                <button type="button" class="btn btn-secondary" onclick="goToSection('servicio')">Volver</button>
+            </div>
+            
+            <!-- SECCIÓN: Datos del cliente -->
+            <div class="form-section" id="section-datos">
+                <div class="card">
+                    <div class="card-title"><span class="icon">3</span> Tus datos</div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label class="form-label">Nombre <span class="form-required">*</span></label>
+                            <input type="text" class="form-input" id="nombre" placeholder="Tu nombre">
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">WhatsApp <span class="form-required">*</span></label>
+                            <input type="tel" class="form-input" id="whatsapp" placeholder="809-123-4567">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-input" id="email" placeholder="tu@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notas</label>
+                        <textarea class="form-input form-textarea" id="notas" placeholder="Algo que debamos saber..."></textarea>
+                    </div>
+                </div>
+                <div class="selection-summary show">
+                    <div class="item"><span class="label">Servicio</span><span class="value" id="summary2-servicio">-</span></div>
+                    <div class="item"><span class="label">Fecha</span><span class="value" id="summary2-fecha">-</span></div>
+                    <div class="item"><span class="label">Hora</span><span class="value" id="summary2-hora">-</span></div>
+                    <div class="item"><span class="label">Precio</span><span class="value" id="summary2-precio">-</span></div>
+                    <span class="edit-btn" onclick="goToSection('fecha')">Cambiar fecha/hora</span>
+                </div>
+                <button type="button" class="btn btn-primary" id="btn-next-datos">Siguiente</button>
+                <button type="button" class="btn btn-secondary" onclick="goToSection('fecha')">Volver</button>
+            </div>
+            
+            <!-- SECCIÓN: Previsualización -->
+            <div class="form-section" id="section-preview">
+                <div class="card">
+                    <div class="preview-title">Confirma tu cita</div>
+                    <div class="preview-row"><span class="preview-label">Negocio</span><span class="preview-value" id="preview-negocio">-</span></div>
+                    <div class="preview-row"><span class="preview-label">Servicio</span><span class="preview-value" id="preview-servicio">-</span></div>
+                    <div class="preview-row"><span class="preview-label">Fecha</span><span class="preview-value" id="preview-fecha">-</span></div>
+                    <div class="preview-row"><span class="preview-label">Hora</span><span class="preview-value" id="preview-hora">-</span></div>
+                    <div class="preview-row"><span class="preview-label">Precio</span><span class="preview-value" id="preview-precio">-</span></div>
+                    <hr style="margin: 10px 0; border: none; border-top: 1px solid #eee;">
+                    <div class="preview-row"><span class="preview-label">Nombre</span><span class="preview-value" id="preview-nombre">-</span></div>
+                    <div class="preview-row"><span class="preview-label">WhatsApp</span><span class="preview-value" id="preview-whatsapp">-</span></div>
+                    <div class="preview-row"><span class="preview-label">Email</span><span class="preview-value" id="preview-email">-</span></div>
+                    <div class="preview-row"><span class="preview-label">Notas</span><span class="preview-value" id="preview-notas">-</span></div>
+                    <span class="preview-edit" onclick="goToSection('datos')">Editar datos</span>
+                </div>
+                <button type="submit" class="btn btn-primary" id="submit-btn">Confirmar Cita</button>
+                <button type="button" class="btn btn-secondary" onclick="goToSection('datos')">Volver</button>
+            </div>
+            </form>
+        </div>
+        
+        <!-- Modal de confirmación -->
+        <div id="modal-overlay" style="display:none; position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); z-index:1000; justify-content:center; align-items:center;">
+            <div style="background:white; border-radius:16px; padding:30px; max-width:400px; width:90%; text-align:center; animation: slideUp 0.3s ease;">
+                <div style="width:60px; height:60px; background:#10b981; border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 16px; font-size:30px; color:white;">&#10003;</div>
+                <h2 style="font-size:20px; font-weight:700; margin-bottom:8px;">¡Cita Confirmada!</h2>
+                <p style="color:#666; margin-bottom:20px; font-size:14px;">Tu cita ha sido registrada exitosamente</p>
+                <div id="modal-summary" style="background:#f8f9fa; border-radius:10px; padding:14px; text-align:left; margin-bottom:20px; font-size:13px;"></div>
+                <a id="modal-whatsapp" href="#" target="_blank" style="display:inline-flex; align-items:center; gap:6px; background:#25d366; color:white; padding:10px 20px; border-radius:25px; text-decoration:none; font-weight:600; font-size:14px; margin-bottom:10px;">📱 Confirmar por WhatsApp</a>
+                <br>
+                <button onclick="closeModalAndReset()" style="background:#f0f0f0; border:none; padding:10px 20px; border-radius:8px; cursor:pointer; font-weight:600; font-size:14px; margin-top:10px;">Agendar otra cita</button>
+            </div>
+        </div>
+        
+        <style>
+            @keyframes slideUp {
+                from { transform: translateY(20px); opacity: 0; }
+                to { transform: translateY(0); opacity: 1; }
+            }
+        </style>
+        
+        <!-- Pantalla de éxito -->
+        <div class="success-screen" id="success-screen">
+            <div class="success-icon">&#10003;</div>
+            <h2 class="success-title">¡Cita Agendada!</h2>
+            <p class="success-message">Tu cita ha sido registrada correctamente</p>
+            <div class="summary-card" id="booking-summary"></div>
+            <a id="whatsapp-link" href="#" class="whatsapp-btn" target="_blank">Confirmar por WhatsApp</a>
+            <button type="button" class="btn btn-primary" onclick="resetForm()" style="margin-top:16px;">Agendar otra cita</button>
+        </div>
+        
+        <div class="powered-by">Sistema de reservas por <a href="#">Nexora</a></div>
+    </div>
+    
+    <script src="/js/booking.js"></script>
+</body>
+</html>

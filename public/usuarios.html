@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Nexora - Usuarios</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Nexora</h2>
+                <p>Panel de gestión</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard
+                </a>
+                <a href="/pos" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Facturar
+                </a>
+                <a href="/citas" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Citas
+                </a>
+                <a href="/reportes" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Reportes
+                </a>
+                <a href="/servicios" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Servicios
+                </a>
+                <a href="/categorias" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                    Categorías
+                </a>
+                <a href="/clientes" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Clientes
+                </a>
+                <a href="/usuarios" class="nav-item active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Usuarios
+                </a>
+                <a href="/configuracion" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Configuración
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <span id="userRole">Rol</span>
+                    </div>
+                </div>
+                <button onclick="logout()" class="btn btn-secondary btn-sm mt-2" style="width: 100%;">Cerrar Sesión</button>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Gestión de Usuarios</h1>
+                <button class="btn btn-primary" onclick="openModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Nuevo Usuario
+                </button>
+            </div>
+            
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Email</th>
+                                <th>Rol</th>
+                                <th>Estado</th>
+                                <th>Horario</th>
+                                <th>Fecha</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="usuariosTable">
+                            <tr><td colspan="7" class="text-center">Cargando...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nuevo Usuario</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="userForm">
+                <div class="modal-body">
+                    <input type="hidden" id="userId">
+                    <div class="form-group">
+                        <label for="nombre">Nombre</label>
+                        <input type="text" id="nombre" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" required>
+                    </div>
+                    <div class="form-group">
+                        <label for="password">Contraseña</label>
+                        <input type="password" id="password" placeholder="Mínimo 8 caracteres">
+                    </div>
+                    <div class="form-group" id="rolGroup">
+                        <label for="rol">Rol</label>
+                        <select id="rol" required>
+                            <option value="empleado">Empleado</option>
+                        </select>
+                    </div>
+                    <div class="form-group" id="horarioGroup">
+                        <label for="horario_tipo">Tipo de Horario</label>
+                        <select id="horario_tipo" onchange="toggleHorarioFields()">
+                            <option value="completo">Jornada Completa (8:00 - 18:00)</option>
+                            <option value="manana">Turno Mañana (8:00 - 14:00)</option>
+                            <option value="tarde">Turno Tarde (14:00 - 20:00)</option>
+                            <option value="partido">Turno Partido (8:00 - 12:00 y 14:00 - 18:00)</option>
+                        </select>
+                    </div>
+                    <div class="form-row" id="horarioRow" style="display: none;">
+                        <div class="form-group">
+                            <label for="hora_entrada">Hora Entrada</label>
+                            <input type="time" id="hora_entrada" value="08:00">
+                        </div>
+                        <div class="form-group">
+                            <label for="hora_salida">Hora Salida</label>
+                            <input type="time" id="hora_salida" value="18:00">
+                        </div>
+                    </div>
+                    <div class="form-group" id="estadoGroup" style="display: none;">
+                        <label for="estado">Estado</label>
+                        <select id="estado">
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="/js/api.js"></script>
+    <script>
+        let editingId = null;
+        
+        let isPrincipalAdmin = false;
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            
+            if (session.user.rol !== 'admin') {
+                window.location.href = '/dashboard';
+                return;
+            }
+            
+            document.getElementById('userName').textContent = session.user.nombre;
+            document.getElementById('userRole').textContent = 'Administrador';
+            document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
+            
+            isPrincipalAdmin = session.user.email === 'azdelmicha@gmail.com';
+            
+            if (!isPrincipalAdmin) {
+                document.querySelector('.page-header button').innerHTML = `
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Nuevo Empleado
+                `;
+            }
+            
+            await loadUsuarios();
+            
+            document.getElementById('userForm').addEventListener('submit', handleSubmit);
+        });
+        
+        async function loadUsuarios() {
+            try {
+                const usuarios = await apiCall('/users');
+                const tbody = document.getElementById('usuariosTable');
+                
+                if (usuarios.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="7" class="text-center text-muted">No hay usuarios registrados</td></tr>';
+                    return;
+                }
+                
+                tbody.innerHTML = usuarios.map(u => {
+                    const isSelf = sessionStorage.getItem('session') ? JSON.parse(sessionStorage.getItem('session')).user.id === u.id : false;
+                    
+                    return `
+                    <tr class="${u.estado === 'inactivo' ? 'text-muted' : ''}">
+                        <td>${u.nombre}</td>
+                        <td>${u.email}</td>
+                        <td><span class="badge badge-${u.rol === 'admin' ? 'info' : 'success'}">${u.rol === 'admin' ? 'Admin' : 'Empleado'}</span></td>
+                        <td><span class="badge badge-${u.estado === 'activo' ? 'success' : 'danger'}">${u.estado}</span></td>
+                        <td>${u.horario_tipo === 'completo' ? `${u.hora_entrada} - ${u.hora_salida}` : 'Turno partido'}</td>
+                        <td>${formatDate(u.fecha_creacion)}</td>
+                        <td class="actions">
+                            ${isSelf ? 
+                                `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>
+                                 <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id}, '${escapeHtml(u.nombre)}')">Eliminar</button>` :
+                                (isPrincipalAdmin ?
+                                    `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>
+                                     <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id}, '${escapeHtml(u.nombre)}')">Eliminar</button>` :
+                                    (u.estado === 'inactivo' && isPrincipalAdmin ? 
+                                        `<button class="btn btn-success btn-sm" onclick="reactivateUsuario(${u.id})">Reactivar</button>` :
+                                        `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>`))
+                            }
+                        </td>
+                    </tr>
+                `}).join('');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function openModal(id = null) {
+            editingId = id;
+            document.getElementById('userForm').reset();
+            document.getElementById('password').required = !id;
+            
+            const rolGroup = document.getElementById('rolGroup');
+            const rolSelect = document.getElementById('rol');
+            
+            if (!id) {
+                document.getElementById('modalTitle').textContent = isPrincipalAdmin ? 'Nuevo Usuario' : 'Nuevo Empleado';
+                document.getElementById('estadoGroup').style.display = 'none';
+                
+                if (isPrincipalAdmin) {
+                    rolSelect.innerHTML = `
+                        <option value="empleado">Empleado</option>
+                        <option value="admin">Administrador</option>
+                    `;
+                    rolGroup.style.display = 'block';
+                } else {
+                    rolSelect.innerHTML = '<option value="empleado">Empleado</option>';
+                    rolGroup.style.display = 'block';
+                }
+            } else {
+                document.getElementById('modalTitle').textContent = 'Editar Usuario';
+                document.getElementById('estadoGroup').style.display = 'block';
+                
+                if (isPrincipalAdmin) {
+                    rolSelect.innerHTML = `
+                        <option value="empleado">Empleado</option>
+                        <option value="admin">Administrador</option>
+                    `;
+                    rolGroup.style.display = 'block';
+                } else {
+                    rolSelect.innerHTML = `
+                        <option value="empleado">Empleado</option>
+                        <option value="admin">Administrador</option>
+                    `;
+                    rolSelect.disabled = true;
+                    rolGroup.style.display = 'block';
+                }
+                
+                loadUsuario(id);
+            }
+            
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            editingId = null;
+        }
+        
+        async function loadUsuario(id) {
+            try {
+                const usuario = await apiCall(`/users/${id}`);
+                document.getElementById('userId').value = usuario.id;
+                document.getElementById('nombre').value = usuario.nombre;
+                document.getElementById('email').value = usuario.email;
+                document.getElementById('rol').value = usuario.rol;
+                document.getElementById('estado').value = usuario.estado;
+                document.getElementById('horario_tipo').value = usuario.horario_tipo || 'completo';
+                document.getElementById('hora_entrada').value = usuario.hora_entrada || '08:00';
+                document.getElementById('hora_salida').value = usuario.hora_salida || '18:00';
+            } catch (error) {
+                showAlert(error.message);
+            }
+        }
+        
+        async function editUsuario(id) {
+            openModal(id);
+        }
+        
+        async function handleSubmit(e) {
+            e.preventDefault();
+            
+            function toTitleCase(str) {
+                return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
+            }
+            
+            const data = {
+                nombre: toTitleCase(document.getElementById('nombre').value.trim()),
+                email: document.getElementById('email').value.toLowerCase().trim(),
+                rol: document.getElementById('rol').value,
+                estado: document.getElementById('estado').value,
+                horario_tipo: document.getElementById('horario_tipo').value,
+                hora_entrada: document.getElementById('hora_entrada').value,
+                hora_salida: document.getElementById('hora_salida').value
+            };
+            
+            const password = document.getElementById('password').value;
+            if (password) {
+                data.password = password;
+            }
+            
+            try {
+                if (editingId) {
+                    await apiCall(`/users/${editingId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(data)
+                    });
+                } else {
+                    await apiCall('/users', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                }
+                
+                closeModal();
+                await loadUsuarios();
+            } catch (error) {
+                showAlert(error.message);
+            }
+        }
+        
+        async function deleteUsuario(id, nombre) {
+            if (!confirm(`¿Está seguro que desea eliminar el usuario "${nombre}"?`)) return;
+            try {
+                await apiCall(`/users/${id}`, { method: 'DELETE' });
+                showAlert('Usuario eliminado correctamente', 'success');
+                await loadUsuarios();
+            } catch (error) {
+                showAlert(error.message || 'Error al eliminar usuario');
+            }
+        }
+        
+        async function reactivateUsuario(id) {
+            if (!confirm('¿Reactivar este usuario? Podrá iniciar sesión nuevamente.')) return;
+            try {
+                await apiCall(`/users/${id}/reactivate`, { method: 'POST' });
+                showToast('Usuario reactivado correctamente', 'success');
+                await loadUsuarios();
+            } catch (error) {
+                showToast(error.message || 'Error al reactivar usuario', 'error');
+            }
+        }
+        
+        function toggleHorarioFields() {
+            const tipo = document.getElementById('horario_tipo').value;
+            const horaEntrada = document.getElementById('hora_entrada');
+            const horaSalida = document.getElementById('hora_salida');
+            
+            switch(tipo) {
+                case 'manana':
+                    horaEntrada.value = '08:00';
+                    horaSalida.value = '14:00';
+                    break;
+                case 'tarde':
+                    horaEntrada.value = '14:00';
+                    horaSalida.value = '20:00';
+                    break;
+                case 'completo':
+                    horaEntrada.value = '08:00';
+                    horaSalida.value = '18:00';
+                    break;
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        async function logout() {
+            await apiCall('/auth/logout', { method: 'POST' });
+            clearSessionStorage();
+            window.location.href = '/';
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('es-DO');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,1040 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Nexora - Citas</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .citas-header {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            flex-direction: column;
+            align-items: stretch;
+        }
+        
+        .fecha-selector {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .fecha-rango {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            background: var(--gray-50);
+            padding: 0.75rem;
+            border-radius: 0.75rem;
+            width: 100%;
+        }
+        
+        .fecha-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 0.25rem;
+        }
+        
+        .fecha-input-group label {
+            font-size: 0.7rem;
+            color: var(--gray-500);
+            font-weight: 500;
+        }
+        
+        .fecha-input-group input {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 0.5rem;
+            font-size: 0.875rem;
+        }
+        
+        .fecha-rango .btn {
+            align-self: flex-end;
+        }
+        
+        .estado-filtro {
+            display: flex;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        
+        .estado-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 9999px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        
+        .estado-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .estado-btn.pendiente { border-color: var(--warning); }
+        .estado-btn.pendiente.active { background: var(--warning); }
+        .estado-btn.confirmada { border-color: #3b82f6; }
+        .estado-btn.confirmada.active { background: #3b82f6; }
+        .estado-btn.en_proceso { border-color: #8b5cf6; }
+        .estado-btn.en_proceso.active { background: #8b5cf6; }
+        .estado-btn.finalizada { border-color: var(--secondary); }
+        .estado-btn.finalizada.active { background: var(--secondary); }
+        .estado-btn.cancelada { border-color: var(--danger); }
+        .estado-btn.cancelada.active { background: var(--danger); }
+        
+        .citas-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
+        .cita-card {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.25rem;
+            border-left: 4px solid var(--gray-300);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .cita-card.pendiente { border-left-color: var(--warning); }
+        .cita-card.confirmada { border-left-color: #3b82f6; }
+        .cita-card.en_proceso { border-left-color: #8b5cf6; }
+        .cita-card.finalizada { border-left-color: var(--secondary); }
+        .cita-card.cancelada { border-left-color: var(--danger); opacity: 0.7; }
+        
+        .cita-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 1rem;
+        }
+        
+        .cita-cliente {
+            font-weight: 600;
+            font-size: 1rem;
+        }
+        
+        .cita-servicio {
+            color: var(--gray-600);
+            font-size: 0.875rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .cita-horario {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: var(--gray-500);
+            font-size: 0.875rem;
+        }
+        
+        .cita-acciones {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            margin-top: 1rem;
+        }
+        
+        .cita-acciones .btn {
+            flex: 1 1 auto;
+            min-width: 60px;
+            max-width: 100%;
+            text-align: center;
+            white-space: nowrap;
+            font-size: 0.7rem;
+            padding: 0.4rem 0.5rem;
+        }
+        
+        .cita-acciones .btn-sm {
+            padding: 0.35rem 0.5rem;
+            font-size: 0.7rem;
+        }
+        
+        .btn-estado {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.75rem;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Nexora</h2>
+                <p>Panel de gestión</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard
+                </a>
+                <a href="/pos" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Facturar
+                </a>
+                <a href="/citas" class="nav-item active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Citas
+                </a>
+                <a href="/clientes" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Clientes
+                </a>
+                <a href="/servicios" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Servicios
+                </a>
+                <a href="/categorias" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                    Categorías
+                </a>
+                <a href="/reportes" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Reportes
+                </a>
+                <a href="/usuarios" class="nav-item admin-only">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Usuarios
+                </a>
+                <a href="/configuracion" class="nav-item admin-only">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Configuración
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <span id="userRole">Rol</span>
+                    </div>
+                </div>
+                <button onclick="logout()" class="btn btn-secondary btn-sm mt-2" style="width: 100%;">Cerrar Sesión</button>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Gestión de Citas</h1>
+                <button class="btn btn-primary" onclick="openModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Nueva Cita
+                </button>
+            </div>
+            
+            <div class="citas-header">
+                <div class="fecha-selector">
+                    <div class="fecha-rango">
+                        <div class="fecha-input-group">
+                            <label>Desde:</label>
+                            <input type="date" id="fechaDesde" onchange="onFiltroFechaManual()">
+                        </div>
+                        <div class="fecha-input-group">
+                            <label>Hasta:</label>
+                            <input type="date" id="fechaHasta" onchange="onFiltroFechaManual()">
+                        </div>
+                        <button class="btn btn-secondary btn-sm" onclick="setFechaHoy()">Hoy</button>
+                        <button class="btn btn-secondary btn-sm" onclick="setFechaSemana()">Esta semana</button>
+                    </div>
+                </div>
+                
+                <div class="estado-filtro">
+                    <button class="estado-btn active" onclick="filtrarEstado(null)" data-estado="">Todas</button>
+                    <button class="estado-btn pendiente" onclick="filtrarEstado('pendiente')" data-estado="pendiente">Pendientes</button>
+                    <button class="estado-btn confirmada" onclick="filtrarEstado('confirmada')" data-estado="confirmada">Confirmadas</button>
+                    <button class="estado-btn finalizada" onclick="filtrarEstado('finalizada')" data-estado="finalizada">Finalizadas</button>
+                    <span id="filtroInfo" class="filtro-info" style="margin-left: auto; font-size: 0.85rem; color: var(--gray-600);"></span>
+                </div>
+            </div>
+            
+            <div class="citas-grid" id="citasGrid">
+                <p class="text-muted">Cargando...</p>
+            </div>
+        </main>
+    </div>
+    
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nueva Cita</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="citaForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Cliente *</label>
+                        <div style="position: relative;">
+                            <div style="display: flex; gap: 0.5rem;">
+                                <input type="text" id="buscarClienteInput" placeholder="Buscar cliente..." oninput="mostrarSugerenciasCliente()" onfocus="mostrarSugerenciasCliente()" style="flex: 1; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 0.5rem;" autocomplete="off">
+                                <input type="hidden" id="cliente_id" required>
+                                <button type="button" class="btn btn-secondary" onclick="mostrarCrearCliente()">+</button>
+                            </div>
+                            <div id="sugerenciasClientes" style="position: absolute; top: 100%; left: 0; right: 50px; background: white; border: 1px solid var(--gray-300); border-radius: 0.5rem; max-height: 200px; overflow-y: auto; z-index: 100; display: none; box-shadow: 0 4px 6px rgba(0,0,0,0.1);"></div>
+                        </div>
+                        <small id="clienteSeleccionado" style="color: var(--gray-500); display: none;"></small>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Servicio *</label>
+                        <select id="servicio_id" required onchange="cargarHorarios()">
+                            <option value="">Seleccionar servicio</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Fecha *</label>
+                        <input type="date" id="fecha" required onchange="cargarHorarios()">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Hora *</label>
+                        <select id="hora" required>
+                            <option value="">Seleccione fecha y servicio</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notas</label>
+                        <textarea id="notas" rows="2" placeholder="Observaciones..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Agendar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="modalCliente">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3>Buscar o Crear Cliente</h3>
+                <button class="modal-close" onclick="cerrarModalCliente()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>Buscar cliente existente</label>
+                    <input type="text" id="buscarClienteModal" placeholder="Escribe para buscar..." oninput="filtrarClientesModal()" style="width: 100%; padding: 0.5rem; border: 1px solid var(--gray-300); border-radius: 0.5rem;">
+                </div>
+                <div id="listaClientesModal" style="max-height: 200px; overflow-y: auto; border: 1px solid var(--gray-200); border-radius: 0.5rem; margin-bottom: 1rem;">
+                </div>
+                <hr style="margin: 1rem 0; border: none; border-top: 1px solid var(--gray-200);">
+                <p style="font-size: 0.85rem; color: var(--gray-500); margin-bottom: 0.75rem;">¿No encuentras el cliente? Créalo aquí:</p>
+                <form id="formClienteRapido">
+                    <div class="form-group">
+                        <label>Nombre *</label>
+                        <input type="text" id="clienteNombreInput" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Teléfono</label>
+                        <input type="text" id="clienteTelefonoInput" placeholder="+1 (809) 555-1234">
+                    </div>
+                    <div class="modal-footer" style="padding: 0; margin-top: 1rem;">
+                        <button type="button" class="btn btn-secondary" onclick="cerrarModalCliente()">Cancelar</button>
+                        <button type="submit" class="btn btn-primary">Crear Cliente</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="modalDetalle">
+        <div class="modal" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Detalle de Cita</h3>
+                <button class="modal-close" onclick="closeDetalle()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="modal-body" id="detalleContent"></div>
+        </div>
+    </div>
+    
+    <script src="/js/api.js"></script>
+    <script>
+        let clientes = [];
+        let servicios = [];
+        let citas = [];
+        let estadoFiltro = null;
+        let configNegocio = null;
+        let filtroFechaActivo = false;
+        let editingId = null;
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            
+            document.getElementById('userName').textContent = session.user.nombre;
+            document.getElementById('userRole').textContent = session.user.rol === 'admin' ? 'Administrador' : 'Empleado';
+            document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
+            
+            await Promise.all([cargarConfig(), cargarClientes(), cargarServicios()]);
+            
+            await cargarCitas();
+            
+            limitarDiasLaborales();
+            
+            document.getElementById('citaForm').addEventListener('submit', guardarCita);
+            document.getElementById('formClienteRapido').addEventListener('submit', crearClienteRapido);
+        });
+        
+        async function cargarConfig() {
+            try {
+                configNegocio = await apiCall('/config');
+            } catch (error) {
+                console.error('Error cargando config:', error);
+            }
+        }
+        
+        function limitarDiasLaborales() {
+            if (!configNegocio || !configNegocio.dias_laborales) return;
+            
+            const diasLaborales = configNegocio.dias_laborales.split(',').map(Number);
+            const fechaInput = document.getElementById('fecha');
+            
+            function isDiaLaboral(date) {
+                let dayOfWeek = date.getDay();
+                if (dayOfWeek === 0) dayOfWeek = 7;
+                return diasLaborales.includes(dayOfWeek);
+            }
+            
+            fechaInput.addEventListener('input', function() {
+                if (!this.value) return;
+                const [year, month, day] = this.value.split('-').map(Number);
+                const fechaSeleccionada = new Date(year, month - 1, day);
+                
+                if (!isDiaLaboral(fechaSeleccionada)) {
+                    this.value = '';
+                    showToast('Este día no es laboral', 'warning');
+                    document.getElementById('hora').innerHTML = '<option value="">Seleccione un día laboral</option>';
+                }
+            });
+        }
+        
+        async function cargarClientes() {
+            try {
+                clientes = await apiCall('/clients?estado=activo');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function mostrarSugerenciasCliente() {
+            const input = document.getElementById('buscarClienteInput');
+            const sugerencias = document.getElementById('sugerenciasClientes');
+            const clienteId = document.getElementById('cliente_id');
+            const clienteSeleccionado = document.getElementById('clienteSeleccionado');
+            const busqueda = input.value.toLowerCase().trim();
+            
+            if (busqueda.length === 0) {
+                sugerencias.style.display = 'none';
+                clienteId.value = '';
+                clienteSeleccionado.style.display = 'none';
+                return;
+            }
+            
+            const filtrados = clientes.filter(c => 
+                c.nombre.toLowerCase().includes(busqueda) || 
+                (c.telefono && c.telefono.includes(busqueda))
+            );
+            
+            if (filtrados.length === 0) {
+                sugerencias.innerHTML = '<div style="padding: 0.75rem; color: var(--gray-500);">No se encontraron clientes</div>';
+            } else {
+                sugerencias.innerHTML = filtrados.map(c => `
+                    <div style="padding: 0.75rem; cursor: pointer; border-bottom: 1px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center;" 
+                         onmouseover="this.style.backgroundColor='var(--gray-50)'" 
+                         onmouseout="this.style.backgroundColor=''"
+                         onclick="seleccionarCliente('${c.id}', '${escapeHtml(c.nombre).replace(/'/g, "\\'")}')">
+                        <div>
+                            <div style="font-weight: 500;">${escapeHtml(c.nombre)}</div>
+                            <div style="font-size: 0.8rem; color: var(--gray-500);">${c.telefono || 'Sin teléfono'}</div>
+                        </div>
+                        <svg width="16" height="16" fill="none" stroke="var(--gray-400)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </div>
+                `).join('');
+            }
+            
+            sugerencias.style.display = 'block';
+        }
+        
+        function seleccionarCliente(id, nombre) {
+            document.getElementById('cliente_id').value = id;
+            document.getElementById('buscarClienteInput').value = nombre;
+            document.getElementById('sugerenciasClientes').style.display = 'none';
+            document.getElementById('clienteSeleccionado').textContent = 'Cliente seleccionado';
+            document.getElementById('clienteSeleccionado').style.display = 'block';
+        }
+        
+        document.addEventListener('click', function(e) {
+            const sugerencias = document.getElementById('sugerenciasClientes');
+            const input = document.getElementById('buscarClienteInput');
+            if (sugerencias && input && !sugerencias.contains(e.target) && e.target !== input) {
+                sugerencias.style.display = 'none';
+            }
+        });
+        
+        async function cargarServicios() {
+            try {
+                servicios = await apiCall('/services?estado=activo');
+                const select = document.getElementById('servicio_id');
+                select.innerHTML = '<option value="">Seleccionar servicio</option>' +
+                    servicios.map(s => `<option value="${s.id}">${escapeHtml(s.nombre)} (${formatDuracionCitas(s.duracion)})</option>`).join('');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function formatDuracionCitas(minutos) {
+            if (minutos < 60) {
+                return `${minutos} min`;
+            } else {
+                const horas = Math.floor(minutos / 60);
+                const mins = minutos % 60;
+                if (mins === 0) {
+                    return `${horas}h`;
+                }
+                return `${horas}h ${mins}m`;
+            }
+        }
+        
+        async function cargarCitas() {
+            try {
+                const fechaDesde = document.getElementById('fechaDesde').value;
+                const fechaHasta = document.getElementById('fechaHasta').value;
+                
+                let url = '/appointments?';
+                
+                if (filtroFechaActivo && fechaDesde && fechaHasta) {
+                    url += `fechaDesde=${fechaDesde}&fechaHasta=${fechaHasta}`;
+                } else if (filtroFechaActivo && fechaDesde) {
+                    url += `fecha=${fechaDesde}`;
+                }
+                
+                if (estadoFiltro) url += `${filtroFechaActivo ? '&' : ''}estado=${estadoFiltro}`;
+                
+                citas = await apiCall(url);
+                renderCitas();
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function renderCitas() {
+            const grid = document.getElementById('citasGrid');
+            const filtroInfo = document.getElementById('filtroInfo');
+            const fechaDesde = document.getElementById('fechaDesde').value;
+            const fechaHasta = document.getElementById('fechaHasta').value;
+            
+            let nombreFiltro = '';
+            if (estadoFiltro) {
+                const nombres = { pendiente: 'Pendientes', confirmada: 'Confirmadas', finalizada: 'Finalizadas' };
+                nombreFiltro = nombres[estadoFiltro] || estadoFiltro;
+            } else {
+                nombreFiltro = 'Todas';
+            }
+            
+            if (citas.length === 0) {
+                let mensaje = 'No hay citas';
+                if (filtroFechaActivo && fechaDesde && fechaHasta) {
+                    if (fechaDesde === fechaHasta) {
+                        mensaje = `No hay citas ${nombreFiltro.toLowerCase()} para el ${formatDate(fechaDesde)}`;
+                    } else {
+                        mensaje = `No hay citas ${nombreFiltro.toLowerCase()} entre ${formatDate(fechaDesde)} y ${formatDate(fechaHasta)}`;
+                    }
+                } else if (estadoFiltro) {
+                    mensaje = `No hay citas ${nombreFiltro.toLowerCase()}`;
+                }
+                filtroInfo.textContent = mensaje;
+                grid.innerHTML = '';
+                return;
+            }
+            
+            let infoTexto = '';
+            if (filtroFechaActivo && fechaDesde && fechaHasta) {
+                if (fechaDesde === fechaHasta) {
+                    infoTexto = `${citas.length} cita(s) ${nombreFiltro.toLowerCase()} para el ${formatDate(fechaDesde)}`;
+                } else {
+                    infoTexto = `${citas.length} cita(s) ${nombreFiltro.toLowerCase()} entre ${formatDate(fechaDesde)} y ${formatDate(fechaHasta)}`;
+                }
+            } else if (estadoFiltro) {
+                infoTexto = `${citas.length} cita(s) ${nombreFiltro.toLowerCase()}`;
+            } else {
+                infoTexto = `${citas.length} cita(s)`;
+            }
+            
+            filtroInfo.textContent = infoTexto;
+            
+            grid.innerHTML = citas.map(c => `
+                <div class="cita-card ${c.estado}">
+                    <div class="cita-header">
+                        <div>
+                            <div class="cita-cliente">${escapeHtml(c.cliente)}</div>
+                            <div class="cita-servicio">${escapeHtml(c.servicio)}</div>
+                        </div>
+                        <span class="badge badge-${getEstadoColor(c.estado)}">${c.estado}</span>
+                    </div>
+                    <div class="cita-horario">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                        ${formatDate(c.fecha)} • ${c.hora_inicio} - ${c.hora_fin}
+                    </div>
+                    <div class="cita-acciones">
+                        <button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver</button>
+                        ${c.estado !== 'cancelada' && c.estado !== 'finalizada' ? `
+                            <button class="btn btn-info btn-sm" onclick="editarCita(${c.id})">Editar</button>
+                            <button class="btn btn-primary btn-sm" onclick="facturarCita(${c.id}, ${c.cliente_id}, ${c.servicio_id})">Facturar</button>
+                            <button class="btn btn-secondary btn-sm" onclick="cambiarEstado(${c.id}, 'confirmada')">Confirmar</button>
+                            <button class="btn btn-warning btn-sm" onclick="cambiarEstado(${c.id}, 'cancelada')">Cancelar</button>
+                        ` : ''}
+                        <button class="btn btn-danger btn-sm" onclick="eliminarCita(${c.id})">Eliminar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function filtrarEstado(estado) {
+            estadoFiltro = estado;
+            document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            if (estado === null) {
+                document.getElementById('fechaDesde').value = '';
+                document.getElementById('fechaHasta').value = '';
+                filtroFechaActivo = false;
+            }
+            
+            cargarCitas();
+        }
+        
+        function onFiltroFechaManual() {
+            const fechaDesde = document.getElementById('fechaDesde').value;
+            const fechaHasta = document.getElementById('fechaHasta').value;
+            
+            if (fechaDesde && fechaHasta) {
+                filtroFechaActivo = true;
+                cargarCitas();
+            }
+        }
+        
+        function setFechaHoy() {
+            const hoy = new Date();
+            const year = hoy.getFullYear();
+            const month = String(hoy.getMonth() + 1).padStart(2, '0');
+            const day = String(hoy.getDate()).padStart(2, '0');
+            const fechaHoy = `${year}-${month}-${day}`;
+            document.getElementById('fechaDesde').value = fechaHoy;
+            document.getElementById('fechaHasta').value = fechaHoy;
+            filtroFechaActivo = true;
+            
+            document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.estado-btn[data-estado=""]').classList.add('active');
+            estadoFiltro = null;
+            
+            cargarCitas();
+        }
+        
+        function setFechaSemana() {
+            const hoy = new Date();
+            const dayOfWeek = hoy.getDay();
+            const diffInicio = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
+            const diffFin = dayOfWeek === 0 ? 0 : 7 - dayOfWeek;
+            
+            const inicioSemana = new Date(hoy);
+            inicioSemana.setDate(hoy.getDate() - diffInicio);
+            
+            const finSemana = new Date(hoy);
+            finSemana.setDate(hoy.getDate() + diffFin);
+            
+            document.getElementById('fechaDesde').value = formatDateISO(inicioSemana);
+            document.getElementById('fechaHasta').value = formatDateISO(finSemana);
+            filtroFechaActivo = true;
+            
+            document.querySelectorAll('.estado-btn').forEach(b => b.classList.remove('active'));
+            document.querySelector('.estado-btn[data-estado=""]').classList.add('active');
+            estadoFiltro = null;
+            
+            cargarCitas();
+        }
+        
+        function formatDateISO(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+        
+        function getNextLaborableDay(date) {
+            if (!configNegocio || !configNegocio.dias_laborales) return date;
+            
+            const diasLaborales = configNegocio.dias_laborales.split(',').map(Number);
+            let currentDate = new Date(date);
+            
+            for (let i = 0; i < 30; i++) {
+                let dayOfWeek = currentDate.getDay();
+                if (dayOfWeek === 0) dayOfWeek = 7;
+                
+                if (diasLaborales.includes(dayOfWeek)) {
+                    return currentDate;
+                }
+                currentDate.setDate(currentDate.getDate() + 1);
+            }
+            
+            return date;
+        }
+        
+        function openModal() {
+            let fechaInicial = new Date();
+            fechaInicial.setHours(0, 0, 0, 0);
+            
+            if (configNegocio && configNegocio.dias_laborales) {
+                const diasLaborales = configNegocio.dias_laborales.split(',').map(Number);
+                let dayOfWeek = fechaInicial.getDay();
+                if (dayOfWeek === 0) dayOfWeek = 7;
+                
+                if (!diasLaborales.includes(dayOfWeek)) {
+                    fechaInicial = getNextLaborableDay(fechaInicial);
+                }
+            }
+            
+            const year = fechaInicial.getFullYear();
+            const month = String(fechaInicial.getMonth() + 1).padStart(2, '0');
+            const day = String(fechaInicial.getDate()).padStart(2, '0');
+            document.getElementById('fecha').value = `${year}-${month}-${day}`;
+            document.getElementById('servicio_id').value = '';
+            document.getElementById('hora').innerHTML = '<option value="">Seleccione fecha y servicio</option>';
+            document.getElementById('notas').value = '';
+            document.getElementById('buscarClienteInput').value = '';
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('sugerenciasClientes').style.display = 'none';
+            document.getElementById('clienteSeleccionado').style.display = 'none';
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+        
+        function closeModal() {
+            editingId = null;
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+        
+        async function cargarHorarios() {
+            const servicioId = document.getElementById('servicio_id').value;
+            const fecha = document.getElementById('fecha').value;
+            const horaSelect = document.getElementById('hora');
+            
+            if (!servicioId || !fecha) {
+                horaSelect.innerHTML = '<option value="">Seleccione fecha y servicio</option>';
+                return;
+            }
+            
+            try {
+                const data = await apiCall(`/appointments/horarios/disponibles?servicio_id=${servicioId}&fecha=${fecha}`);
+                
+                if (data.horarios.length === 0) {
+                    let mensaje = 'No hay horarios disponibles';
+                    if (data.mensaje) mensaje = data.mensaje;
+                    if (data.ultimoHorario && data.duracion) {
+                        mensaje += `. Duración: ${formatDuracionCitas(data.duracion)}. Último horario: ${data.ultimoHorario}`;
+                    }
+                    if (data.horario) {
+                        mensaje += ` (Horario: ${data.horario})`;
+                    }
+                    horaSelect.innerHTML = `<option value="">${mensaje}</option>`;
+                    return;
+                }
+                
+                horaSelect.innerHTML = '<option value="">Seleccionar hora</option>' +
+                    data.horarios.map(h => `<option value="${h}">${h}</option>`).join('');
+            } catch (error) {
+                console.error('Error:', error);
+                horaSelect.innerHTML = '<option value="">Error al cargar horarios</option>';
+            }
+        }
+        
+        async function guardarCita(e) {
+            e.preventDefault();
+            
+            const data = {
+                cliente_id: document.getElementById('cliente_id').value,
+                servicio_id: document.getElementById('servicio_id').value,
+                fecha: document.getElementById('fecha').value,
+                hora: document.getElementById('hora').value,
+                notas: document.getElementById('notas').value
+            };
+            
+            try {
+                if (editingId) {
+                    await apiCall(`/appointments/${editingId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('Cita actualizada correctamente', 'success');
+                } else {
+                    await apiCall('/appointments', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('Cita creada correctamente', 'success');
+                }
+                
+                closeModal();
+                await cargarCitas();
+            } catch (error) {
+                showAlert(error.message);
+            }
+        }
+        
+        async function cambiarEstado(citaId, nuevoEstado) {
+            try {
+                await apiCall(`/appointments/${citaId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ estado: nuevoEstado })
+                });
+                await cargarCitas();
+            } catch (error) {
+                showAlert(error.message);
+            }
+        }
+        
+        async function facturarCita(citaId, clienteId, servicioId) {
+            if (!confirm('¿Desea facturar esta cita? Se redirigirá a Facturar para completar el cobro.')) {
+                return;
+            }
+            
+            showToast('Redirigiendo a Facturar...', 'info');
+            
+            setTimeout(() => {
+                window.location.href = `/pos?cita=${citaId}&cliente=${clienteId}&servicio=${servicioId}`;
+            }, 500);
+        }
+        
+        async function eliminarCita(citaId) {
+            if (!confirm('¿Está seguro que desea eliminar esta cita?')) return;
+            try {
+                await apiCall(`/appointments/${citaId}`, { method: 'DELETE' });
+                showAlert('Cita eliminada correctamente', 'success');
+                await cargarCitas();
+            } catch (error) {
+                showAlert(error.message || 'Error al eliminar cita');
+            }
+        }
+        
+        async function verDetalle(citaId) {
+            try {
+                const cita = await apiCall(`/appointments/${citaId}`);
+                const content = document.getElementById('detalleContent');
+                
+                const telefonoLimpio = cita.cliente_telefono ? cita.cliente_telefono.replace(/[\s\-\(\)]/g, '') : '';
+                
+                const fechaFormateada = formatDate(cita.fecha);
+                const fechaParts = cita.fecha.split('-');
+                const manana = new Date(fechaParts[0], fechaParts[1] - 1, fechaParts[2]);
+                manana.setDate(manana.getDate() + 1);
+                const mananaStr = `${manana.getDate().toString().padStart(2, '0')}/${(manana.getMonth() + 1).toString().padStart(2, '0')}/${manana.getFullYear()}`;
+                
+                const msgConfirmar = `Hola ${cita.cliente}, te confirmamos tu cita para ${cita.servicio} el día ${fechaFormateada} a las ${cita.hora_inicio}. ¡Te esperamos!`;
+                const msgRecordar = `Hola ${cita.cliente}, te recordamos tu cita para ${cita.servicio} mañana ${mananaStr} a las ${cita.hora_inicio}. ¡Te esperamos!`;
+                const msgCancelar = `Hola ${cita.cliente}, tu cita para ${cita.servicio} el día ${fechaFormateada} ha sido cancelada. Puedes reagendar cuando desees.`;
+                
+                const whatsappBase = telefonoLimpio ? `https://api.whatsapp.com/send?phone=${telefonoLimpio}&text=` : '';
+                const btnConfirmar = telefonoLimpio ? `<a href="${whatsappBase}${encodeURIComponent(msgConfirmar)}" target="_blank" class="btn btn-success btn-sm" style="text-decoration: none;">✓ Confirmar</a>` : '';
+                const btnRecordar = telefonoLimpio ? `<a href="${whatsappBase}${encodeURIComponent(msgRecordar)}" target="_blank" class="btn btn-info btn-sm" style="text-decoration: none;">🔔 Recordar</a>` : '';
+                const btnCancelar = telefonoLimpio ? `<a href="${whatsappBase}${encodeURIComponent(msgCancelar)}" target="_blank" class="btn btn-warning btn-sm" style="text-decoration: none;">✕ Cancelar</a>` : '';
+                
+                content.innerHTML = `
+                    <div style="margin-bottom: 1rem;">
+                        <strong>Cliente:</strong> ${escapeHtml(cita.cliente)}${telefonoLimpio ? ` (${escapeHtml(cita.cliente_telefono)})` : ''}<br>
+                        <strong>Servicio:</strong> ${escapeHtml(cita.servicio)}<br>
+                        <strong>Precio:</strong> ${formatCurrency(cita.precio || 0)}<br>
+                        <strong>Fecha:</strong> ${fechaFormateada}<br>
+                        <strong>Hora:</strong> ${cita.hora_inicio} - ${cita.hora_fin}<br>
+                        <strong>Estado:</strong> <span class="badge badge-${getEstadoColor(cita.estado)}">${cita.estado}</span>
+                        ${cita.notas ? `<br><strong>Notas:</strong> ${escapeHtml(cita.notas)}` : ''}
+                    </div>
+                    <div style="margin-bottom: 1rem; padding: 0.75rem; background: #f3f4f6; border-radius: 0.5rem; font-size: 0.875rem;">
+                        <strong>Mensajes rápidos:</strong><br>
+                        <span style="color: #6b7280;">${telefonoLimpio ? 'Haz clic para abrir WhatsApp con el mensaje listo' : 'Sin número de teléfono'}</span>
+                    </div>
+                    <div class="cita-acciones">
+                        ${btnConfirmar}
+                        ${btnRecordar}
+                        ${btnCancelar}
+                        <button class="btn btn-secondary" onclick="closeDetalle()">Cerrar</button>
+                    </div>
+                `;
+                
+                document.getElementById('modalDetalle').classList.add('active');
+            } catch (error) {
+                showAlert(error.message);
+            }
+        }
+        
+        function closeDetalle() {
+            document.getElementById('modalDetalle').classList.remove('active');
+        }
+        
+        async function editarCita(citaId) {
+            closeDetalle();
+            try {
+                const cita = await apiCall(`/appointments/${citaId}`);
+                
+                document.getElementById('modalTitle').textContent = 'Editar Cita';
+                
+                document.getElementById('buscarClienteInput').value = cita.cliente;
+                document.getElementById('cliente_id').value = cita.cliente_id;
+                document.getElementById('servicio_id').value = cita.servicio_id;
+                document.getElementById('fecha').value = cita.fecha;
+                document.getElementById('notas').value = cita.notas || '';
+                
+                editingId = citaId;
+                
+                await cargarHorarios();
+                document.getElementById('hora').value = cita.hora_inicio;
+                
+                document.getElementById('modalOverlay').classList.add('active');
+            } catch (error) {
+                showAlert(error.message);
+            }
+        }
+        
+        function mostrarCrearCliente() {
+            document.getElementById('clienteNombreInput').value = '';
+            document.getElementById('clienteTelefonoInput').value = '';
+            document.getElementById('buscarClienteModal').value = '';
+            renderListaClientesModal(clientes);
+            document.getElementById('modalCliente').classList.add('active');
+        }
+        
+        function cerrarModalCliente() {
+            document.getElementById('modalCliente').classList.remove('active');
+        }
+        
+        function renderListaClientesModal(listaClientes) {
+            const container = document.getElementById('listaClientesModal');
+            if (!container) return;
+            
+            if (listaClientes.length === 0) {
+                container.innerHTML = '<p style="padding: 1rem; text-align: center; color: var(--gray-500); font-size: 0.85rem;">No hay clientes registrados</p>';
+                return;
+            }
+            
+            container.innerHTML = listaClientes.map(c => `
+                <div style="padding: 0.75rem; border-bottom: 1px solid var(--gray-100); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" 
+                     onclick="seleccionarClienteModal(${c.id}, '${escapeHtml(c.nombre)}')">
+                    <div>
+                        <div style="font-weight: 500;">${escapeHtml(c.nombre)}</div>
+                        <div style="font-size: 0.8rem; color: var(--gray-500);">${c.telefono || 'Sin teléfono'}</div>
+                    </div>
+                    <svg width="16" height="16" fill="none" stroke="var(--gray-400)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                </div>
+            `).join('');
+        }
+        
+        function filtrarClientesModal() {
+            const busqueda = document.getElementById('buscarClienteModal').value.toLowerCase().trim();
+            const clientesFiltrados = clientes.filter(c => 
+                c.nombre.toLowerCase().includes(busqueda) || 
+                (c.telefono && c.telefono.includes(busqueda))
+            );
+            renderListaClientesModal(clientesFiltrados);
+        }
+        
+        function seleccionarClienteModal(clienteId, clienteNombre) {
+            document.getElementById('cliente_id').value = clienteId;
+            cerrarModalCliente();
+            showToast(`Cliente "${clienteNombre}" seleccionado`, 'success');
+        }
+        
+        async function crearClienteRapido(e) {
+            e.preventDefault();
+            
+            function toTitleCase(str) {
+                return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
+            }
+            
+            const nombre = toTitleCase(document.getElementById('clienteNombreInput').value.trim());
+            const telefono = document.getElementById('clienteTelefonoInput').value.trim();
+            
+            try {
+                const cliente = await apiCall('/clients', {
+                    method: 'POST',
+                    body: JSON.stringify({ nombre, telefono })
+                });
+                
+                cerrarModalCliente();
+                await cargarClientes();
+                document.getElementById('cliente_id').value = cliente.id;
+            } catch (error) {
+                showAlert(error.message);
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' });
+        }
+        
+        function formatCurrency(amount) {
+            return '$' + Number(amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        
+        function getEstadoColor(estado) {
+            const colors = {
+                pendiente: 'warning',
+                confirmada: 'info',
+                en_proceso: 'secondary',
+                finalizada: 'success',
+                cancelada: 'danger'
+            };
+            return colors[estado] || 'secondary';
+        }
+        
+        async function logout() {
+            await apiCall('/auth/logout', { method: 'POST' });
+            clearSessionStorage();
+            window.location.href = '/';
+        }
+        
+        async function initPage() {
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            const sessionData = getSessionStorage();
+            document.getElementById('userName').textContent = sessionData.userName;
+            document.getElementById('userRole').textContent = sessionData.userRol === 'admin' ? 'Administrador' : 'Empleado';
+            document.getElementById('userAvatar').textContent = sessionData.userName.charAt(0).toUpperCase();
+            if (sessionData.userRol !== 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            }
+        }
+        initPage();
+    </script>
+</body>
+</html>

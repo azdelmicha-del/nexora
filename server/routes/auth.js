@@ -1,0 +1,275 @@
+const express = require('express');
+const bcrypt = require('bcryptjs');
+const { getDb } = require('../database');
+
+const router = express.Router();
+
+router.get('/debug/trial/:negocioId', (req, res) => {
+    const negocioId = parseInt(req.params.negocioId);
+    const db = getDb();
+    
+    const negocio = db.prepare(`
+        SELECT id, nombre, licencia_fecha_inicio, licencia_fecha_expiracion, licencia_plan
+        FROM negocios WHERE id = ?
+    `).get(negocioId);
+    
+    if (!negocio) {
+        return res.status(404).json({ error: 'Negocio no encontrado' });
+    }
+    
+    const TRIAL_DAYS = 7;
+    let daysRemaining = 7;
+    let daysUsed = 0;
+    
+    if (negocio.licencia_fecha_inicio) {
+        const startDate = new Date(negocio.licencia_fecha_inicio);
+        const now = new Date();
+        daysUsed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
+        daysRemaining = TRIAL_DAYS - daysUsed;
+    }
+    
+    res.json({
+        negocio: negocio,
+        hoy: new Date().toISOString(),
+        TRIAL_DAYS,
+        daysUsed,
+        daysRemaining,
+        mostrar: `Te quedan ${Math.max(0, daysRemaining)} días de prueba`
+    });
+});
+
+function toTitleCase(str) {
+    return String(str).toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
+}
+
+function createSlug(nombre) {
+    return nombre.toLowerCase()
+        .normalize("NFD").replace(/[u0300-u036f]/g, "")
+        .replace(/[^a-z0-9]+/g, "-")
+        .replace(/^-+|-+$/g, "");
+}
+function toUpperCase(str) {
+    return String(str).toUpperCase();
+}
+
+router.post('/registrar', async (req, res) => {
+    try {
+        const { nombreNegocio, nombreAdmin, email, telefono, password } = req.body;
+        
+        if (!nombreNegocio || !nombreAdmin || !email || !password) {
+            return res.status(400).json({ error: 'Todos los campos son requeridos' });
+        }
+
+        if (password.length < 8) {
+            return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+        }
+
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(email)) {
+            return res.status(400).json({ error: 'Email inválido' });
+        }
+        
+        const allowedDomains = ['gmail.com', 'hotmail.com', 'hotmail.es', 'yahoo.com', 'outlook.com', 'live.com'];
+        const emailDomain = email.split('@')[1]?.toLowerCase();
+        
+        if (!allowedDomains.includes(emailDomain)) {
+            return res.status(400).json({ error: 'Solo se permiten correos de Gmail, Hotmail, Yahoo o Outlook' });
+        }
+        
+        if (telefono) {
+            const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,20}$/;
+            if (!phoneRegex.test(telefono)) {
+                return res.status(400).json({ error: 'Número de teléfono inválido. Formato: +1 (809) 555-1234' });
+            }
+            
+            const digitsOnly = telefono.replace(/[\D]/g, '');
+            if (digitsOnly.length < 10 || digitsOnly.length > 15) {
+                return res.status(400).json({ error: 'El teléfono debe tener entre 10 y 15 dígitos' });
+            }
+        }
+
+        if (nombreNegocio.length > 100 || nombreAdmin.length > 100) {
+            return res.status(400).json({ error: 'Los nombres no pueden exceder 100 caracteres' });
+        }
+
+        const db = getDb();
+        
+        const existingEmail = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email);
+        if (existingEmail) {
+            return res.status(400).json({ error: 'El email ya está registrado' });
+        }
+        
+        const existingTelefono = db.prepare('SELECT id FROM negocios WHERE telefono = ?').get(telefono);
+        if (telefono && existingTelefono) {
+            return res.status(400).json({ error: 'El número de teléfono ya está registrado' });
+        }
+        
+        const existingNegocio = db.prepare('SELECT id FROM negocios WHERE nombre = ?').get(nombreNegocio);
+        if (existingNegocio) {
+            return res.status(400).json({ error: 'El nombre del negocio ya está registrado' });
+        }
+
+        const hashedPassword = await bcrypt.hash(password, 10);
+        
+        const negocioNombreNormalizado = toUpperCase(nombreNegocio.trim());
+        const adminNombreNormalizado = toTitleCase(nombreAdmin.trim());
+        const emailNormalizado = email.toLowerCase().trim();
+        
+        const fechaInicio = new Date().toISOString();
+        
+        // Generar slug automatico
+        let slug = createSlug(nombreNegocio);
+        const existSlug = db.prepare("SELECT id FROM negocios WHERE slug = ?").get(slug);
+        if (existSlug) slug = slug + "-" + Date.now();
+        
+        const result = db.prepare(`
+            INSERT INTO negocios (nombre, slug, telefono, email, licencia_fecha_inicio) 
+            VALUES (?, ?, ?, ?, ?)
+        `).run(negocioNombreNormalizado, slug, telefono || null, emailNormalizado, fechaInicio);
+
+        const negocioId = result.lastInsertRowid;
+
+        db.prepare(`
+            INSERT INTO usuarios (negocio_id, nombre, email, password, rol) 
+            VALUES (?, ?, ?, ?, 'admin')
+        `).run(negocioId, adminNombreNormalizado, emailNormalizado, hashedPassword);
+
+        const user = db.prepare('SELECT id, nombre, email, rol FROM usuarios WHERE email = ?').get(email);
+        
+        req.session.userId = user.id;
+        req.session.negocioId = negocioId;
+        req.session.rol = user.rol;
+        req.session.nombre = user.nombre;
+        req.session.email = email;
+
+        const license = require('../license');
+        license.recordTrialStart(negocioId);
+
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                nombre: user.nombre,
+                email: user.email,
+                rol: user.rol
+            },
+            negocioId: negocioId
+        });
+    } catch (error) {
+        console.error('Error en registro:', error);
+        res.status(500).json({ error: 'Error al registrar' });
+    }
+});
+
+router.post('/login', async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        
+        if (!email || !password) {
+            return res.status(400).json({ error: 'Email y contraseña requeridos' });
+        }
+
+        const db = getDb();
+        
+        const user = db.prepare(`
+            SELECT u.id, u.nombre, u.email, u.password, u.rol, u.negocio_id, u.estado, u.last_login, u.fecha_creacion,
+                   n.estado as negocio_estado
+            FROM usuarios u
+            JOIN negocios n ON u.negocio_id = n.id
+            WHERE u.email = ?
+        `).get(email);
+
+        if (!user) {
+            return res.status(401).json({ error: 'Credenciales incorrectas' });
+        }
+
+        if (user.estado !== 'activo') {
+            return res.status(401).json({ error: 'Usuario desactivado' });
+        }
+
+        if (user.negocio_estado !== 'activo') {
+            return res.status(401).json({ error: 'Negocio suspendido' });
+        }
+        
+        const license = require('../license');
+        const licenseStatus = license.isLicenseValid(user.negocio_id);
+        
+        if (!licenseStatus.valid && licenseStatus.type === 'wrong_hardware') {
+            return res.status(403).json({ 
+                error: 'Licencia activa en otra computadora',
+                message: 'Contacta al vendedor para adquirir una nueva.'
+            });
+        }
+        
+        if (!licenseStatus.valid) {
+            return res.status(403).json({ 
+                error: 'Licencia expirada',
+                message: 'Tu período de prueba ha finalizado. Activa una licencia para continuar.'
+            });
+        }
+        
+        const INACTIVITY_DAYS = 30;
+        const lastLogin = user.last_login ? new Date(user.last_login) : new Date(user.fecha_creacion);
+        const daysSinceLastLogin = Math.floor((new Date() - lastLogin) / (1000 * 60 * 60 * 24));
+        
+        if (daysSinceLastLogin > INACTIVITY_DAYS) {
+            return res.status(403).json({ 
+                error: 'Cuenta inactiva',
+                message: `Tu cuenta ha estado inactiva por ${daysSinceLastLogin} días. Contacta al soporte técnico para reactivarla.`
+            });
+        }
+
+        const validPassword = await bcrypt.compare(password, user.password);
+        if (!validPassword) {
+            return res.status(401).json({ error: 'Credenciales incorrectas' });
+        }
+        
+        db.prepare('UPDATE usuarios SET last_login = ? WHERE id = ?').run(new Date().toISOString(), user.id);
+
+        req.session.userId = user.id;
+        req.session.negocioId = user.negocio_id;
+        req.session.rol = user.rol;
+        req.session.nombre = user.nombre;
+        req.session.email = user.email;
+
+        license.recordTrialStart(user.negocio_id);
+
+        res.json({
+            success: true,
+            user: {
+                id: user.id,
+                nombre: user.nombre,
+                email: user.email,
+                rol: user.rol
+            },
+            negocioId: user.negocio_id
+        });
+    } catch (error) {
+        console.error('Error en login:', error);
+        res.status(500).json({ error: 'Error al iniciar sesión' });
+    }
+});
+
+router.post('/logout', (req, res) => {
+    req.session.destroy();
+    res.json({ success: true });
+});
+
+router.get('/session', (req, res) => {
+    if (!req.session.userId) {
+        return res.json({ authenticated: false });
+    }
+    
+    res.json({
+        authenticated: true,
+        user: {
+            id: req.session.userId,
+            nombre: req.session.nombre,
+            email: req.session.email,
+            rol: req.session.rol
+        },
+        negocioId: req.session.negocioId
+    });
+});
+
+module.exports = router;

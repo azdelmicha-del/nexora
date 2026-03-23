@@ -1,0 +1,786 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Nexora - Calendario</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .calendario-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+        }
+        
+        .calendario-nav {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+        
+        .calendario-nav h2 {
+            min-width: 200px;
+            text-align: center;
+        }
+        
+        .vista-toggle {
+            display: flex;
+            border: 1px solid var(--gray-300);
+            border-radius: 0.5rem;
+            overflow: hidden;
+        }
+        
+        .vista-btn {
+            padding: 0.5rem 1rem;
+            border: none;
+            background: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        
+        .vista-btn.active {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .calendario-grid {
+            display: grid;
+            background: white;
+            border-radius: 1rem;
+            overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        
+        .calendario-semana {
+            grid-template-columns: 80px repeat(7, 1fr);
+        }
+        
+        .calendario-dia {
+            grid-template-columns: 80px 1fr;
+        }
+        
+        .calendario-header-row {
+            display: contents;
+        }
+        
+        .hora-label {
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+            border-right: 1px solid var(--gray-200);
+            padding: 0.5rem;
+            font-size: 0.75rem;
+            color: var(--gray-500);
+            text-align: right;
+            min-height: 60px;
+        }
+        
+        .dia-header {
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-200);
+            border-right: 1px solid var(--gray-200);
+            padding: 0.75rem;
+            text-align: center;
+            font-weight: 600;
+        }
+        
+        .dia-header.hoy {
+            background: var(--primary);
+            color: white;
+        }
+        
+        .dia-header small {
+            display: block;
+            font-weight: normal;
+            font-size: 0.75rem;
+        }
+        
+        .celda-tiempo {
+            border-bottom: 1px solid var(--gray-100);
+            border-right: 1px solid var(--gray-200);
+            padding: 0;
+            min-height: 60px;
+            position: relative;
+        }
+        
+        .celda-tiempo.clickable {
+            cursor: pointer;
+        }
+        
+        .celda-tiempo.clickable:hover {
+            background: #f0f9ff;
+        }
+        
+        .celda-dia {
+            position: relative;
+            min-height: calc(60px * 14);
+        }
+        
+        .cita-bloque {
+            position: absolute;
+            left: 4px;
+            right: 4px;
+            padding: 0.25rem 0.5rem;
+            border-radius: 0.375rem;
+            font-size: 0.75rem;
+            overflow: hidden;
+            cursor: pointer;
+            z-index: 10;
+            transition: transform 0.1s;
+        }
+        
+        .cita-bloque:hover {
+            transform: scale(1.02);
+            z-index: 20;
+        }
+        
+        .cita-bloque.pendiente {
+            background: #fef3c7;
+            border-left: 3px solid var(--warning);
+        }
+        
+        .cita-bloque.confirmada {
+            background: #dbeafe;
+            border-left: 3px solid #3b82f6;
+        }
+        
+        .cita-bloque.en_proceso {
+            background: #ede9fe;
+            border-left: 3px solid #8b5cf6;
+        }
+        
+        .cita-bloque.finalizada {
+            background: #d1fae5;
+            border-left: 3px solid var(--secondary);
+        }
+        
+        .cita-bloque.cancelada {
+            background: #fee2e2;
+            border-left: 3px solid var(--danger);
+            opacity: 0.6;
+        }
+        
+        .cita-bloque strong {
+            display: block;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .calendario-header-row {
+            display: grid;
+            grid-template-columns: 80px repeat(7, 1fr);
+        }
+        
+        .celda-fecha {
+            background: var(--gray-100);
+            border: 1px solid var(--gray-200);
+            border-top: none;
+            padding: 0.5rem;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--gray-500);
+        }
+        
+        .leyenda-estados {
+            display: flex;
+            gap: 1rem;
+            margin-top: 1rem;
+            flex-wrap: wrap;
+        }
+        
+        .leyenda-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.75rem;
+        }
+        
+        .leyenda-color {
+            width: 12px;
+            height: 12px;
+            border-radius: 0.25rem;
+        }
+        
+        .hoy-badge {
+            background: white;
+            color: var(--primary);
+            font-size: 0.625rem;
+            padding: 0.125rem 0.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+            margin-top: 0.25rem;
+            display: inline-block;
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Nexora</h2>
+                <p>Panel de gestión</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard
+                </a>
+                <a href="/pos" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Facturar
+                </a>
+                <a href="/citas" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Citas
+                </a>
+                <a href="/calendario" class="nav-item active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Calendario
+                </a>
+                <a href="/reportes" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Reportes
+                </a>
+                <a href="/clientes" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Clientes
+                </a>
+                <a href="/servicios" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Servicios
+                </a>
+                <a href="/categorias" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                    Categorías
+                </a>
+                <a href="/usuarios" class="nav-item admin-only">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Usuarios
+                </a>
+                <a href="/configuracion" class="nav-item admin-only">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Configuración
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <span id="userRole">Rol</span>
+                    </div>
+                </div>
+                <button onclick="logout()" class="btn btn-secondary btn-sm mt-2" style="width: 100%;">Cerrar Sesión</button>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <div class="calendario-header">
+                <h1>Calendario</h1>
+                
+                <div class="calendario-nav">
+                    <button class="btn btn-secondary" onclick="navegarAnt()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    </button>
+                    <h2 id="tituloFecha">Enero 2024</h2>
+                    <button class="btn btn-secondary" onclick="navegarSig()">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
+                    </button>
+                    <button class="btn btn-secondary" onclick="irHoy()">Hoy</button>
+                </div>
+                
+                <div class="vista-toggle">
+                    <button class="vista-btn" onclick="cambiarVista('semana')" id="btnVistaSemana">Semana</button>
+                    <button class="vista-btn active" onclick="cambiarVista('dia')" id="btnVistaDia">Día</button>
+                </div>
+            </div>
+            
+            <div id="calendario" class="calendario-grid calendario-dia"></div>
+            
+            <div class="leyenda-estados">
+                <div class="leyenda-item">
+                    <div class="leyenda-color" style="background: #fef3c7; border-left: 3px solid var(--warning);"></div>
+                    Pendiente
+                </div>
+                <div class="leyenda-item">
+                    <div class="leyenda-color" style="background: #dbeafe; border-left: 3px solid #3b82f6;"></div>
+                    Confirmada
+                </div>
+                <div class="leyenda-item">
+                    <div class="leyenda-color" style="background: #ede9fe; border-left: 3px solid #8b5cf6;"></div>
+                    En proceso
+                </div>
+                <div class="leyenda-item">
+                    <div class="leyenda-color" style="background: #d1fae5; border-left: 3px solid var(--secondary);"></div>
+                    Finalizada
+                </div>
+                <div class="leyenda-item">
+                    <div class="leyenda-color" style="background: #fee2e2; border-left: 3px solid var(--danger);"></div>
+                    Cancelada
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="modal-overlay" id="modalDetalle">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Detalle de Cita</h3>
+                <button class="modal-close" onclick="closeDetalle()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="modal-body" id="detalleContent"></div>
+        </div>
+    </div>
+    
+    <div class="modal-overlay" id="modalNueva">
+        <div class="modal" style="max-width: 450px;">
+            <div class="modal-header">
+                <h3>Nueva Cita</h3>
+                <button class="modal-close" onclick="closeNueva()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="formNuevaCita">
+                <div class="modal-body">
+                    <p id="fechaYHoraSeleccionada" class="text-muted mb-3"></p>
+                    <input type="hidden" id="nuevaFecha">
+                    <input type="hidden" id="nuevaHora">
+                    
+                    <div class="form-group">
+                        <label>Cliente *</label>
+                        <select id="cliente_id" required style="width: 100%; padding: 0.75rem;">
+                            <option value="">Seleccionar cliente</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Servicio *</label>
+                        <select id="servicio_id" required style="width: 100%; padding: 0.75rem;" onchange="actualizarDuracion()">
+                            <option value="">Seleccionar servicio</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label>Notas</label>
+                        <textarea id="notas" rows="2" style="width: 100%;"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeNueva()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Agendar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="/js/api.js"></script>
+    <script src="/js/notifications.js"></script>
+    <script>
+        let fechaActual = new Date();
+        let vistaActual = 'dia';
+        let citas = [];
+        let clientes = [];
+        let servicios = [];
+        const horas = [];
+        for (let h = 6; h <= 21; h++) {
+            horas.push(`${h.toString().padStart(2, '0')}:00`);
+        }
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            
+            document.getElementById('userName').textContent = session.user.nombre;
+            document.getElementById('userRole').textContent = session.user.rol === 'admin' ? 'Administrador' : 'Empleado';
+            document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
+            
+            initNotifications();
+            
+            await Promise.all([cargarClientes(), cargarServicios()]);
+            await cargarCitas();
+            renderCalendario();
+            
+            document.getElementById('formNuevaCita').addEventListener('submit', guardarNuevaCita);
+        });
+        
+        async function cargarClientes() {
+            try {
+                clientes = await apiCall('/clients?estado=activo');
+                const select = document.getElementById('cliente_id');
+                select.innerHTML = '<option value="">Seleccionar cliente</option>' +
+                    clientes.map(c => `<option value="${c.id}">${escapeHtml(c.nombre)}</option>`).join('');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        async function cargarServicios() {
+            try {
+                servicios = await apiCall('/services?estado=activo');
+                const select = document.getElementById('servicio_id');
+                select.innerHTML = '<option value="">Seleccionar servicio</option>' +
+                    servicios.map(s => `<option value="${s.id}" data-duracion="${s.duracion}">${escapeHtml(s.nombre)} (${s.duracion} min)</option>`).join('');
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        async function cargarCitas() {
+            try {
+                const inicio = getInicioSemana(fechaActual);
+                const fin = new Date(inicio);
+                fin.setDate(fin.getDate() + 7);
+                
+                const params = [];
+                let query = 'SELECT id, cliente_id, servicio_id, fecha, hora_inicio, hora_fin, estado, notas FROM citas WHERE negocio_id = ?';
+                params.push(sessionStorage.getItem('negocioId'));
+                
+                query += ' AND fecha >= ? AND fecha < ?';
+                params.push(inicio.toISOString().split('T')[0], fin.toISOString().split('T')[0]);
+                
+                citas = [];
+                const citasRaw = await apiCall(`/appointments`);
+                citas = citasRaw.filter(c => {
+                    const citFecha = new Date(c.fecha);
+                    return citFecha >= inicio && citFecha < fin;
+                });
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function getInicioSemana(fecha) {
+            const d = new Date(fecha);
+            d.setHours(0, 0, 0, 0);
+            const dia = d.getDay();
+            d.setDate(d.getDate() - dia);
+            return d;
+        }
+        
+        function renderCalendario() {
+            const contenedor = document.getElementById('calendario');
+            const titulo = document.getElementById('tituloFecha');
+            
+            if (vistaActual === 'semana') {
+                renderSemana(contenedor, titulo);
+            } else {
+                renderDia(contenedor, titulo);
+            }
+        }
+        
+        function renderDia(contenedor, titulo) {
+            contenedor.className = 'calendario-grid calendario-dia';
+            
+            const opcionesFecha = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            titulo.textContent = fechaActual.toLocaleDateString('es-ES', opcionesFecha);
+            
+            let html = '<div class="calendario-header-row">';
+            html += '<div class="hora-label"></div>';
+            html += `<div class="dia-header ${esHoy(fechaActual) ? 'hoy' : ''}">
+                ${fechaActual.toLocaleDateString('es-ES', { weekday: 'short' })}
+                <strong>${fechaActual.getDate()}</strong>
+                ${esHoy(fechaActual) ? '<span class="hoy-badge">HOY</span>' : ''}
+            </div>`;
+            html += '</div>';
+            
+            horas.forEach(hora => {
+                html += '<div class="calendario-row" style="display: grid; grid-template-columns: 80px 1fr;">';
+                html += `<div class="hora-label">${hora}</div>`;
+                html += `<div class="celda-tiempo clickable" data-fecha="${fechaActual.toISOString().split('T')[0]}" data-hora="${hora}"></div>`;
+                html += '</div>';
+            });
+            
+            contenedor.innerHTML = html;
+            
+            renderCitasDia(contenedor);
+            agregarEventosCeldas();
+        }
+        
+        function renderSemana(contenedor, titulo) {
+            contenedor.className = 'calendario-grid calendario-semana';
+            
+            const inicio = getInicioSemana(fechaActual);
+            const fin = new Date(inicio);
+            fin.setDate(fin.getDate() + 7);
+            
+            titulo.textContent = `${inicio.toLocaleDateString('es-ES', { day: 'numeric', month: 'short' })} - ${fin.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' })}`;
+            
+            let html = '<div class="calendario-header-row">';
+            html += '<div class="hora-label"></div>';
+            
+            for (let i = 0; i < 7; i++) {
+                const d = new Date(inicio);
+                d.setDate(d.getDate() + i);
+                html += `<div class="dia-header ${esHoy(d) ? 'hoy' : ''}">
+                    ${d.toLocaleDateString('es-ES', { weekday: 'short' })}
+                    <strong>${d.getDate()}</strong>
+                    ${esHoy(d) ? '<span class="hoy-badge">HOY</span>' : ''}
+                </div>`;
+            }
+            html += '</div>';
+            
+            horas.forEach(hora => {
+                html += '<div class="calendario-row" style="display: grid; grid-template-columns: 80px repeat(7, 1fr);">';
+                html += `<div class="hora-label">${hora}</div>`;
+                
+                for (let i = 0; i < 7; i++) {
+                    const d = new Date(inicio);
+                    d.setDate(d.getDate() + i);
+                    html += `<div class="celda-tiempo clickable" data-fecha="${d.toISOString().split('T')[0]}" data-hora="${hora}"></div>`;
+                }
+                html += '</div>';
+            });
+            
+            contenedor.innerHTML = html;
+            
+            renderCitasSemana(contenedor);
+            agregarEventosCeldas();
+        }
+        
+        function renderCitasDia(contenedor) {
+            const fechaStr = fechaActual.toISOString().split('T')[0];
+            const citasDelDia = citas.filter(c => c.fecha === fechaStr);
+            
+            contenedor.querySelectorAll('.celda-tiempo').forEach(celda => {
+                const hora = celda.dataset.hora;
+                const horaNum = parseInt(hora.split(':')[0]);
+                
+                citasDelDia.filter(c => {
+                    const citaHora = parseInt(c.hora_inicio.split(':')[0]);
+                    return citaHora === horaNum;
+                }).forEach(cita => {
+                    celda.appendChild(crearBloqueCita(cita));
+                });
+            });
+        }
+        
+        function renderCitasSemana(contenedor) {
+            const inicio = getInicioSemana(fechaActual);
+            
+            contenedor.querySelectorAll('.celda-tiempo').forEach(celda => {
+                const fechaStr = celda.dataset.fecha;
+                const hora = celda.dataset.hora;
+                const horaNum = parseInt(hora.split(':')[0]);
+                
+                const citasDelDia = citas.filter(c => {
+                    if (c.fecha !== fechaStr) return false;
+                    const citaHora = parseInt(c.hora_inicio.split(':')[0]);
+                    return citaHora === horaNum;
+                });
+                
+                citasDelDia.forEach(cita => {
+                    celda.appendChild(crearBloqueCita(cita));
+                });
+            });
+        }
+        
+        function crearBloqueCita(cita) {
+            const div = document.createElement('div');
+            div.className = `cita-bloque ${cita.estado}`;
+            div.onclick = (e) => {
+                e.stopPropagation();
+                verDetalle(cita.id);
+            };
+            
+            const cliente = clientes.find(c => c.id === cita.cliente_id);
+            const servicio = servicios.find(s => s.id === cita.servicio_id);
+            
+            div.innerHTML = `
+                <strong>${escapeHtml(cliente?.nombre || 'Cliente')}</strong>
+                <span>${escapeHtml(servicio?.nombre || 'Servicio')}</span>
+            `;
+            
+            return div;
+        }
+        
+        function agregarEventosCeldas() {
+            document.querySelectorAll('.celda-tiempo.clickable').forEach(celda => {
+                celda.onclick = () => {
+                    abrirNueva(celda.dataset.fecha, celda.dataset.hora);
+                };
+            });
+        }
+        
+        function esHoy(fecha) {
+            const hoy = new Date();
+            return fecha.toDateString() === hoy.toDateString();
+        }
+        
+        function navegarAnt() {
+            if (vistaActual === 'semana') {
+                fechaActual.setDate(fechaActual.getDate() - 7);
+            } else {
+                fechaActual.setDate(fechaActual.getDate() - 1);
+            }
+            cargarCitas().then(renderCalendario);
+        }
+        
+        function navegarSig() {
+            if (vistaActual === 'semana') {
+                fechaActual.setDate(fechaActual.getDate() + 7);
+            } else {
+                fechaActual.setDate(fechaActual.getDate() + 1);
+            }
+            cargarCitas().then(renderCalendario);
+        }
+        
+        function irHoy() {
+            fechaActual = new Date();
+            cargarCitas().then(renderCalendario);
+        }
+        
+        function cambiarVista(vista) {
+            vistaActual = vista;
+            document.getElementById('btnVistaSemana').classList.toggle('active', vista === 'semana');
+            document.getElementById('btnVistaDia').classList.toggle('active', vista === 'dia');
+            renderCalendario();
+        }
+        
+        function abrirNueva(fecha, hora) {
+            document.getElementById('nuevaFecha').value = fecha;
+            document.getElementById('nuevaHora').value = hora;
+            
+            const fechaDate = new Date(fecha);
+            const fechaFormateada = fechaDate.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+            document.getElementById('fechaYHoraSeleccionada').textContent = `${fechaFormateada} - ${hora}`;
+            
+            document.getElementById('cliente_id').value = '';
+            document.getElementById('servicio_id').value = '';
+            document.getElementById('notas').value = '';
+            
+            document.getElementById('modalNueva').classList.add('active');
+        }
+        
+        function closeNueva() {
+            document.getElementById('modalNueva').classList.remove('active');
+        }
+        
+        async function guardarNuevaCita(e) {
+            e.preventDefault();
+            
+            const data = {
+                cliente_id: document.getElementById('cliente_id').value,
+                servicio_id: document.getElementById('servicio_id').value,
+                fecha: document.getElementById('nuevaFecha').value,
+                hora: document.getElementById('nuevaHora').value,
+                notas: document.getElementById('notas').value
+            };
+            
+            try {
+                await apiCall('/appointments', {
+                    method: 'POST',
+                    body: JSON.stringify(data)
+                });
+                
+                closeNueva();
+                await cargarCitas();
+                renderCalendario();
+            } catch (error) {
+                showAlert(error.message);
+            }
+        }
+        
+        async function verDetalle(citaId) {
+            try {
+                const cita = await apiCall(`/appointments/${citaId}`);
+                const cliente = clientes.find(c => c.id === cita.cliente_id);
+                const servicio = servicios.find(s => s.id === cita.servicio_id);
+                
+                document.getElementById('detalleContent').innerHTML = `
+                    <div style="margin-bottom: 1rem;">
+                        <strong>Cliente:</strong> ${escapeHtml(cliente?.nombre || '-')}<br>
+                        <strong>Servicio:</strong> ${escapeHtml(servicio?.nombre || '-')}<br>
+                        <strong>Fecha:</strong> ${formatDate(cita.fecha)}<br>
+                        <strong>Hora:</strong> ${cita.hora_inicio} - ${cita.hora_fin}<br>
+                        <strong>Estado:</strong> <span class="badge badge-${getEstadoColor(cita.estado)}">${cita.estado}</span>
+                        ${cita.notas ? `<br><strong>Notas:</strong> ${escapeHtml(cita.notas)}` : ''}
+                    </div>
+                    <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
+                        <button class="btn btn-secondary btn-sm" onclick="cambiarEstado(${citaId}, 'confirmada')">Confirmar</button>
+                        <button class="btn btn-success btn-sm" onclick="cambiarEstado(${citaId}, 'finalizada')">Finalizar</button>
+                        <button class="btn btn-danger btn-sm" onclick="cambiarEstado(${citaId}, 'cancelada')">Cancelar</button>
+                    </div>
+                `;
+                
+                document.getElementById('modalDetalle').classList.add('active');
+            } catch (error) {
+                showAlert(error.message);
+            }
+        }
+        
+        async function cambiarEstado(citaId, nuevoEstado) {
+            try {
+                await apiCall(`/appointments/${citaId}`, {
+                    method: 'PUT',
+                    body: JSON.stringify({ estado: nuevoEstado })
+                });
+                
+                closeDetalle();
+                await cargarCitas();
+                renderCalendario();
+            } catch (error) {
+                showAlert(error.message);
+            }
+        }
+        
+        function closeDetalle() {
+            document.getElementById('modalDetalle').classList.remove('active');
+        }
+        
+        function getEstadoColor(estado) {
+            const colors = {
+                pendiente: 'warning',
+                confirmada: 'info',
+                en_proceso: 'secondary',
+                finalizada: 'success',
+                cancelada: 'danger'
+            };
+            return colors[estado] || 'secondary';
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('es-ES', { day: 'numeric', month: 'short', year: 'numeric' });
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        async function logout() {
+            await apiCall('/auth/logout', { method: 'POST' });
+            clearSessionStorage();
+            window.location.href = '/';
+        }
+        
+        async function initPage() {
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            const sessionData = getSessionStorage();
+            document.getElementById('userName').textContent = sessionData.userName;
+            document.getElementById('userRole').textContent = sessionData.userRol === 'admin' ? 'Administrador' : 'Empleado';
+            document.getElementById('userAvatar').textContent = sessionData.userName.charAt(0).toUpperCase();
+            if (sessionData.userRol !== 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            }
+        }
+        initPage();
+    </script>
+</body>
+</html>

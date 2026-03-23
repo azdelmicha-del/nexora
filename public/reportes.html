@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Nexora - Reportes</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .report-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1.5rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        
+        .filtros-fecha {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .filtros-fecha input {
+            padding: 0.5rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 0.5rem;
+        }
+        
+        .resumen-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+        
+        .resumen-card {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            text-align: center;
+        }
+        
+        .resumen-card .valor {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+        
+        .resumen-card .etiqueta {
+            color: var(--gray-500);
+            font-size: 0.875rem;
+        }
+        
+        .resumen-card.success .valor { color: var(--secondary); }
+        .resumen-card.warning .valor { color: var(--warning); }
+        .resumen-card.danger .valor { color: var(--danger); }
+        
+        .seccion-reporte {
+            background: white;
+            border-radius: 1rem;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .seccion-reporte h3 {
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--gray-200);
+        }
+        
+        .tabla-simple {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .tabla-simple th {
+            text-align: left;
+            padding: 0.75rem;
+            background: var(--gray-50);
+            font-weight: 600;
+            font-size: 0.75rem;
+            text-transform: uppercase;
+        }
+        
+        .tabla-simple td {
+            padding: 0.75rem;
+            border-bottom: 1px solid var(--gray-100);
+        }
+        
+        .tabla-simple tr:hover {
+            background: var(--gray-50);
+        }
+        
+        .grafico-barras {
+            display: flex;
+            align-items: flex-end;
+            gap: 0.5rem;
+            height: 200px;
+            padding: 1rem 0;
+        }
+        
+        .barra {
+            flex: 1;
+            background: var(--primary);
+            border-radius: 0.25rem 0.25rem 0 0;
+            min-width: 20px;
+            position: relative;
+            transition: height 0.3s;
+        }
+        
+        .barra-label {
+            position: absolute;
+            bottom: -1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.625rem;
+            color: var(--gray-500);
+            white-space: nowrap;
+        }
+        
+        .barra-valor {
+            position: absolute;
+            top: -1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.625rem;
+            font-weight: 600;
+        }
+        
+        .metodo-card {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem;
+            background: var(--gray-50);
+            border-radius: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .metodo-nombre {
+            font-weight: 600;
+        }
+        
+        .metodo-detalles {
+            text-align: right;
+        }
+        
+        .metodo-detalles .monto {
+            font-weight: 700;
+            color: var(--secondary);
+        }
+        
+        .grid-2-col {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        
+        .filtros-rapidos {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        
+        .filtro-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 9999px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+        }
+        
+        .filtro-btn.active {
+            background: var(--primary);
+            color: white;
+            border-color: var(--primary);
+        }
+        
+        .cuadre-resumen {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .cuadre-resumen h2 {
+            margin-bottom: 1.5rem;
+            font-size: 1.25rem;
+        }
+        
+        .cuadre-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 1rem;
+        }
+        
+        .cuadre-item {
+            background: rgba(255,255,255,0.2);
+            padding: 1rem;
+            border-radius: 0.5rem;
+            text-align: center;
+        }
+        
+        .cuadre-item .valor {
+            font-size: 1.5rem;
+            font-weight: 700;
+        }
+        
+        .cuadre-item .etiqueta {
+            font-size: 0.75rem;
+            opacity: 0.9;
+        }
+        
+        .no-data {
+            text-align: center;
+            padding: 2rem;
+            color: var(--gray-500);
+        }
+        
+        .no-data svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 1rem;
+            opacity: 0.5;
+        }
+        
+        @media print {
+            body * { visibility: hidden; }
+            #cuadreContent, #cuadreContent * { visibility: visible; }
+            #cuadreContent { position: absolute; left: 0; top: 0; width: 100%; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Nexora</h2>
+                <p>Panel de gestión</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard
+                </a>
+                <a href="/pos" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Facturar
+                </a>
+                <a href="/citas" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Citas
+                </a>
+                <a href="/reportes" class="nav-item active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Reportes
+                </a>
+                <a href="/clientes" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Clientes
+                </a>
+                <a href="/servicios" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Servicios
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <span id="userRole">Rol</span>
+                    </div>
+                </div>
+                <button onclick="logout()" class="btn btn-secondary btn-sm mt-2" style="width: 100%;">Cerrar Sesión</button>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <div class="report-header">
+                <h1>Reportes</h1>
+                <div class="filtros-fecha">
+                    <label>Desde:</label>
+                    <input type="date" id="fechaDesde">
+                    <label>Hasta:</label>
+                    <input type="date" id="fechaHasta">
+                    <button class="btn btn-primary" onclick="actualizarFechas()">Actualizar</button>
+                </div>
+            </div>
+            
+            <div class="tabs">
+                <button class="tab active" onclick="mostrarSeccion('ventas')">Ventas</button>
+                <button class="tab" onclick="mostrarSeccion('servicios')">Servicios</button>
+                <button class="tab" onclick="mostrarSeccion('clientes')">Clientes</button>
+                <button class="tab" onclick="mostrarSeccion('citas')">Citas</button>
+                <button class="tab" onclick="mostrarCuadre()" id="tabCuadre" style="display: none;">Cuadre de Caja</button>
+            </div>
+            
+            <div id="seccion-ventas">
+                <div class="filtros-rapidos">
+                    <button class="filtro-btn" id="btnHoy">Hoy</button>
+                    <button class="filtro-btn" id="btnSemana">Esta semana</button>
+                    <button class="filtro-btn" id="btnMes">Este mes</button>
+                    <button class="filtro-btn" id="btnPersonalizado">Personalizado</button>
+                </div>
+                
+                <div class="resumen-cards" id="resumenVentas"></div>
+                
+                <div class="grid-2-col">
+                    <div class="seccion-reporte">
+                        <h3>Ventas por Método de Pago</h3>
+                        <div id="ventasMetodo"></div>
+                    </div>
+                    
+                    <div class="seccion-reporte">
+                        <h3>Últimas Ventas</h3>
+                        <div id="ultimasVentas" style="max-height: 300px; overflow-y: auto;"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="seccion-servicios" style="display: none;">
+                <div class="resumen-cards" id="resumenServicios"></div>
+                
+                <div class="grid-2-col">
+                    <div class="seccion-reporte">
+                        <h3>Servicios más Vendidos</h3>
+                        <div id="topServicios"></div>
+                    </div>
+                    
+                    <div class="seccion-reporte">
+                        <h3>Ventas por Categoría</h3>
+                        <div id="porCategoria"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="seccion-clientes" style="display: none;">
+                <div class="resumen-cards" id="resumenClientes"></div>
+                
+                <div class="grid-2-col">
+                    <div class="seccion-reporte">
+                        <h3>Clientes más Frecuentes</h3>
+                        <div id="clientesFrecuentes"></div>
+                    </div>
+                    
+                    <div class="seccion-reporte">
+                        <h3>Últimos Registrados</h3>
+                        <div id="clientesRecientes"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="seccion-citas" style="display: none;">
+                <div class="resumen-cards" id="resumenCitas"></div>
+                
+                <div class="grid-2-col">
+                    <div class="seccion-reporte">
+                        <h3>Servicios más Agendados</h3>
+                        <div id="serviciosAgendados"></div>
+                    </div>
+                    
+                    <div class="seccion-reporte">
+                        <h3>Resumen de Estados</h3>
+                        <div id="estadosCitas"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <div id="seccion-cuadre" style="display: none;">
+                <div class="header-actions">
+                    <button class="btn btn-secondary" onclick="imprimirCuadre()">🖨️ Imprimir Cuadre</button>
+                    <button class="btn btn-secondary" onclick="imprimirDetalleVentas()">📄 Imprimir Detalle Ventas</button>
+                    <button class="btn btn-secondary" onclick="verHistorialCuadre()">📋 Historial</button>
+                    <button class="btn btn-success" id="btnCerrarCaja" onclick="cerrarCaja()">🔒 Cerrar Caja</button>
+                    <button class="btn btn-warning" id="btnAbrirCaja" style="display: none;" onclick="abrirCaja()">🔓 Abrir Caja</button>
+                </div>
+                <div class="cuadre-resumen" id="cuadreContent"></div>
+                <div class="seccion-reporte">
+                    <h3>Detalle de Ventas del Día</h3>
+                    <div id="cuadreVentas"></div>
+                </div>
+            </div>
+            
+            <div id="seccion-historial-cuadre" style="display: none;">
+                <div style="display: flex; gap: 0.5rem; margin-bottom: 1rem;">
+                    <button class="btn btn-secondary" onclick="mostrarCuadre()">← Volver al Cuadre</button>
+                </div>
+                <div class="seccion-reporte">
+                    <h3>📋 Historial de Cajas Cerradas (Últimos 3 meses)</h3>
+                    <div id="historialCuadre"></div>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="modal-overlay" id="modalCerrarCaja">
+        <div class="modal" style="max-width: 400px;">
+            <div class="modal-header">
+                <h3>Cerrar Caja</h3>
+                <button class="modal-close" onclick="cerrarModalCerrarCaja()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro que desea cerrar la caja del día?</p>
+                <p class="text-muted">Esta acción guardará un registro histórico y no podrá deshacerse.</p>
+                <div class="form-group">
+                    <label>Notas (opcional)</label>
+                    <textarea id="notasCierre" rows="2" placeholder="Observaciones..."></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModalCerrarCaja()">Cancelar</button>
+                <button type="button" class="btn btn-success" onclick="confirmarCerrarCaja()">Cerrar Caja</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/api.js"></script>
+    <script>
+        let datosReportes = {};
+        let filtroActual = 'mes';
+        let isAdmin = false;
+        let datosCuadreActual = null;
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            
+            isAdmin = session.user.rol === 'admin';
+            if (isAdmin) {
+                document.getElementById('tabCuadre').style.display = '';
+            }
+            
+            document.getElementById('userName').textContent = session.user.nombre;
+            document.getElementById('userRole').textContent = session.user.rol === 'admin' ? 'Administrador' : 'Empleado';
+            document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
+            
+            document.getElementById('btnHoy').addEventListener('click', () => setFiltro('hoy'));
+            document.getElementById('btnSemana').addEventListener('click', () => setFiltro('semana'));
+            document.getElementById('btnMes').addEventListener('click', () => setFiltro('mes'));
+            document.getElementById('btnPersonalizado').addEventListener('click', () => setFiltro('personalizado'));
+            
+            
+            setFiltro('mes');
+        });
+        
+        function setFiltro(tipo) {
+            filtroActual = tipo;
+            const hoy = new Date();
+            let desde, hasta;
+            
+            switch(tipo) {
+                case 'hoy':
+                    desde = hasta = hoy.toISOString().split('T')[0];
+                    break;
+                case 'semana':
+                    var diaSemana = hoy.getDay();
+                    desde = new Date(hoy);
+                    desde.setDate(hoy.getDate() - diaSemana);
+                    hasta = new Date(hoy);
+                    desde = desde.toISOString().split('T')[0];
+                    hasta = hasta.toISOString().split('T')[0];
+                    break;
+                case 'mes':
+                    desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                    hasta = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+                    desde = desde.toISOString().split('T')[0];
+                    hasta = hasta.toISOString().split('T')[0];
+                    break;
+                case 'personalizado':
+                    return;
+            }
+            
+            document.getElementById('fechaDesde').value = desde;
+            document.getElementById('fechaHasta').value = hasta;
+            filtroActual = 'personalizado';
+            cargarReportes();
+        }
+        
+        function actualizarFechas() {
+            filtroActual = 'personalizado';
+            cargarReportes();
+        }
+        
+        async function cargarReportes() {
+            const desde = document.getElementById('fechaDesde').value;
+            const hasta = document.getElementById('fechaHasta').value;
+            const params = desde || hasta ? '?desde=' + (desde || '') + '&hasta=' + (hasta || '') : '';
+            
+            try {
+                const ventas = await apiCall('/reports/ventas' + params);
+                const servicios = await apiCall('/reports/servicios' + params);
+                const clientes = await apiCall('/reports/clientes' + params);
+                const citas = await apiCall('/reports/citas' + params);
+                
+                datosReportes = { ventas: ventas, servicios: servicios, clientes: clientes, citas: citas };
+                
+                renderReporteVentas(ventas);
+                renderReporteServicios(servicios);
+                renderReporteClientes(clientes);
+                renderReporteCitas(citas);
+            } catch (error) {
+                console.error('Error cargando reportes:', error);
+            }
+        }
+        
+        function mostrarSeccion(seccion) {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            
+            document.querySelectorAll('[id^="seccion-"]').forEach(s => s.style.display = 'none');
+            
+            const targetSection = document.getElementById('seccion-' + seccion);
+            if (targetSection) {
+                targetSection.style.display = 'block';
+            }
+        }
+        
+        async function mostrarCuadre() {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('tabCuadre').classList.add('active');
+            
+            document.querySelectorAll('[id^="seccion-"]').forEach(s => s.style.display = 'none');
+            document.getElementById('seccion-cuadre').style.display = 'block';
+            
+            await cargarCuadre();
+        }
+        
+        async function cargarCuadre() {
+            try {
+                const cuadre = await apiCall('/reports/cuadre');
+                renderCuadre(cuadre);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function renderCuadre(data) {
+            datosCuadreActual = data;
+            const content = document.getElementById('cuadreContent');
+            const ventas = document.getElementById('cuadreVentas');
+            
+            document.getElementById('btnCerrarCaja').style.display = data.caja_cerrada ? 'none' : 'inline-block';
+            document.getElementById('btnAbrirCaja').style.display = data.caja_cerrada ? 'inline-block' : 'none';
+            
+            if (data.caja_cerrada) {
+                content.innerHTML = `
+                    <h2>📊 Cuadre de Caja - ${formatDateFull(data.fecha)}</h2>
+                    <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.75rem; padding: 2rem; text-align: center; margin-top: 1rem;">
+                        <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
+                        <h3 style="color: #92400e; margin-bottom: 0.5rem;">Caja Cerrada</h3>
+                        <p style="color: #92400e; margin-bottom: 1rem;">El cuadre está bloqueado. Las ventas están pausadas.</p>
+                        <p style="color: #78350f; font-size: 0.875rem;">Haga clic en "Abrir Caja" para continuar vendiendo.</p>
+                    </div>
+                    <div class="cuadre-grid" style="opacity: 0.3; pointer-events: none;">
+                        <div class="cuadre-item">
+                            <div class="valor">${formatCurrency(data.resumen.total)}</div>
+                            <div class="etiqueta">Total Vendido</div>
+                        </div>
+                        <div class="cuadre-item">
+                            <div class="valor">${data.resumen.cantidad}</div>
+                            <div class="etiqueta">Ventas</div>
+                        </div>
+                        <div class="cuadre-item">
+                            <div class="valor">${formatCurrency(data.resumen.efectivo)}</div>
+                            <div class="etiqueta">Efectivo</div>
+                        </div>
+                        <div class="cuadre-item">
+                            <div class="valor">${formatCurrency(data.resumen.transferencia)}</div>
+                            <div class="etiqueta">Transferencia</div>
+                        </div>
+                        <div class="cuadre-item">
+                            <div class="valor">${formatCurrency(data.resumen.tarjeta)}</div>
+                            <div class="etiqueta">Tarjeta</div>
+                        </div>
+                    </div>
+                `;
+                ventas.innerHTML = '<div class="no-data"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg><p>Panel bloqueado - Caja cerrada</p></div>';
+                return;
+            }
+            
+            const estadoCaja = '';
+            const fueraCuadreInfo = data.resumenFueraCuadre && data.resumenFueraCuadre.cantidad > 0
+                ? `<div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem; color: #92400e;">
+                       <strong>⚠️ Ventas fuera de cuadre:</strong> ${data.resumenFueraCuadre.cantidad} ventas por ${formatCurrency(data.resumenFueraCuadre.total)}
+                   </div>`
+                : '';
+            
+            content.innerHTML = `
+                <h2>📊 Cuadre de Caja - ${formatDateFull(data.fecha)}${estadoCaja}</h2>
+                <div class="cuadre-grid">
+                    <div class="cuadre-item">
+                        <div class="valor">${formatCurrency(data.resumen.total)}</div>
+                        <div class="etiqueta">Total Vendido</div>
+                    </div>
+                    <div class="cuadre-item">
+                        <div class="valor">${data.resumen.cantidad}</div>
+                        <div class="etiqueta">Ventas</div>
+                    </div>
+                    <div class="cuadre-item">
+                        <div class="valor">${formatCurrency(data.resumen.efectivo)}</div>
+                        <div class="etiqueta">Efectivo</div>
+                    </div>
+                    <div class="cuadre-item">
+                        <div class="valor">${formatCurrency(data.resumen.transferencia)}</div>
+                        <div class="etiqueta">Transferencia</div>
+                    </div>
+                    <div class="cuadre-item">
+                        <div class="valor">${formatCurrency(data.resumen.tarjeta)}</div>
+                        <div class="etiqueta">Tarjeta</div>
+                    </div>
+                </div>
+                ${fueraCuadreInfo}
+            `;
+            
+            if (data.ventas && data.ventas.length > 0) {
+                ventas.innerHTML = `
+                    <table class="tabla-simple">
+                        <thead>
+                            <tr>
+                                <th>Hora</th>
+                                <th>Cliente</th>
+                                <th>Descripción</th>
+                                <th>Método</th>
+                                <th>Total</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.ventas.map(v => `
+                                <tr style="${v.fuera_cuadre ? 'background: #fef3c7;' : ''}">
+                                    <td>${formatTime(v.fecha)}</td>
+                                    <td>${escapeHtml(v.cliente || 'Venta rápida')}${v.fuera_cuadre ? ' ⚠️' : ''}</td>
+                                    <td style="font-size: 0.8rem;">${escapeHtml(v.detalles)}</td>
+                                    <td>${v.metodo_pago}</td>
+                                    <td><strong>${formatCurrency(v.total)}</strong></td>
+                                    <td>${v.fuera_cuadre ? '<span style="color: #f59e0b; font-size: 0.75rem;">Fuera cuadre</span>' : '<span style="color: #10b981; font-size: 0.75rem;">Normal</span>'}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                ventas.innerHTML = '<div class="no-data"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><p>No hay ventas registradas hoy</p></div>';
+            }
+        }
+        
+        function renderReporteVentas(data) {
+            const container = document.getElementById('resumenVentas');
+            
+            if (data.caja_cerrada) {
+                container.innerHTML = `
+                    <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.75rem; padding: 1.5rem; text-align: center;">
+                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔒</div>
+                        <h3 style="color: #92400e; margin-bottom: 0.5rem;">Caja Cerrada</h3>
+                        <p style="color: #78350f;">Las ventas de hoy están pausadas. Este reporte muestra datos de días anteriores.</p>
+                    </div>
+                    <div class="resumen-card" style="opacity: 0.5;">
+                        <div class="valor">--</div>
+                        <div class="etiqueta">Total Ventas</div>
+                    </div>
+                    <div class="resumen-card success" style="opacity: 0.5;">
+                        <div class="valor">--</div>
+                        <div class="etiqueta">Monto Total</div>
+                    </div>
+                `;
+            } else if (!data || !data.resumen || data.resumen.total_ventas == null || data.resumen.total_ventas === 0) {
+                container.innerHTML = '<div class="no-data"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><p>No hay ventas en este período</p></div>';
+            } else {
+                container.innerHTML = `
+                    <div class="resumen-card">
+                        <div class="valor">${data.resumen.total_ventas}</div>
+                        <div class="etiqueta">Total Ventas</div>
+                    </div>
+                    <div class="resumen-card success">
+                        <div class="valor">${formatCurrency(data.resumen.monto_total)}</div>
+                        <div class="etiqueta">Monto Total</div>
+                    </div>
+                    <div class="resumen-card">
+                        <div class="valor">${formatCurrency(data.resumen.promedio_venta)}</div>
+                        <div class="etiqueta">Promedio por Venta</div>
+                    </div>
+                `;
+            }
+            
+            const metodos = document.getElementById('ventasMetodo');
+            if (data.caja_cerrada) {
+                metodos.innerHTML = '<p class="text-muted">Bloqueado - Caja cerrada</p>';
+            } else if (data && data.porMetodo && data.porMetodo.length > 0) {
+                metodos.innerHTML = data.porMetodo.map(m => `
+                    <div class="metodo-card" style="opacity: ${data.caja_cerrada ? '0.5' : '1'};">
+                        <span class="metodo-nombre">${m.metodo_pago}</span>
+                        <div class="metodo-detalles">
+                            <div>${m.cantidad} ventas</div>
+                            <div class="monto">${formatCurrency(m.monto)}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                metodos.innerHTML = '<p class="text-muted">Sin datos</p>';
+            }
+            
+            const ultimas = document.getElementById('ultimasVentas');
+            if (data.caja_cerrada) {
+                ultimas.innerHTML = '<p class="text-muted">Bloqueado - Caja cerrada</p>';
+            } else if (data && data.ultimasVentas && data.ultimasVentas.length > 0) {
+                ultimas.innerHTML = `
+                    <table class="tabla-simple">
+                        <thead>
+                            <tr>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>Método</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.ultimasVentas.map(v => `
+                                <tr>
+                                    <td>${formatDate(v.fecha)}</td>
+                                    <td>${escapeHtml(v.cliente || 'Sin cliente')}</td>
+                                    <td>${v.metodo_pago}</td>
+                                    <td><strong>${formatCurrency(v.total)}</strong></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                ultimas.innerHTML = '<p class="text-muted">Sin ventas en este período</p>';
+            }
+        }
+        
+        function renderReporteServicios(data) {
+            const container = document.getElementById('resumenServicios');
+            
+            if (!data || !data.totalServicios || data.totalServicios.servicios_vendidos == null || data.totalServicios.servicios_vendidos === 0) {
+                container.innerHTML = '<div class="no-data"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><p>No hay servicios vendidos en este período</p></div>';
+            } else {
+                container.innerHTML = `
+                    <div class="resumen-card">
+                        <div class="valor">${data.totalServicios.servicios_vendidos}</div>
+                        <div class="etiqueta">Servicios Vendidos</div>
+                    </div>
+                    <div class="resumen-card success">
+                        <div class="valor">${formatCurrency(data.totalServicios.ingreso_total)}</div>
+                        <div class="etiqueta">Ingreso Total</div>
+                    </div>
+                `;
+            }
+            
+            const top = document.getElementById('topServicios');
+            if (data && data.topServicios && data.topServicios.length > 0) {
+                top.innerHTML = `
+                    <table class="tabla-simple">
+                        <thead>
+                            <tr>
+                                <th>Servicio</th>
+                                <th>Veces</th>
+                                <th>Ingreso</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.topServicios.map(s => `
+                                <tr>
+                                    <td>${escapeHtml(s.nombre)}</td>
+                                    <td>${s.veces_vendido}</td>
+                                    <td><strong>${formatCurrency(s.ingreso_total)}</strong></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                top.innerHTML = '<p class="text-muted">Sin datos</p>';
+            }
+            
+            const cat = document.getElementById('porCategoria');
+            if (data && data.porCategoria && data.porCategoria.length > 0) {
+                cat.innerHTML = data.porCategoria.map(c => `
+                    <div class="metodo-card">
+                        <span class="metodo-nombre">${c.categoria}</span>
+                        <div class="metodo-detalles">
+                            <div>${c.veces_vendido} ventas</div>
+                            <div class="monto">${formatCurrency(c.ingreso_total)}</div>
+                        </div>
+                    </div>
+                `).join('');
+            } else {
+                cat.innerHTML = '<p class="text-muted">Sin datos</p>';
+            }
+        }
+        
+        function renderReporteClientes(data) {
+            const container = document.getElementById('resumenClientes');
+            
+            if (!data || !data.resumen) {
+                container.innerHTML = '<div class="no-data"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><p>No hay datos de clientes</p></div>';
+            } else {
+                container.innerHTML = `
+                    <div class="resumen-card">
+                        <div class="valor">${data.resumen.total_clientes || 0}</div>
+                        <div class="etiqueta">Total Clientes</div>
+                    </div>
+                    <div class="resumen-card success">
+                        <div class="valor">${data.resumen.nuevos_mes || 0}</div>
+                        <div class="etiqueta">Nuevos (30 días)</div>
+                    </div>
+                    <div class="resumen-card">
+                        <div class="valor">${data.resumen.con_compras || 0}</div>
+                        <div class="etiqueta">Con Compras</div>
+                    </div>
+                `;
+            }
+            
+            const frecuentes = document.getElementById('clientesFrecuentes');
+            if (data && data.masFrecuentes && data.masFrecuentes.length > 0) {
+                frecuentes.innerHTML = `
+                    <table class="tabla-simple">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Compras</th>
+                                <th>Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.masFrecuentes.map(c => `
+                                <tr>
+                                    <td>
+                                        ${escapeHtml(c.nombre)}
+                                        <br><small class="text-muted">${c.telefono || ''}</small>
+                                    </td>
+                                    <td>${c.total_compras}</td>
+                                    <td><strong>${formatCurrency(c.total_gastado)}</strong></td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                frecuentes.innerHTML = '<p class="text-muted">Sin clientes frecuentes</p>';
+            }
+            
+            const recientes = document.getElementById('clientesRecientes');
+            if (data && data.ultimosRegistrados && data.ultimosRegistrados.length > 0) {
+                recientes.innerHTML = `
+                    <table class="tabla-simple">
+                        <thead>
+                            <tr>
+                                <th>Cliente</th>
+                                <th>Fecha</th>
+                                <th>Compras</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${data.ultimosRegistrados.map(c => `
+                                <tr>
+                                    <td>${escapeHtml(c.nombre)}</td>
+                                    <td>${formatDate(c.fecha_registro)}</td>
+                                    <td>${c.total_compras}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                `;
+            } else {
+                recientes.innerHTML = '<p class="text-muted">Sin clientes registrados</p>';
+            }
+        }
+        
+        function renderReporteCitas(data) {
+            const container = document.getElementById('resumenCitas');
+            
+            if (!data || !data.resumen) {
+                container.innerHTML = '<div class="no-data"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><p>No hay citas en este período</p></div>';
+            } else {
+                container.innerHTML = `
+                    <div class="resumen-card">
+                        <div class="valor">${data.resumen.total_citas || 0}</div>
+                        <div class="etiqueta">Total Citas</div>
+                    </div>
+                    <div class="resumen-card success">
+                        <div class="valor">${data.resumen.finalizadas || 0}</div>
+                        <div class="etiqueta">Finalizadas</div>
+                    </div>
+                    <div class="resumen-card warning">
+                        <div class="valor">${data.resumen.pendientes || 0}</div>
+                        <div class="etiqueta">Pendientes</div>
+                    </div>
+                    <div class="resumen-card danger">
+                        <div class="valor">${data.resumen.canceladas || 0}</div>
+                        <div class="etiqueta">Canceladas</div>
+                    </div>
+                `;
+            }
+            
+            const agendados = document.getElementById('serviciosAgendados');
+            if (data && data.masSolicitados && data.masSolicitados.length > 0) {
+                agendados.innerHTML = data.masSolicitados.map(s => `
+                    <div class="metodo-card">
+                        <span class="metodo-nombre">${escapeHtml(s.nombre)}</span>
+                        <span class="metodo-detalles"><strong>${s.cantidad}</strong></span>
+                    </div>
+                `).join('');
+            } else {
+                agendados.innerHTML = '<p class="text-muted">Sin datos</p>';
+            }
+            
+            const estados = document.getElementById('estadosCitas');
+            const total = (data && data.resumen && data.resumen.total_citas) || 1;
+            const finalizadas = (data && data.resumen && data.resumen.finalizadas) || 0;
+            const pendientes = (data && data.resumen && data.resumen.pendientes) || 0;
+            const canceladas = (data && data.resumen && data.resumen.canceladas) || 0;
+            
+            estados.innerHTML = `
+                <div class="metodo-card">
+                    <span class="metodo-nombre">Finalizadas</span>
+                    <span class="metodo-detalles"><strong class="text-success">${finalizadas}</strong> (${Math.round(finalizadas / total * 100)}%)</span>
+                </div>
+                <div class="metodo-card">
+                    <span class="metodo-nombre">Pendientes/Confirmadas</span>
+                    <span class="metodo-detalles"><strong class="text-warning">${pendientes}</strong> (${Math.round(pendientes / total * 100)}%)</span>
+                </div>
+                <div class="metodo-card">
+                    <span class="metodo-nombre">Canceladas</span>
+                    <span class="metodo-detalles"><strong class="text-danger">${canceladas}</strong> (${Math.round(canceladas / total * 100)}%)</span>
+                </div>
+            `;
+        }
+        
+        function formatCurrency(amount) {
+            return '$' + parseFloat(amount || 0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
+        }
+        
+        function formatDateFull(dateStr) {
+            if (!dateStr) return '';
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'long', year: 'numeric' });
+        }
+        
+        function formatTime(datetimeStr) {
+            if (!datetimeStr) return '';
+            const date = new Date(datetimeStr);
+            return date.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        async function logout() {
+            await apiCall('/auth/logout', { method: 'POST' });
+            clearSessionStorage();
+            window.location.href = '/';
+        }
+        
+        function imprimirCuadre() {
+            if (!datosCuadreActual) return;
+            
+            const printContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Cuadre de Caja - 80mm</title>
+                    <style>
+                        @page { margin: 0; size: 80mm auto; }
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { 
+                            font-family: 'Courier New', monospace; 
+                            font-size: 12px; 
+                            width: 80mm; 
+                            padding: 5px;
+                        }
+                        .centrado { text-align: center; }
+                        .negrita { font-weight: bold; }
+                        .linea { border-top: 1px dashed #000; margin: 5px 0; }
+                        .espacio { margin: 3px 0; }
+                        .total { font-size: 14px; }
+                    </style>
+                </head>
+                <body>
+                    <div class="centrado">
+                        <p class="negrita">CUADRE DE CAJA</p>
+                        <p>${formatDateFull(datosCuadreActual.fecha)}</p>
+                    </div>
+                    <div class="linea"></div>
+                    
+                    <div class="espacio">
+                        <p><span class="negrita">Total Vendido:</span> ${formatCurrency(datosCuadreActual.resumen.total)}</p>
+                        <p>Cantidad Ventas: ${datosCuadreActual.resumen.cantidad}</p>
+                    </div>
+                    <div class="linea"></div>
+                    
+                    <div class="espacio">
+                        <p><span class="negrita">Por Método de Pago:</span></p>
+                        <p>Efectivo: ${formatCurrency(datosCuadreActual.resumen.efectivo)}</p>
+                        <p>Transferencia: ${formatCurrency(datosCuadreActual.resumen.transferencia)}</p>
+                        <p>Tarjeta: ${formatCurrency(datosCuadreActual.resumen.tarjeta)}</p>
+                    </div>
+                    <div class="linea"></div>
+                    
+                    <div class="centrado espacio">
+                        <p>Nexora - Sistema de Gestión</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            const win = window.open('', '', 'width=320,height=600');
+            win.document.write(printContent);
+            win.document.close();
+            win.focus();
+            win.print();
+        }
+        
+        function imprimirDetalleVentas() {
+            if (!datosCuadreActual || !datosCuadreActual.ventas || datosCuadreActual.ventas.length === 0) {
+                alert('No hay ventas para imprimir');
+                return;
+            }
+            
+            let ventasHtml = '';
+            datosCuadreActual.ventas.forEach(v => {
+                ventasHtml += `
+                    <div style="margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 5px;">
+                        <p><span class="negrita">${escapeHtml(v.cliente || 'Venta rápida')}</span></p>
+                        <p style="font-size: 10px;">${escapeHtml(v.detalles)}</p>
+                        <p>${v.metodo_pago} | <span class="negrita">${formatCurrency(v.total)}</span></p>
+                        <p style="font-size: 9px; color: #666;">${formatTime(v.fecha)}</p>
+                    </div>
+                `;
+            });
+            
+            const printContent = `
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Detalle de Ventas - 80mm</title>
+                    <style>
+                        @page { margin: 0; size: 80mm auto; }
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { 
+                            font-family: 'Courier New', monospace; 
+                            font-size: 11px; 
+                            width: 80mm; 
+                            padding: 5px;
+                        }
+                        .centrado { text-align: center; }
+                        .negrita { font-weight: bold; }
+                        .linea { border-top: 1px dashed #000; margin: 5px 0; }
+                        .espacio { margin: 3px 0; }
+                    </style>
+                </head>
+                <body>
+                    <div class="centrado">
+                        <p class="negrita">DETALLE DE VENTAS</p>
+                        <p>${formatDateFull(datosCuadreActual.fecha)}</p>
+                    </div>
+                    <div class="linea"></div>
+                    
+                    <div class="espacio">
+                        ${ventasHtml}
+                    </div>
+                    
+                    <div class="linea"></div>
+                    <div class="espacio">
+                        <p class="negrita">TOTAL: ${formatCurrency(datosCuadreActual.resumen.total)}</p>
+                        <p>Ventas: ${datosCuadreActual.resumen.cantidad}</p>
+                    </div>
+                    <div class="linea"></div>
+                    
+                    <div class="centrado espacio">
+                        <p>Nexora - Sistema de Gestión</p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            const win = window.open('', '', 'width=320,height=600');
+            win.document.write(printContent);
+            win.document.close();
+            win.focus();
+            win.print();
+        }
+        
+        function cerrarCaja() {
+            if (datosCuadreActual && datosCuadreActual.caja_cerrada) {
+                alert('La caja ya fue cerrada hoy');
+                return;
+            }
+            document.getElementById('notasCierre').value = '';
+            document.getElementById('modalCerrarCaja').classList.add('active');
+        }
+        
+        function cerrarModalCerrarCaja() {
+            document.getElementById('modalCerrarCaja').classList.remove('active');
+        }
+        
+        async function confirmarCerrarCaja() {
+            try {
+                const notas = document.getElementById('notasCierre').value;
+                await apiCall('/reports/cuadre/cerrar', {
+                    method: 'POST',
+                    body: JSON.stringify({ notas })
+                });
+                
+                cerrarModalCerrarCaja();
+                showToast('Caja cerrada correctamente', 'success');
+                await cargarCuadre();
+                
+                if (confirm('Caja cerrada correctamente. ¿Desea ver el historial de cierres?')) {
+                    mostrarHistorialCuadre();
+                }
+            } catch (error) {
+                alert(error.message || 'Error al cerrar caja');
+            }
+        }
+        
+        async function abrirCaja() {
+            if (!confirm('¿Está seguro que desea ABRIR la caja? Las ventas posteriores se registrarán normalmente.')) {
+                return;
+            }
+            try {
+                await apiCall('/reports/cuadre/abrir', { method: 'POST' });
+                alert('Caja abierta correctamente. Las ventas ahora se registrarán normalmente.');
+                await cargarCuadre();
+            } catch (error) {
+                alert(error.message || 'Error al abrir caja');
+            }
+        }
+        
+        async function mostrarHistorialCuadre() {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('[id^="seccion-"]').forEach(s => s.style.display = 'none');
+            document.getElementById('seccion-historial-cuadre').style.display = 'block';
+            
+            await cargarHistorialCuadre();
+        }
+        
+        async function cargarHistorialCuadre() {
+            try {
+                const historial = await apiCall('/reports/cuadre/historial');
+                renderHistorialCuadre(historial);
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+        
+        function renderHistorialCuadre(historial) {
+            const container = document.getElementById('historialCuadre');
+            
+            if (!historial || historial.length === 0) {
+                container.innerHTML = '<div class="no-data"><p>No hay cajas cerradas registradas</p></div>';
+                return;
+            }
+            
+            container.innerHTML = `
+                <table class="tabla-simple">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Ventas</th>
+                            <th>Total</th>
+                            <th>Efectivo</th>
+                            <th>Transferencia</th>
+                            <th>Tarjeta</th>
+                            <th>Usuario</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        ${historial.map(c => `
+                            <tr id="fila-${c.id}">
+                                <td>${formatDateFull(c.fecha)}</td>
+                                <td>${c.cantidad_ventas}</td>
+                                <td><strong>${formatCurrency(c.total)}</strong></td>
+                                <td>${formatCurrency(c.efectivo)}</td>
+                                <td>${formatCurrency(c.transferencia)}</td>
+                                <td>${formatCurrency(c.tarjeta)}</td>
+                                <td>${escapeHtml(c.usuario)}</td>
+                                <td>
+                                    <button class="btn btn-secondary btn-sm" onclick="verDetallesCierre('${c.fecha}', ${c.id})" title="Ver detalles">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
+                                    </button>
+                                    <button class="btn btn-danger btn-sm" onclick="eliminarCuadre(${c.id})" title="Eliminar">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
+                                    </button>
+                                </td>
+                            </tr>
+                            <tr id="detalles-${c.id}" style="display: none;">
+                                <td colspan="8" id="contenido-detalles-${c.id}">
+                                    <div style="padding: 1rem; background: #f9f9f9; border-radius: 0.5rem;">
+                                        <p>Cargando detalles...</p>
+                                    </div>
+                                </td>
+                            </tr>
+                        `).join('')}
+                    </tbody>
+                </table>
+            `;
+        }
+        
+        async function verDetallesCierre(fecha, id) {
+            const fila = document.getElementById(`detalles-${id}`);
+            const contenido = document.getElementById(`contenido-detalles-${id}`);
+            
+            if (fila.style.display === 'table-row') {
+                fila.style.display = 'none';
+                return;
+            }
+            
+            try {
+                const datos = await apiCall(`/reports/cuadre/detalles/${fecha}`);
+                
+                if (!datos.ventas || datos.ventas.length === 0) {
+                    contenido.innerHTML = '<p>No hay ventas registradas en este cierre</p>';
+                } else {
+                    let ventasHtml = '';
+                    datos.ventas.forEach(v => {
+                        ventasHtml += `
+                            <div style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #10b981;">
+                                <p style="margin: 0;"><strong>${escapeHtml(v.cliente || 'Venta rápida')}</strong> - ${formatTime(v.fecha)}</p>
+                                <p style="margin: 2px 0; font-size: 0.85rem; color: #666;">${escapeHtml(v.detalles)}</p>
+                                <p style="margin: 2px 0; font-size: 0.85rem;">
+                                    <span style="background: #e5e7eb; padding: 2px 6px; border-radius: 3px;">${v.metodo_pago}</span>
+                                    <strong style="color: #10b981;">${formatCurrency(v.total)}</strong>
+                                </p>
+                            </div>
+                        `;
+                    });
+                    
+                    contenido.innerHTML = `
+                        <div style="max-height: 300px; overflow-y: auto;">
+                            ${ventasHtml}
+                        </div>
+                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between;">
+                            <strong>Total:</strong>
+                            <strong style="color: #10b981;">${formatCurrency(datos.cierre.total)}</strong>
+                        </div>
+                        ${datos.cierre.notas ? `<div style="margin-top: 8px; font-size: 0.8rem; color: #666;"><em>Notas: ${escapeHtml(datos.cierre.notas)}</em></div>` : ''}
+                    `;
+                }
+                
+                fila.style.display = 'table-row';
+            } catch (error) {
+                contenido.innerHTML = '<p style="color: red;">Error al cargar detalles</p>';
+            }
+        }
+        
+        async function eliminarCuadre(id) {
+            if (!confirm('¿Está seguro que desea eliminar este cuadre? Esta acción no se puede deshacer.')) {
+                return;
+            }
+            
+            try {
+                await apiCall(`/reports/cuadre/${id}`, { method: 'DELETE' });
+                alert('Cuadre eliminado');
+                await cargarHistorialCuadre();
+            } catch (error) {
+                alert(error.message || 'Error al eliminar cuadre');
+            }
+        }
+    </script>
+</body>
+</html>

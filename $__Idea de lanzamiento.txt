@@ -1,0 +1,320 @@
+1. SALONES DE BELLEZA
+Cliente ideal:
+
+Salones de belleza
+
+Estilistas con equipo
+
+Negocios con citas constantes
+
+Problemas:
+
+Citas desordenadas por WhatsApp
+
+Clientes que no regresan
+
+No saben cuánto venden
+
+Cancelaciones sin control
+
+Solución (lo que vendes):
+
+Agenda automática de citas
+
+Historial de clientes
+
+Recordatorios y seguimiento
+
+Control de ventas diario
+
+Mensajes (hooks):
+
+“Deja de perder citas por WhatsApp”
+
+“Organiza tu salón en un solo sistema”
+
+“Haz que tus clientes vuelvan automáticamente”
+
+Oferta:
+
+Agenda + clientes + ventas
+
+Chatbot para reservas
+
+Automatización de citas
+
+Precio:
+
+RD$800 – RD$2,500 mensual
+
+Ads (contenido):
+
+Antes vs después (WhatsApp vs sistema)
+
+Mostrar agenda funcionando
+
+Mostrar registro de clientes
+
+
+
+
+
+
+2. BARBERÍAS
+Cliente ideal:
+
+Barberías con flujo diario
+
+Barberos independientes con agenda llena
+
+Problemas:
+
+Clientes esperando sin orden
+
+No hay control de citas
+
+Pierden clientes por no responder
+
+No registran ingresos
+
+Solución:
+
+Agenda organizada por horarios
+
+Registro de clientes frecuentes
+
+Control de ingresos diario
+
+Reservas automáticas
+
+Mensajes:
+
+“Organiza tu barbería como un negocio serio”
+
+“Llena tu agenda sin esfuerzo”
+
+“No pierdas clientes por desorden”
+
+Oferta:
+
+Agenda + POS + clientes
+
+Chatbot para reservas
+
+Control de servicios
+
+Precio:
+
+RD$800 – RD$2,000 mensual
+
+Ads:
+
+Video barbería llena vs organizada
+
+Mostrar reservas desde celular
+
+Mostrar ingresos del día
+
+
+
+
+
+3. SPA / UÑAS / ESTÉTICA
+Cliente ideal:
+
+Centros de uñas
+
+Spa
+
+Estéticas
+
+Problemas:
+
+Muchas citas al mismo tiempo
+
+Desorden en servicios
+
+No recuerdan clientes
+
+Cancelaciones frecuentes
+
+Solución:
+
+Agenda por servicios
+
+Historial completo de clientes
+
+Automatización de reservas
+
+Control de citas
+
+Mensajes:
+
+“Controla todas tus citas sin estrés”
+
+“Organiza tu spa en minutos”
+
+“Nunca olvides un cliente”
+
+Oferta:
+
+Agenda + servicios + clientes
+
+Chatbot integrado
+
+Automatización
+
+Precio:
+
+RD$1,000 – RD$3,000 mensual
+
+Ads:
+
+Agenda llena vs organizada
+
+Flujo de citas en pantalla
+
+Cliente reservando desde chat
+
+
+
+
+
+4. CLÍNICAS PEQUEÑAS (ESTÉTICAS / DENTALES BÁSICAS)
+Cliente ideal:
+
+Clínicas pequeñas
+
+Consultorios privados
+
+Problemas:
+
+Desorden en citas
+
+Falta de historial
+
+No controlan pacientes
+
+Procesos manuales
+
+Solución:
+
+Agenda profesional
+
+Historial de clientes/pacientes
+
+Control de servicios
+
+Organización total
+
+Mensajes:
+
+“Digitaliza tu clínica fácilmente”
+
+“Control total de tus pacientes”
+
+“Agenda profesional sin complicaciones”
+
+Oferta:
+
+Agenda + historial + reportes
+
+Automatización de citas
+
+Gestión completa
+
+Precio:
+
+RD$1,500 – RD$4,000 mensual
+
+Ads:
+
+Agenda profesional
+
+Gestión de pacientes
+
+Flujo de citas organizado
+
+
+
+
+
+5. NEGOCIOS QUE VENDEN POR WHATSAPP
+Cliente ideal:
+
+Cualquier negocio que usa WhatsApp para vender
+
+Emprendedores digitales
+
+Problemas:
+
+Chats desordenados
+
+Pierden clientes
+
+No dan seguimiento
+
+No convierten mensajes en ventas
+
+Solución:
+
+Chatbot automático
+
+Captura de clientes
+
+Conversión a citas/ventas
+
+Organización de conversaciones
+
+Mensajes:
+
+“Convierte mensajes en ventas automáticamente”
+
+“No pierdas más clientes en WhatsApp”
+
+“Automatiza tu negocio hoy”
+
+Oferta:
+
+Chatbot + CRM + agenda
+
+Automatización completa
+
+Bandeja organizada
+
+Precio:
+
+RD$1,000 – RD$3,000 mensual
+
+Ads:
+
+WhatsApp desordenado vs automatizado
+
+Respuesta automática
+
+Flujo cliente → cita
+
+
+
+
+
+6. ESTRUCTURA GENERAL DE VENTA (APLICA A TODOS)
+Canal:
+
+Facebook Ads
+
+Instagram Ads
+
+WhatsApp
+
+Embudo:
+
+Anuncio → WhatsApp → Demo → Pago
+
+CTA:
+
+“Escríbenos por WhatsApp”
+
+“Agenda tu demo”
+
+“Empieza hoy”

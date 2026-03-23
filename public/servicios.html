@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Nexora - Servicios</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Nexora</h2>
+                <p>Panel de gestión</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard
+                </a>
+                <a href="/pos" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Facturar
+                </a>
+                <a href="/citas" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Citas
+                </a>
+                <a href="/reportes" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Reportes
+                </a>
+                <a href="/servicios" class="nav-item active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Servicios
+                </a>
+                <a href="/categorias" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                    Categorías
+                </a>
+                <a href="/clientes" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Clientes
+                </a>
+                <a href="/usuarios" class="nav-item admin-only">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Usuarios
+                </a>
+                <a href="/configuracion" class="nav-item admin-only">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Configuración
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <span id="userRole">Rol</span>
+                    </div>
+                </div>
+                <button onclick="logout()" class="btn btn-secondary btn-sm mt-2" style="width: 100%;">Cerrar Sesión</button>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Gestión de Servicios</h1>
+                <button class="btn btn-primary" onclick="openModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Nuevo Servicio
+                </button>
+            </div>
+            
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Precio</th>
+                                <th>Duración</th>
+                                <th>Categoría</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="serviciosTable">
+                            <tr><td colspan="6"><div class="spinner"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nuevo Servicio</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="servicioForm">
+                <div class="modal-body">
+                    <input type="hidden" id="servicioId">
+                    <div class="form-group">
+                        <label for="nombre">Nombre del servicio</label>
+                        <input type="text" id="nombre" required placeholder="Ej: Corte de cabello">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="precio">Precio</label>
+                            <input type="number" id="precio" step="0.01" min="0" required placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="duracion">Duración</label>
+                            <select id="duracion" required>
+                                <option value="5">5 minutos</option>
+                                <option value="10">10 minutos</option>
+                                <option value="15">15 minutos</option>
+                                <option value="20">20 minutos</option>
+                                <option value="25">25 minutos</option>
+                                <option value="30" selected>30 minutos</option>
+                                <option value="35">35 minutos</option>
+                                <option value="40">40 minutos</option>
+                                <option value="45">45 minutos</option>
+                                <option value="50">50 minutos</option>
+                                <option value="55">55 minutos</option>
+                                <option value="60">1 hora</option>
+                                <option value="75">1 hora 15 minutos</option>
+                                <option value="90">1 hora 30 minutos</option>
+                                <option value="105">1 hora 45 minutos</option>
+                                <option value="120">2 horas</option>
+                                <option value="150">2 horas 30 minutos</option>
+                                <option value="180">3 horas</option>
+                                <option value="210">3 horas 30 minutos</option>
+                                <option value="240">4 horas</option>
+                                <option value="270">4 horas 30 minutos</option>
+                                <option value="300">5 horas</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="categoria_id">Categoría</label>
+                        <select id="categoria_id">
+                            <option value="">Sin categoría</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="descripcion">Descripción</label>
+                        <textarea id="descripcion" rows="3" placeholder="Descripción opcional del servicio"></textarea>
+                    </div>
+                    <div class="form-group" id="estadoGroup" style="display: none;">
+                        <label for="estado">Estado</label>
+                        <select id="estado">
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnGuardar">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script src="/js/api.js"></script>
+    <script>
+        let editingId = null;
+        let categorias = [];
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            const licenseOk = await requireLicense();
+            if (!licenseOk) return;
+            
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            
+            document.getElementById('userName').textContent = session.user.nombre;
+            document.getElementById('userRole').textContent = session.user.rol === 'admin' ? 'Administrador' : 'Empleado';
+            document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
+            
+            if (session.user.rol !== 'admin') {
+                document.querySelector('.page-header button').style.display = 'none';
+            }
+            
+            const status = await checkLicense();
+            if (status.type === 'trial' && status.daysRemaining > 0) {
+                showTrialBanner(status.daysRemaining);
+            }
+            
+            await loadCategorias();
+            await loadServicios();
+            
+            document.getElementById('servicioForm').addEventListener('submit', handleSubmit);
+        });
+        
+        function toTitleCase(str) {
+            return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
+        }
+        
+        async function loadCategorias() {
+            try {
+                categorias = await apiCall('/categories');
+                const select = document.getElementById('categoria_id');
+                select.innerHTML = '<option value="">Sin categoría</option>' + 
+                    categorias.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+            } catch (error) {
+                console.error('Error cargando categorías:', error);
+            }
+        }
+        
+        async function loadServicios() {
+            const tbody = document.getElementById('serviciosTable');
+            tbody.innerHTML = getSkeletonHTML('table', 5);
+            
+            try {
+                const servicios = await apiCall('/services');
+                
+                if (servicios.length === 0) {
+                    tbody.innerHTML = getEmptyStateHTML(
+                        '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>',
+                        'Sin servicios registrados',
+                        'Comienza agregando tu primer servicio para comenzar a vender.',
+                        'Agregar Servicio',
+                        'openModal()'
+                    ).replace('<div class="empty-state">', '<tr><td colspan="6"><div class="empty-state">').replace('</div>', '</div></td></tr>');
+                    return;
+                }
+                
+                tbody.innerHTML = servicios.map(s => `
+                    <tr class="fade-in">
+                        <td><strong>${escapeHtml(s.nombre)}</strong></td>
+                        <td>${formatCurrency(s.precio)}</td>
+                        <td>${formatDuracion(s.duracion)}</td>
+                        <td>${s.categoria || '<span class="text-muted">-</span>'}</td>
+                        <td><span class="badge badge-${s.estado === 'activo' ? 'success' : 'danger'}">${s.estado}</span></td>
+                        <td class="actions">
+                            ${sessionStorage.getItem('userRol') === 'admin' ? 
+                                `<button class="btn btn-secondary btn-sm" onclick="editServicio(${s.id})">Editar</button>
+                                 <button class="btn btn-danger btn-sm" onclick="deleteServicio(${s.id}, '${escapeHtml(s.nombre)}')">Eliminar</button>` : 
+                                ''}
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                tbody.innerHTML = getEmptyStateHTML(
+                    '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>',
+                    'Error al cargar servicios',
+                    'No se pudieron cargar los servicios. Intenta de nuevo.'
+                ).replace('<div class="empty-state">', '<tr><td colspan="6"><div class="empty-state">').replace('</div>', '</div></td></tr>');
+            }
+        }
+        
+        function openModal(id = null) {
+            editingId = id;
+            document.getElementById('modalTitle').textContent = id ? 'Editar Servicio' : 'Nuevo Servicio';
+            document.getElementById('estadoGroup').style.display = id ? 'block' : 'none';
+            document.getElementById('servicioForm').reset();
+            
+            if (id) {
+                loadServicio(id);
+            }
+            
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            editingId = null;
+        }
+        
+        function formatDuracion(minutos) {
+            if (minutos < 60) {
+                return `${minutos} min`;
+            } else {
+                const horas = Math.floor(minutos / 60);
+                const mins = minutos % 60;
+                if (mins === 0) {
+                    return `${horas} ${horas === 1 ? 'hora' : 'horas'}`;
+                }
+                return `${horas}h ${mins}m`;
+            }
+        }
+        
+        async function loadServicio(id) {
+            try {
+                const servicio = await apiCall(`/services/${id}`);
+                document.getElementById('servicioId').value = servicio.id;
+                document.getElementById('nombre').value = servicio.nombre;
+                document.getElementById('precio').value = servicio.precio;
+                document.getElementById('duracion').value = servicio.duracion;
+                document.getElementById('categoria_id').value = servicio.categoria_id || '';
+                document.getElementById('descripcion').value = servicio.descripcion || '';
+                document.getElementById('estado').value = servicio.estado;
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        async function editServicio(id) {
+            openModal(id);
+        }
+        
+        async function handleSubmit(e) {
+            e.preventDefault();
+            
+            const nombreInput = document.getElementById('nombre');
+            const precioInput = document.getElementById('precio');
+            const duracionInput = document.getElementById('duracion');
+            
+            let isValid = true;
+            if (!validateField(nombreInput, validators.required)) isValid = false;
+            if (!validateField(precioInput, validators.positiveNumber)) isValid = false;
+            if (!validateField(duracionInput, (v) => v && parseInt(v) > 0 ? true : 'Debe ser mayor a 0')) isValid = false;
+            
+            if (!isValid) return;
+            
+            const btn = document.getElementById('btnGuardar');
+            btn.classList.add('btn-loading');
+            btn.disabled = true;
+            
+            const data = {
+                nombre: toTitleCase(nombreInput.value.trim()),
+                precio: parseFloat(precioInput.value),
+                duracion: parseInt(duracionInput.value),
+                categoria_id: document.getElementById('categoria_id').value || null,
+                descripcion: document.getElementById('descripcion').value.trim() || null,
+                estado: document.getElementById('estado').value
+            };
+            
+            try {
+                if (editingId) {
+                    await apiCall(`/services/${editingId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('Servicio actualizado correctamente', 'success');
+                } else {
+                    await apiCall('/services', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('Servicio creado correctamente', 'success');
+                }
+                
+                closeModal();
+                await loadServicios();
+            } catch (error) {
+                showToast(error.message, 'error');
+            } finally {
+                btn.classList.remove('btn-loading');
+                btn.disabled = false;
+            }
+        }
+        
+        async function logout() {
+            await apiCall('/auth/logout', { method: 'POST' });
+            clearSessionStorage();
+            window.location.href = '/';
+        }
+        
+        async function deleteServicio(id, nombre) {
+            if (!confirm(`¿Está seguro que desea eliminar el servicio "${nombre}"?`)) return;
+            try {
+                await apiCall(`/services/${id}`, { method: 'DELETE' });
+                showToast('Servicio eliminado correctamente', 'success');
+                await loadServicios();
+            } catch (error) {
+                showToast(error.message || 'Error al eliminar servicio', 'error');
+            }
+        }
+        
+        async function initPage() {
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            const sessionData = getSessionStorage();
+            document.getElementById('userName').textContent = sessionData.userName;
+            document.getElementById('userRole').textContent = sessionData.userRol === 'admin' ? 'Administrador' : 'Empleado';
+            document.getElementById('userAvatar').textContent = sessionData.userName.charAt(0).toUpperCase();
+            if (sessionData.userRol !== 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            }
+        }
+        initPage();
+        
+        function formatCurrency(amount) {
+            return '$' + parseFloat(amount || 0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
+        }
+    </script>
+</body>
+</html>

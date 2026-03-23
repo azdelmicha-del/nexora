@@ -1,0 +1,469 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <title>Nexora - Clientes</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <h2>Nexora</h2>
+                <p>Panel de gestión</p>
+            </div>
+            
+            <nav class="sidebar-nav">
+                <a href="/dashboard" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
+                    Dashboard
+                </a>
+                <a href="/pos" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
+                    Facturar
+                </a>
+                <a href="/citas" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                    Citas
+                </a>
+                <a href="/reportes" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    Reportes
+                </a>
+                <a href="/servicios" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
+                    Servicios
+                </a>
+                <a href="/categorias" class="nav-item">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
+                    Categorías
+                </a>
+                <a href="/clientes" class="nav-item active">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                    Clientes
+                </a>
+                <a href="/usuarios" class="nav-item admin-only">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
+                    Usuarios
+                </a>
+                <a href="/configuracion" class="nav-item admin-only">
+                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+                    Configuración
+                </a>
+            </nav>
+            
+            <div class="sidebar-footer">
+                <div class="user-info">
+                    <div class="user-avatar" id="userAvatar">U</div>
+                    <div class="user-details">
+                        <h4 id="userName">Usuario</h4>
+                        <span id="userRole">Rol</span>
+                    </div>
+                </div>
+                <button onclick="logout()" class="btn btn-secondary btn-sm mt-2" style="width: 100%;">Cerrar Sesión</button>
+            </div>
+        </aside>
+        
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Gestión de Clientes</h1>
+                <button class="btn btn-primary" onclick="openModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Nuevo Cliente
+                </button>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body" style="display: flex; gap: 1rem; align-items: center;">
+                    <input type="text" id="buscarCliente" placeholder="Buscar por nombre, teléfono o email..." 
+                           style="flex: 1; padding: 0.75rem;" onkeyup="debouncedSearch()">
+                    <select id="filtroEstado" style="padding: 0.75rem;" onchange="loadClientes()">
+                        <option value="">Todos</option>
+                        <option value="activo">Activos</option>
+                        <option value="inactivo">Inactivos</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Nombre</th>
+                                <th>Teléfono</th>
+                                <th>Email</th>
+                                <th>Ventas</th>
+                                <th>Citas</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="clientesTable">
+                            <tr><td colspan="7"><div class="spinner"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nuevo Cliente</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="clienteForm">
+                <div class="modal-body">
+                    <input type="hidden" id="clienteId">
+                    <div class="form-group">
+                        <label for="nombre">Nombre *</label>
+                        <input type="text" id="nombre" required>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="telefono">Celular *</label>
+                            <input type="tel" id="telefono" placeholder="+1 (809) 555-1234" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="email">Email</label>
+                            <input type="email" id="email">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="notas">Notas</label>
+                        <textarea id="notas" rows="3" placeholder="Preferencias, condiciones, observaciones..."></textarea>
+                    </div>
+                    <div class="form-group" id="estadoGroup" style="display: none;">
+                        <label for="estado">Estado</label>
+                        <select id="estado">
+                            <option value="activo">Activo</option>
+                            <option value="inactivo">Inactivo</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="detalleOverlay">
+        <div class="modal" style="max-width: 600px;">
+            <div class="modal-header">
+                <h3>Detalle del Cliente</h3>
+                <button class="modal-close" onclick="closeDetalle()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="modal-body" id="detalleContent">
+                <p>Cargando...</p>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/api.js"></script>
+    <script>
+        let editingId = null;
+        let searchTimeout = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const licenseOk = await requireLicense();
+            if (!licenseOk) return;
+            
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            
+            document.getElementById('userName').textContent = session.user.nombre;
+            document.getElementById('userRole').textContent = session.user.rol === 'admin' ? 'Administrador' : 'Empleado';
+            document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
+            
+            const status = await checkLicense();
+            if (status.type === 'trial' && status.daysRemaining > 0) {
+                showTrialBanner(status.daysRemaining);
+            }
+            
+            await loadClientes();
+            
+            document.getElementById('clienteForm').addEventListener('submit', handleSubmit);
+        });
+
+        function debouncedSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(loadClientes, 300);
+        }
+        
+        function toTitleCase(str) {
+            return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
+        }
+        
+        async function loadClientes() {
+            const tbody = document.getElementById('clientesTable');
+            tbody.innerHTML = getSkeletonHTML('table', 5);
+            
+            try {
+                const buscar = document.getElementById('buscarCliente').value;
+                const estado = document.getElementById('filtroEstado').value;
+                
+                let url = '/clients?';
+                if (buscar) url += `buscar=${encodeURIComponent(buscar)}&`;
+                if (estado) url += `estado=${estado}`;
+                
+                const clientes = await apiCall(url);
+                
+                if (clientes.length === 0) {
+                    tbody.innerHTML = getEmptyStateHTML(
+                        '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>',
+                        'Sin clientes registrados',
+                        'Agrega clientes para llevar un mejor control de tu negocio.',
+                        'Agregar Cliente',
+                        'openModal()'
+                    ).replace('<div class="empty-state">', '<tr><td colspan="7"><div class="empty-state">').replace('</div>', '</div></td></tr>');
+                    return;
+                }
+                
+                tbody.innerHTML = clientes.map(c => `
+                    <tr class="fade-in">
+                        <td><strong>${escapeHtml(c.nombre)}</strong></td>
+                        <td>${escapeHtml(c.telefono || '<span class="text-muted">-</span>')}</td>
+                        <td>${c.email ? escapeHtml(c.email) : '<span class="text-muted"></span>'}</td>
+                        <td>${c.total_ventas || 0}</td>
+                        <td>${c.total_citas || 0}</td>
+                        <td><span class="badge badge-${c.estado === 'activo' ? 'success' : 'danger'}">${c.estado}</span></td>
+                        <td class="actions">
+                            <button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver</button>
+                            <button class="btn btn-secondary btn-sm" onclick="editCliente(${c.id})">Editar</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteCliente(${c.id}, '${escapeHtml(c.nombre)}')">Eliminar</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                tbody.innerHTML = getEmptyStateHTML(
+                    '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>',
+                    'Error al cargar clientes',
+                    'No se pudieron cargar los clientes. Intenta de nuevo.'
+                ).replace('<div class="empty-state">', '<tr><td colspan="7"><div class="empty-state">').replace('</div>', '</div></td></tr>');
+            }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        function openModal(id = null) {
+            editingId = id;
+            document.getElementById('modalTitle').textContent = id ? 'Editar Cliente' : 'Nuevo Cliente';
+            document.getElementById('estadoGroup').style.display = id ? 'block' : 'none';
+            document.getElementById('clienteForm').reset();
+            
+            if (id) {
+                loadCliente(id);
+            }
+            
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+        
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            editingId = null;
+        }
+
+        async function verDetalle(id) {
+            const content = document.getElementById('detalleContent');
+            content.innerHTML = '<div class="spinner"></div>';
+            
+            try {
+                const cliente = await apiCall(`/clients/${id}`);
+                
+                let html = `
+                    <div style="margin-bottom: 1.5rem;">
+                        <h4 style="color: var(--gray-900); margin-bottom: 0.5rem;">${escapeHtml(cliente.nombre)}</h4>
+                        <p class="text-muted">${cliente.telefono || '-'}</p>
+                        ${cliente.email ? `<p class="text-muted">${escapeHtml(cliente.email)}</p>` : ''}
+                        ${cliente.notas ? `<p style="margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 0.5rem;">${escapeHtml(cliente.notas)}</p>` : ''}
+                    </div>
+                    
+                    <div class="tabs">
+                        <button type="button" class="tab active" onclick="showDetalleTab('ventas', ${id})">Ventas</button>
+                        <button type="button" class="tab" onclick="showDetalleTab('citas', ${id})">Citas</button>
+                    </div>
+                    
+                    <div id="detalle-ventas">
+                        ${cliente.ventas.length > 0 ? cliente.ventas.map(v => `
+                            <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--gray-100);">
+                                <div>
+                                    <strong>${formatDate(v.fecha)}</strong>
+                                    <span class="badge badge-${v.metodo_pago === 'efectivo' ? 'info' : 'warning'}">${v.metodo_pago}</span>
+                                </div>
+                                <strong class="text-success">${formatCurrency(v.total)}</strong>
+                            </div>
+                        `).join('') : '<p class="text-muted">No hay ventas registradas</p>'}
+                    </div>
+                    
+                    <div id="detalle-citas" style="display: none;">
+                        ${cliente.citas.length > 0 ? cliente.citas.map(c => `
+                            <div style="display: flex; justify-content: space-between; padding: 0.75rem 0; border-bottom: 1px solid var(--gray-100);">
+                                <div>
+                                    <strong>${c.servicio}</strong>
+                                    <p class="text-muted">${formatDate(c.fecha)} ${c.hora_inicio}</p>
+                                </div>
+                                <span class="badge badge-${getEstadoColor(c.estado)}">${c.estado}</span>
+                            </div>
+                        `).join('') : '<p class="text-muted">No hay citas registradas</p>'}
+                    </div>
+                `;
+                
+                content.innerHTML = html;
+                document.getElementById('detalleOverlay').classList.add('active');
+            } catch (error) {
+                content.innerHTML = `<p class="text-center text-danger">Error al cargar los datos</p>`;
+                showToast(error.message, 'error');
+            }
+        }
+
+        function showDetalleTab(tab, clienteId) {
+            document.querySelectorAll('#detalleContent .tab').forEach(t => t.classList.remove('active'));
+            document.getElementById('detalle-ventas').style.display = 'none';
+            document.getElementById('detalle-citas').style.display = 'none';
+            
+            if (tab === 'ventas') {
+                document.querySelector('#detalleContent .tab:nth-child(1)').classList.add('active');
+                document.getElementById('detalle-ventas').style.display = 'block';
+            } else {
+                document.querySelector('#detalleContent .tab:nth-child(2)').classList.add('active');
+                document.getElementById('detalle-citas').style.display = 'block';
+            }
+        }
+
+        function closeDetalle() {
+            document.getElementById('detalleOverlay').classList.remove('active');
+        }
+        
+        async function loadCliente(id) {
+            try {
+                const cliente = await apiCall(`/clients/${id}`);
+                document.getElementById('clienteId').value = cliente.id;
+                document.getElementById('nombre').value = cliente.nombre;
+                document.getElementById('telefono').value = cliente.telefono || '';
+                document.getElementById('email').value = cliente.email || '';
+                document.getElementById('notas').value = cliente.notas || '';
+                document.getElementById('estado').value = cliente.estado;
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        async function editCliente(id) {
+            openModal(id);
+        }
+        
+        async function handleSubmit(e) {
+            e.preventDefault();
+            
+            const nombreInput = document.getElementById('nombre');
+            const telefonoInput = document.getElementById('telefono');
+            const emailInput = document.getElementById('email');
+            
+            if (!validateField(nombreInput, validators.required)) return;
+            
+            const telefono = telefonoInput.value.trim();
+            if (!telefono) {
+                showToast('El celular es requerido', 'error');
+                telefonoInput.classList.add('invalid');
+                return;
+            }
+            
+            const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,20}$/;
+            const digitsOnly = telefono.replace(/[\D]/g, '');
+            if (digitsOnly.length < 10 || digitsOnly.length > 15) {
+                showToast('El celular debe tener entre 10 y 15 dígitos', 'error');
+                telefonoInput.classList.add('invalid');
+                return;
+            }
+            
+            if (!phoneRegex.test(telefono)) {
+                showToast('Formato de celular inválido. Ejemplo: +1 (809) 555-1234', 'error');
+                telefonoInput.classList.add('invalid');
+                return;
+            }
+            
+            if (emailInput.value.trim() && !validateField(emailInput, validators.email)) return;
+            
+            const data = {
+                nombre: toTitleCase(nombreInput.value.trim()),
+                telefono: telefono,
+                email: emailInput.value.trim() || null,
+                notas: document.getElementById('notas').value.trim() || null,
+                estado: document.getElementById('estado').value
+            };
+            
+            try {
+                if (editingId) {
+                    await apiCall(`/clients/${editingId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('Cliente actualizado correctamente', 'success');
+                } else {
+                    await apiCall('/clients', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('Cliente creado correctamente', 'success');
+                }
+                
+                closeModal();
+                await loadClientes();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        async function logout() {
+            await apiCall('/auth/logout', { method: 'POST' });
+            clearSessionStorage();
+            window.location.href = '/';
+        }
+        
+        async function deleteCliente(id, nombre) {
+            if (!confirm(`¿Está seguro que desea eliminar el cliente "${nombre}"?`)) return;
+            try {
+                await apiCall(`/clients/${id}`, { method: 'DELETE' });
+                showToast('Cliente eliminado correctamente', 'success');
+                await loadClientes();
+            } catch (error) {
+                showToast(error.message || 'Error al eliminar cliente', 'error');
+            }
+        }
+        
+        async function initPage() {
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            const sessionData = getSessionStorage();
+            document.getElementById('userName').textContent = sessionData.userName;
+            document.getElementById('userRole').textContent = sessionData.userRol === 'admin' ? 'Administrador' : 'Empleado';
+            document.getElementById('userAvatar').textContent = sessionData.userName.charAt(0).toUpperCase();
+            if (sessionData.userRol !== 'admin') {
+                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
+            }
+        }
+        initPage();
+    </script>
+</body>
+</html>
