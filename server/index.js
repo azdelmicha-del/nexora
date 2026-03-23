@@ -26,13 +26,9 @@ const PORT = process.env.PORT || 3000;
 initDatabase();
 initLicense();
 
-// Inicializar datos de producción si la BD está vacía
+// Inicializar datos de producción (crea negocio y usuario admin)
 const { initProductionData } = require('./init-production');
 initProductionData();
-
-// Crear administrador principal si no existe (DESPUÉS de initDatabase)
-const { createMainAdmin } = require('./create-admin');
-createMainAdmin();
 
 // Crear super administrador si no existe
 const { createSuperAdmin } = require('./create-superadmin');
