@@ -216,6 +216,12 @@
                 
                 const banner = document.getElementById('licenseBanner');
                 
+                // El propietario no ve banner de licencia
+                if (data.isOwner || data.type === 'owner') {
+                    banner.style.display = 'none';
+                    return;
+                }
+                
                 if (!data.valid) {
                     // Licencia expirada
                     banner.style.display = 'block';

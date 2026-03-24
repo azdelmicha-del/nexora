@@ -291,6 +291,22 @@ router.get('/license-info', (req, res) => {
         return res.status(401).json({ error: 'No autenticado' });
     }
     
+    const OWNER_EMAIL = 'azdelmicha@gmail.com';
+    const userEmail = req.session.email;
+    
+    // El propietario no tiene restricciones de licencia
+    if (userEmail === OWNER_EMAIL) {
+        return res.json({
+            daysRemaining: -1,
+            type: 'owner',
+            valid: true,
+            isOwner: true,
+            licenciaPlan: 'owner',
+            licenciaFechaInicio: null,
+            licenciaFechaExpiracion: null
+        });
+    }
+    
     const license = require('../license');
     const licenseStatus = license.isLicenseValid(req.session.negocioId);
     
@@ -298,6 +314,7 @@ router.get('/license-info', (req, res) => {
         daysRemaining: licenseStatus.daysRemaining,
         type: licenseStatus.type,
         valid: licenseStatus.valid,
+        isOwner: false,
         licenciaPlan: licenseStatus.licenciaPlan,
         licenciaFechaInicio: licenseStatus.licenciaFechaInicio,
         licenciaFechaExpiracion: licenseStatus.licenciaFechaExpiracion

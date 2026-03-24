@@ -83,6 +83,11 @@ function initDatabase() {
         db.exec('ALTER TABLE negocios ADD COLUMN licencia_hardware_id TEXT');
     }
     
+    const hasBufferCitas = negocioColumns.some(c => c.name === 'buffer_entre_citas');
+    if (!hasBufferCitas) {
+        db.exec('ALTER TABLE negocios ADD COLUMN buffer_entre_citas INTEGER DEFAULT 0');
+    }
+    
     const negociosSinFechaInicio = db.prepare(`
         SELECT id FROM negocios 
         WHERE licencia_fecha_inicio IS NULL

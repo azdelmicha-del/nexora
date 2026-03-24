@@ -1091,7 +1091,7 @@
                 </head>
                 <body>
                     ${printContent.innerHTML}
-                    <script src="/js/license-banner.js"></script>
+                    <`+`script src="/js/license-banner.js"><`+`/script>
 </body>
                 </html>
             `;
@@ -1129,12 +1129,15 @@
                     return;
                 }
                 
-                resultados.innerHTML = clientes.slice(0, 5).map(c => `
-                    <div style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid var(--gray-100);" onclick="seleccionarCliente(${c.id}, '${escapeHtml(c.nombre)}', '${escapeHtml(c.telefono || '')}')">
+                resultados.innerHTML = clientes.slice(0, 5).map(c => {
+                    const nombreEsc = (c.nombre || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
+                    const telEsc = (c.telefono || '').replace(/'/g, "\\'");
+                    return `
+                    <div style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid var(--gray-100);" onclick="seleccionarCliente(${c.id}, '${nombreEsc}', '${telEsc}')">
                         <strong>${escapeHtml(c.nombre)}</strong>
                         <br><small class="text-muted">${escapeHtml(c.telefono || 'Sin teléfono')}</small>
                     </div>
-                `).join('');
+                `}).join('');
             } catch (error) {
                 console.error('Error:', error);
             }

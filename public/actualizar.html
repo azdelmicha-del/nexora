@@ -899,7 +899,13 @@
                     return;
                 }
                 
-                if (data.valid && data.type !== 'trial') {
+                if (data.isOwner || data.type === 'owner') {
+                    document.getElementById('lockIcon').className = 'lock-icon active';
+                    document.getElementById('lockIcon').innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
+                    document.getElementById('planExpiry').textContent = 'Propietario del sistema';
+                    document.getElementById('planExpiry').style.color = '#10b981';
+                    document.getElementById('subtitle').textContent = 'Acceso completo sin restricciones';
+                } else if (data.valid && data.type !== 'trial') {
                     document.getElementById('lockIcon').className = 'lock-icon active';
                     document.getElementById('lockIcon').innerHTML = '<svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>';
                     document.getElementById('planExpiry').textContent = `Expira en ${data.daysRemaining} días`;

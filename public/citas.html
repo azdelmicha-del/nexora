@@ -460,18 +460,20 @@
             if (filtrados.length === 0) {
                 sugerencias.innerHTML = '<div style="padding: 0.75rem; color: var(--gray-500);">No se encontraron clientes</div>';
             } else {
-                sugerencias.innerHTML = filtrados.map(c => `
+                sugerencias.innerHTML = filtrados.map(c => {
+                    const nombreEsc = (c.nombre || '').replace(/'/g, "\\'");
+                    return `
                     <div style="padding: 0.75rem; cursor: pointer; border-bottom: 1px solid var(--gray-100); display: flex; justify-content: space-between; align-items: center;" 
                          onmouseover="this.style.backgroundColor='var(--gray-50)'" 
                          onmouseout="this.style.backgroundColor=''"
-                         onclick="seleccionarCliente('${c.id}', '${escapeHtml(c.nombre).replace(/'/g, "\\'")}')">
+                         onclick="seleccionarCliente('${c.id}', '${nombreEsc}')">
                         <div>
                             <div style="font-weight: 500;">${escapeHtml(c.nombre)}</div>
                             <div style="font-size: 0.8rem; color: var(--gray-500);">${c.telefono || 'Sin teléfono'}</div>
                         </div>
                         <svg width="16" height="16" fill="none" stroke="var(--gray-400)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                     </div>
-                `).join('');
+                `}).join('');
             }
             
             sugerencias.style.display = 'block';
@@ -935,16 +937,18 @@
                 return;
             }
             
-            container.innerHTML = listaClientes.map(c => `
+            container.innerHTML = listaClientes.map(c => {
+                const nombreEsc = (c.nombre || '').replace(/'/g, "\\'");
+                return `
                 <div style="padding: 0.75rem; border-bottom: 1px solid var(--gray-100); cursor: pointer; display: flex; justify-content: space-between; align-items: center;" 
-                     onclick="seleccionarClienteModal(${c.id}, '${escapeHtml(c.nombre)}')">
+                     onclick="seleccionarClienteModal(${c.id}, '${nombreEsc}')">
                     <div>
                         <div style="font-weight: 500;">${escapeHtml(c.nombre)}</div>
                         <div style="font-size: 0.8rem; color: var(--gray-500);">${c.telefono || 'Sin teléfono'}</div>
                     </div>
                     <svg width="16" height="16" fill="none" stroke="var(--gray-400)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path></svg>
                 </div>
-            `).join('');
+            `}).join('');
         }
         
         function filtrarClientesModal() {

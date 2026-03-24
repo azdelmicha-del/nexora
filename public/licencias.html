@@ -269,9 +269,14 @@
         }
         
         .plan-badge.trial { background: #fef3c7; color: #92400e; }
-        .plan-badge.monthly { background: #dbeafe; color: #1e40af; }
-        .plan-badge.semiannual { background: #ede9fe; color: #6d28d9; }
-        .plan-badge.annual { background: #d1fae5; color: #065f46; }
+        .plan-badge.monthly, .plan-badge.semiannual, .plan-badge.annual, .plan-badge.pro { 
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+            color: white; 
+        }
+        .plan-badge.owner { 
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%); 
+            color: white; 
+        }
         
         @media (max-width: 768px) {
             .negocio-stats {
@@ -833,11 +838,14 @@
                 if (!negocio.licencia_fecha_expiracion) return 'Sin límite';
                 const daysLeft = getDaysLeft(negocio.licencia_fecha_expiracion);
                 if (daysLeft === null) return 'Sin límite';
-                return daysLeft > 0 ? `${daysLeft} días` : 'Expirada';
+                if (daysLeft <= 0) return 'Expirada';
+                if (daysLeft <= 7) return `${daysLeft} días restantes`;
+                return `${daysLeft} días`;
             } else {
                 const daysLeft = getTrialDaysLeft(negocio.licencia_fecha_inicio);
-                if (daysLeft === null) return '7 días';
-                return `${daysLeft} días`;
+                if (daysLeft === null) return '7 días de prueba';
+                if (daysLeft <= 0) return 'Prueba expirada';
+                return `${daysLeft} días de prueba`;
             }
         }
         
@@ -860,15 +868,15 @@
             
             container.innerHTML = allNegocios.map(n => {
                 const planClass = n.licencia_plan || 'trial';
-                const planName = {
-                    'trial': 'Prueba',
-                    'monthly': 'Mensual',
-                    'semiannual': '6 Meses',
-                    'annual': 'Anual'
-                }[planClass] || 'Prueba';
+                const isOwnerNegocio = n.email === 'azdelmicha@gmail.com';
+                const esPlanPagado = planClass !== 'trial' && planClass !== null;
+                const planName = isOwnerNegocio ? 'Propietario' : (esPlanPagado ? 'PRO' : 'Prueba');
+                const badgeClass = isOwnerNegocio ? 'owner' : (esPlanPagado ? 'pro' : 'trial');
                 
-                const expiryText = getExpiryText(n);
+                const expiryText = isOwnerNegocio ? '' : getExpiryText(n);
                 const isSuspendido = n.estado === 'suspendido';
+                const nombreEsc = (n.nombre || '').replace(/'/g, "\\'");
+                const emailEsc = (n.email || '').replace(/'/g, "\\'");
                 
                 return `
                     <div class="negocio-card" style="${isSuspendido ? 'opacity: 0.7; border-left: 4px solid #ef4444;' : ''}">
@@ -878,7 +886,7 @@
                                 <p>${escapeHtml(n.email || 'Sin email')} • ${escapeHtml(n.telefono || 'Sin teléfono')}</p>
                             </div>
                             <div style="text-align: right;">
-                                <span class="plan-badge ${planClass}">${planName}</span>
+                                <span class="plan-badge ${badgeClass}">${planName}</span>
                                 <div style="font-size: 0.75rem; color: var(--gray-500); margin-top: 0.25rem;">
                                     ${expiryText}
                                 </div>
@@ -908,12 +916,14 @@
                         </div>
                         <div style="margin-top: 1rem; padding-top: 0.75rem; border-top: 1px solid var(--gray-100); display: flex; gap: 0.5rem; flex-wrap: wrap;">
                             <button class="btn btn-secondary btn-sm" onclick="verDetalle(${n.id})">Ver Detalle</button>
-                            <button class="btn btn-secondary btn-sm" onclick="verRenovar(${n.id}, '${escapeHtml(n.nombre)}')">Renovar</button>
-                            <button class="btn btn-secondary btn-sm" onclick="notificarCliente(${n.id}, '${escapeHtml(n.email)}')">Notificar</button>
+                            ${!isOwnerNegocio ? `
+                            <button class="btn btn-secondary btn-sm" onclick="verRenovar(${n.id}, '${nombreEsc}')">Renovar</button>
+                            <button class="btn btn-secondary btn-sm" onclick="notificarCliente(${n.id}, '${emailEsc}')">Notificar</button>
                             <button class="btn btn-secondary btn-sm" onclick="toggleSuspender(${n.id}, ${!isSuspendido})" style="${isSuspendido ? 'color: #10b981;' : 'color: #f59e0b;'}">
                                 ${isSuspendido ? 'Reactivar' : 'Suspender'}
                             </button>
-                            <button class="btn btn-danger btn-sm" onclick="eliminarNegocio(${n.id}, '${escapeHtml(n.nombre)}')">Eliminar</button>
+                            <button class="btn btn-danger btn-sm" onclick="eliminarNegocio(${n.id}, '${nombreEsc}')">Eliminar</button>
+                            ` : ''}
                         </div>
                         <div style="margin-top: 0.75rem; font-size: 0.75rem; color: var(--gray-500);">
                             ID: ${n.id} • Última actividad: ${formatDate(n.ultima_actividad)}

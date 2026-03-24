@@ -43,7 +43,7 @@ router.get('/availability/:slug', (req, res) => {
         const { fecha, servicio_id } = req.query;
         
         const negocio = db.prepare(`
-            SELECT id, hora_apertura, hora_cierre, dias_laborales, permitir_solapamiento
+            SELECT id, hora_apertura, hora_cierre, dias_laborales, permitir_solapamiento, buffer_entre_citas
             FROM negocios WHERE slug = ? AND estado = 'activo' AND booking_activo = 1
         `).get(req.params.slug);
 
@@ -72,6 +72,7 @@ router.get('/availability/:slug', (req, res) => {
         const aperturaMin = apH * 60 + apM;
         const cierreMin = ciH * 60 + ciM;
         const duracion = servicio.duracion;
+        const bufferMin = negocio.buffer_entre_citas || 0;
 
         const ahora = new Date();
         const esHoy = fecha === ahora.toISOString().split('T')[0];
@@ -96,7 +97,12 @@ router.get('/availability/:slug', (req, res) => {
                 const [cfH, cfM] = c.hora_fin.split(':').map(Number);
                 const cInicio = cH * 60 + cM;
                 const cFin = cfH * 60 + cfM;
-                if (!(finMin <= cInicio || actual >= cFin)) {
+
+                // Aplicar buffer
+                const inicioConBuffer = Math.max(0, actual - bufferMin);
+                const finConBuffer = finMin + bufferMin;
+
+                if (!(finConBuffer <= cInicio || inicioConBuffer >= cFin)) {
                     disponible = false;
                     break;
                 }
@@ -121,21 +127,35 @@ router.post('/appointments', (req, res) => {
             return res.status(400).json({ error: 'Campos requeridos faltantes' });
         }
 
-        const negocio = db.prepare(`SELECT id FROM negocios WHERE slug = ? AND estado = 'activo'`).get(slug);
+        const negocio = db.prepare(`SELECT id, buffer_entre_citas FROM negocios WHERE slug = ? AND estado = 'activo'`).get(slug);
         if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
 
         const servicio = db.prepare(`SELECT duracion, nombre, precio FROM servicios WHERE id = ? AND negocio_id = ?`)
             .get(servicio_id, negocio.id);
         if (!servicio) return res.status(404).json({ error: 'Servicio no encontrado' });
 
+        // Validar fecha/hora no sea pasada
+        const ahora = new Date();
+        const fechaCita = new Date(fecha + 'T' + hora + ':00');
+        if (fechaCita < ahora) {
+            return res.status(400).json({ error: 'No se pueden crear citas en fechas u horas pasadas' });
+        }
+
         const [h, m] = hora.split(':').map(Number);
         const finMin = h * 60 + m + servicio.duracion;
         const horaFin = `${Math.floor(finMin/60).toString().padStart(2,'0')}:${(finMin%60).toString().padStart(2,'0')}`;
+        const bufferMin = negocio.buffer_entre_citas || 0;
+
+        // Aplicar buffer para detección de conflictos
+        const inicioConBuffer = Math.max(0, (h * 60 + m) - bufferMin);
+        const finConBuffer = finMin + bufferMin;
+        const horaInicioBuffer = `${Math.floor(inicioConBuffer / 60).toString().padStart(2, '0')}:${(inicioConBuffer % 60).toString().padStart(2, '0')}`;
+        const horaFinBuffer = `${Math.floor(finConBuffer / 60).toString().padStart(2, '0')}:${(finConBuffer % 60).toString().padStart(2, '0')}`;
 
         const conflict = db.prepare(`
             SELECT id FROM citas WHERE negocio_id = ? AND fecha = ? AND estado != 'cancelada'
             AND ((hora_inicio < ? AND hora_fin > ?) OR (hora_inicio < ? AND hora_fin > ?))
-        `).get(negocio.id, fecha, horaFin, hora, horaFin, hora);
+        `).get(negocio.id, fecha, horaFinBuffer, horaInicioBuffer, horaFinBuffer, hora);
 
         if (conflict) return res.status(409).json({ error: 'Horario no disponible' });
 

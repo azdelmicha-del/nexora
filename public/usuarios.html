@@ -210,6 +210,7 @@
                 
                 tbody.innerHTML = usuarios.map(u => {
                     const isSelf = sessionStorage.getItem('session') ? JSON.parse(sessionStorage.getItem('session')).user.id === u.id : false;
+                    const nombreEsc = (u.nombre || '').replace(/'/g, "\\'");
                     
                     return `
                     <tr class="${u.estado === 'inactivo' ? 'text-muted' : ''}">
@@ -222,10 +223,10 @@
                         <td class="actions">
                             ${isSelf ? 
                                 `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>
-                                 <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id}, '${escapeHtml(u.nombre)}')">Eliminar</button>` :
+                                 <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id}, '${nombreEsc}')">Eliminar</button>` :
                                 (isPrincipalAdmin ?
                                     `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>
-                                     <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id}, '${escapeHtml(u.nombre)}')">Eliminar</button>` :
+                                     <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id}, '${nombreEsc}')">Eliminar</button>` :
                                     (u.estado === 'inactivo' && isPrincipalAdmin ? 
                                         `<button class="btn btn-success btn-sm" onclick="reactivateUsuario(${u.id})">Reactivar</button>` :
                                         `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>`))

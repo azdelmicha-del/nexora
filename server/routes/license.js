@@ -321,7 +321,7 @@ router.post('/businesses/:id/renew', (req, res) => {
         SET licencia_plan = ?, 
             licencia_fecha_inicio = ?, 
             licencia_fecha_expiracion = ?,
-            suspendido = 0
+            estado = 'activo'
         WHERE id = ?
     `).run(plan, hoy, fechaExpiracion, negocioId);
     

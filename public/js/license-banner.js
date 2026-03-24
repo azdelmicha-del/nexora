@@ -6,6 +6,13 @@ async function loadLicenseBanner() {
         
         const data = await res.json();
         
+        // El propietario no ve banner de licencia
+        if (data.isOwner || data.type === 'owner') {
+            const banner = document.getElementById('licenseBanner');
+            if (banner) banner.style.display = 'none';
+            return;
+        }
+        
         // Buscar o crear el banner
         let banner = document.getElementById('licenseBanner');
         if (!banner) {
