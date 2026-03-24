@@ -49,11 +49,12 @@ app.use(sanitizeInput);
 
 app.use(session({
     secret: process.env.SESSION_SECRET || 'nexora-fallback-secret-do-not-use-in-prod',
-    resave: false,
-    saveUninitialized: false,
+    resave: true,
+    saveUninitialized: true,
     cookie: {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: false, // Render maneja SSL en el proxy
+        sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000
     }
 }));
