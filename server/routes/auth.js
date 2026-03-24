@@ -224,6 +224,17 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
         }
         
+        // Verificar licencia antes de permitir login
+        const licenseStatus = license.isLicenseValid(user.negocio_id);
+        
+        if (!licenseStatus.valid && licenseStatus.type !== 'wrong_hardware') {
+            return res.status(403).json({ 
+                error: 'trial_expired',
+                message: 'Tu período de prueba ha finalizado. Activa una licencia para continuar.',
+                daysRemaining: 0
+            });
+        }
+        
         db.prepare('UPDATE usuarios SET last_login = ? WHERE id = ?').run(new Date().toISOString(), user.id);
 
         req.session.userId = user.id;
@@ -242,7 +253,11 @@ router.post('/login', async (req, res) => {
                 email: user.email,
                 rol: user.rol
             },
-            negocioId: user.negocio_id
+            negocioId: user.negocio_id,
+            license: {
+                daysRemaining: licenseStatus.daysRemaining,
+                type: licenseStatus.type
+            }
         });
     } catch (error) {
         console.error('Error en login:', error);
@@ -260,6 +275,10 @@ router.get('/session', (req, res) => {
         return res.json({ authenticated: false });
     }
     
+    // Obtener días restantes de licencia
+    const license = require('../license');
+    const licenseStatus = license.isLicenseValid(req.session.negocioId);
+    
     res.json({
         authenticated: true,
         user: {
@@ -268,7 +287,31 @@ router.get('/session', (req, res) => {
             email: req.session.email,
             rol: req.session.rol
         },
-        negocioId: req.session.negocioId
+        negocioId: req.session.negocioId,
+        license: {
+            daysRemaining: licenseStatus.daysRemaining,
+            type: licenseStatus.type,
+            valid: licenseStatus.valid
+        }
+    });
+});
+
+// Endpoint para obtener info de licencia
+router.get('/license-info', (req, res) => {
+    if (!req.session.userId) {
+        return res.status(401).json({ error: 'No autenticado' });
+    }
+    
+    const license = require('../license');
+    const licenseStatus = license.isLicenseValid(req.session.negocioId);
+    
+    res.json({
+        daysRemaining: licenseStatus.daysRemaining,
+        type: licenseStatus.type,
+        valid: licenseStatus.valid,
+        licenciaPlan: licenseStatus.licenciaPlan,
+        licenciaFechaInicio: licenseStatus.licenciaFechaInicio,
+        licenciaFechaExpiracion: licenseStatus.licenciaFechaExpiracion
     });
 });
 
