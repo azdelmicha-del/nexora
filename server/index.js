@@ -20,6 +20,7 @@ const licenseRoutes = require('./routes/license');
 const publicRoutes = require('./routes/public');
 const testDbRoutes = require('./routes/test-db');
 const superAdminRoutes = require('./routes/superadmin');
+const debugRoutes = require('./routes/debug');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -75,6 +76,7 @@ app.use('/api/license', licenseRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api', testDbRoutes);
 app.use('/api/superadmin', superAdminRoutes);
+app.use('/api', debugRoutes);
 
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
