@@ -7,15 +7,21 @@ function initFullDatabase() {
     
     const db = getDb();
     
-    // SOLO importar si NO hay negocios (BD completamente vacía)
-    const count = db.prepare('SELECT COUNT(*) as count FROM negocios').get().count;
+    // PROTECCIÓN: Verificar si hay datos existentes
+    const negocios = db.prepare('SELECT COUNT(*) as count FROM negocios').get().count;
+    const usuarios = db.prepare('SELECT COUNT(*) as count FROM usuarios').get().count;
+    const ventas = db.prepare('SELECT COUNT(*) as count FROM ventas').get().count;
+    const citas = db.prepare('SELECT COUNT(*) as count FROM citas').get().count;
     
-    if (count > 0) {
-        console.log(`✅ BD ya tiene ${count} negocios, NO se toca`);
+    // REGLA ABSOLUTA: Si hay CUALQUIER dato, NO hacer NADA
+    if (negocios > 0 || usuarios > 0 || ventas > 0 || citas > 0) {
+        console.log('✅ BD tiene datos existentes - PROTEGIDA');
+        console.log(`   Negocios: ${negocios}, Usuarios: ${usuarios}, Ventas: ${ventas}, Citas: ${citas}`);
+        console.log('   NO se importará backup para proteger datos del cliente');
         return;
     }
     
-    console.log('BD está vacía, importando datos iniciales...');
+    console.log('BD está completamente vacía, importando datos iniciales...');
     
     const backupPath = path.join(__dirname, 'db', 'nexora-backup.sql');
     

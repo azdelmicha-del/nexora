@@ -28,7 +28,12 @@ const PORT = process.env.PORT || 3000;
 initDatabase();
 initLicense();
 
-// Importar BD completa si es necesario (antes de initProductionData)
+// Backup automático al iniciar (protección de datos)
+const { autoBackup, checkDatabaseIntegrity } = require('./backup-protection');
+checkDatabaseIntegrity();
+autoBackup();
+
+// Importar BD completa SOLO si está vacía (PROTECCIÓN: nunca elimina datos)
 const { initFullDatabase } = require('./init-full-db');
 initFullDatabase();
 
