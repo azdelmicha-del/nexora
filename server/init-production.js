@@ -1,20 +1,17 @@
-const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
-const path = require('path');
-
-const dbPath = path.join(__dirname, 'db', 'nexora.db');
+const { getDb } = require('./database');
 
 function initProductionData() {
     console.log('Verificando datos de producción...');
     
-    const db = new Database(dbPath);
+    // Usar la misma instancia de BD que database.js
+    const db = getDb();
     
     // Verificar si ya hay negocios
     const negociosCount = db.prepare('SELECT COUNT(*) as count FROM negocios').get().count;
     
     if (negociosCount > 0) {
         console.log(`✅ Base de datos ya tiene ${negociosCount} negocios`);
-        db.close();
         return;
     }
     
@@ -116,7 +113,6 @@ function initProductionData() {
     console.log('⚠️  IMPORTANTE: Cambia la contraseña después del primer inicio de sesión.');
     console.log('');
     
-    db.close();
 }
 
 module.exports = { initProductionData };
