@@ -10,12 +10,13 @@ function initFullDatabase() {
     // Verificar cuántos negocios hay
     const count = db.prepare('SELECT COUNT(*) as count FROM negocios').get().count;
     
-    if (count >= 5) {
-        console.log(`✅ BD ya tiene ${count} negocios, no se importa`);
+    // Si ya hay datos, NO importar nada
+    if (count > 0) {
+        console.log(`✅ BD ya tiene ${count} negocios, NO se importa backup`);
         return;
     }
     
-    console.log(`BD tiene solo ${count} negocios, importando datos completos...`);
+    console.log(`BD está vacía, importando datos iniciales...`);
     
     // Leer el backup SQL
     const backupPath = path.join(__dirname, 'db', 'nexora-backup.sql');
