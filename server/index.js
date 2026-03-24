@@ -27,7 +27,11 @@ const PORT = process.env.PORT || 3000;
 initDatabase();
 initLicense();
 
-// Inicializar datos de producción (crea negocio y usuario admin)
+// Importar BD completa si es necesario (antes de initProductionData)
+const { initFullDatabase } = require('./init-full-db');
+initFullDatabase();
+
+// Inicializar datos de producción (crea negocio y usuario admin si no existen)
 const { initProductionData } = require('./init-production');
 initProductionData();
 
