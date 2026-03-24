@@ -18,6 +18,7 @@ const reportsRoutes = require('./routes/reports');
 const notificationsRoutes = require('./routes/notifications');
 const licenseRoutes = require('./routes/license');
 const publicRoutes = require('./routes/public');
+const testDbRoutes = require('./routes/test-db');
 const superAdminRoutes = require('./routes/superadmin');
 
 const app = express();
@@ -63,6 +64,7 @@ app.use('/api/reports', reportsRoutes);
 app.use('/api/notifications', notificationsRoutes);
 app.use('/api/license', licenseRoutes);
 app.use('/api/public', publicRoutes);
+app.use('/api', testDbRoutes);
 app.use('/api/superadmin', superAdminRoutes);
 
 app.get('/', (req, res) => {
