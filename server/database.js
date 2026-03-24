@@ -13,16 +13,29 @@ const schemaPath = path.join(__dirname, 'db', 'schema.sql');
 let db;
 
 function initDatabase() {
+    console.log('DB_DIR:', dbDir);
+    console.log('DB_PATH:', dbPath);
+    console.log('SCHEMA_PATH:', schemaPath);
+    
     // Crear directorio de BD si no existe
     if (!fs.existsSync(dbDir)) {
+        console.log('Creando directorio:', dbDir);
         fs.mkdirSync(dbDir, { recursive: true });
     }
     
+    if (!fs.existsSync(schemaPath)) {
+        console.error('ERROR: schema.sql no encontrado en:', schemaPath);
+        throw new Error('schema.sql no encontrado');
+    }
+    
+    console.log('Inicializando base de datos...');
     db = new Database(dbPath);
     db.pragma('journal_mode = WAL');
     
     const schema = fs.readFileSync(schemaPath, 'utf8');
+    console.log('Ejecutando schema...');
     db.exec(schema);
+    console.log('Schema ejecutado correctamente');
     
     db.exec(`
         CREATE TABLE IF NOT EXISTS cajas_cerradas (
