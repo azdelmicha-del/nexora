@@ -224,17 +224,6 @@ router.post('/login', async (req, res) => {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
         }
         
-        // Verificar licencia antes de permitir login
-        const licenseStatus = license.isLicenseValid(user.negocio_id);
-        
-        if (!licenseStatus.valid && licenseStatus.type !== 'wrong_hardware') {
-            return res.status(403).json({ 
-                error: 'trial_expired',
-                message: 'Tu período de prueba ha finalizado. Activa una licencia para continuar.',
-                daysRemaining: 0
-            });
-        }
-        
         db.prepare('UPDATE usuarios SET last_login = ? WHERE id = ?').run(new Date().toISOString(), user.id);
 
         req.session.userId = user.id;
