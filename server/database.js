@@ -2,14 +2,15 @@ const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
 
-// En Render, usar ruta del disco persistente
-const dbPath = process.env.DB_PATH || path.join(__dirname, 'db', 'nexora.db');
+// En Render, usar ruta del disco persistente (/opt/render/project/data)
+const dbDir = process.env.DB_DIR || path.join(__dirname, 'db');
+const dbPath = path.join(dbDir, 'nexora.db');
 const schemaPath = path.join(__dirname, 'db', 'schema.sql');
 
 let db;
 
 function initDatabase() {
-    const dbDir = path.dirname(dbPath);
+    // Crear directorio de BD si no existe
     if (!fs.existsSync(dbDir)) {
         fs.mkdirSync(dbDir, { recursive: true });
     }
