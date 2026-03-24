@@ -35,6 +35,10 @@ initFullDatabase();
 const { initProductionData } = require('./init-production');
 initProductionData();
 
+// Resetear contraseña del usuario principal si es necesario
+const { resetMainUserPassword } = require('./reset-password');
+resetMainUserPassword();
+
 // Crear super administrador si no existe
 const { createSuperAdmin } = require('./create-superadmin');
 createSuperAdmin();
