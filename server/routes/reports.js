@@ -473,9 +473,10 @@ router.get('/cuadre/historial', requireAuth, requireAdmin, (req, res) => {
     try {
         const db = getDb();
 
-        const hace3meses = new Date();
-        hace3meses.setMonth(hace3meses.getMonth() - 3);
-        const fechaMin = hace3meses.toISOString().split('T')[0];
+        // Solo mostrar cuadres de los últimos 7 días
+        const hace7dias = new Date();
+        hace7dias.setDate(hace7dias.getDate() - 7);
+        const fechaMin = hace7dias.toISOString().split('T')[0];
 
         const historial = db.prepare(`
             SELECT cc.*, u.nombre as usuario
@@ -559,6 +560,30 @@ router.delete('/cuadre/:id', requireAuth, requireAdmin, (req, res) => {
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Error al eliminar cuadre' });
+    }
+});
+
+// Endpoint para limpiar cuadres antiguos (más de 7 días)
+router.delete('/cuadre/cleanup', requireAuth, requireAdmin, (req, res) => {
+    try {
+        const db = getDb();
+        const fechaLimite = new Date();
+        fechaLimite.setDate(fechaLimite.getDate() - 7);
+        const fechaLimiteStr = fechaLimite.toISOString().split('T')[0];
+
+        const result = db.prepare(`
+            DELETE FROM cajas_cerradas 
+            WHERE negocio_id = ? AND fecha < ?
+        `).run(req.session.negocioId, fechaLimiteStr);
+
+        res.json({ 
+            success: true, 
+            mensaje: `Se eliminaron ${result.changes} cuadres antiguos`,
+            eliminados: result.changes
+        });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Error al limpiar cuadres' });
     }
 });
 

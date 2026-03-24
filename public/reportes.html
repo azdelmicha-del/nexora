@@ -394,7 +394,12 @@
                     <button class="btn btn-secondary" onclick="mostrarCuadre()">← Volver al Cuadre</button>
                 </div>
                 <div class="seccion-reporte">
-                    <h3>📋 Historial de Cajas Cerradas (Últimos 3 meses)</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <h3>📋 Historial de Cajas Cerradas (Últimos 7 días)</h3>
+                        <button class="btn btn-secondary btn-sm" onclick="limpiarCuadresAntiguos()" title="Eliminar cuadres de más de 7 días">
+                            🗑️ Limpiar antiguos
+                        </button>
+                    </div>
                     <div id="historialCuadre"></div>
                 </div>
             </div>
@@ -1164,6 +1169,10 @@
         
         async function cargarHistorialCuadre() {
             try {
+                // Limpiar cuadres antiguos automáticamente
+                await apiCall('/reports/cuadre/cleanup', { method: 'DELETE' });
+                
+                // Cargar historial actualizado
                 const historial = await apiCall('/reports/cuadre/historial');
                 renderHistorialCuadre(historial);
             } catch (error) {
@@ -1283,6 +1292,20 @@
                 await cargarHistorialCuadre();
             } catch (error) {
                 alert(error.message || 'Error al eliminar cuadre');
+            }
+        }
+        
+        async function limpiarCuadresAntiguos() {
+            if (!confirm('¿Desea eliminar los cuadres de más de 7 días?')) {
+                return;
+            }
+            
+            try {
+                const result = await apiCall('/reports/cuadre/cleanup', { method: 'DELETE' });
+                alert(result.mensaje);
+                await cargarHistorialCuadre();
+            } catch (error) {
+                alert(error.message || 'Error al limpiar cuadres');
             }
         }
     </script>
