@@ -3,58 +3,35 @@ const path = require('path');
 const { getDb } = require('./database');
 
 function initFullDatabase() {
-    console.log('Verificando si se necesita importar BD completa...');
+    console.log('Verificando si se necesita importar BD...');
     
     const db = getDb();
     
-    // Verificar cuántos negocios hay
+    // SOLO importar si NO hay negocios (BD completamente vacía)
     const count = db.prepare('SELECT COUNT(*) as count FROM negocios').get().count;
-    const ventas = db.prepare('SELECT COUNT(*) as count FROM ventas').get().count;
     
-    // Si ya hay negocios Y ventas, NO importar
-    if (count >= 6 && ventas > 0) {
-        console.log(`✅ BD ya tiene ${count} negocios y ${ventas} ventas, NO se importa backup`);
+    if (count > 0) {
+        console.log(`✅ BD ya tiene ${count} negocios, NO se toca`);
         return;
     }
     
-    console.log(`BD tiene ${count} negocios y ${ventas} ventas, importando datos completos...`);
+    console.log('BD está vacía, importando datos iniciales...');
     
-    // Leer el backup SQL
     const backupPath = path.join(__dirname, 'db', 'nexora-backup.sql');
     
     if (!fs.existsSync(backupPath)) {
-        console.log('⚠️ No se encontró archivo de backup, saltando importación');
+        console.log('⚠️ No se encontró backup');
         return;
     }
     
     try {
-        // Limpiar BD antes de importar
-        console.log('Limpiando BD antes de importar...');
-        db.exec('DELETE FROM venta_detalles');
-        db.exec('DELETE FROM ventas');
-        db.exec('DELETE FROM citas');
-        db.exec('DELETE FROM notificaciones');
-        db.exec('DELETE FROM clientes');
-        db.exec('DELETE FROM servicios');
-        db.exec('DELETE FROM categorias');
-        db.exec('DELETE FROM usuarios');
-        db.exec('DELETE FROM negocios');
-        db.exec('DELETE FROM cajas_cerradas');
-        db.exec('DELETE FROM super_admins');
-        db.exec('DELETE FROM conversaciones');
-        
         const sql = fs.readFileSync(backupPath, 'utf8');
-        
-        // Ejecutar el SQL de importación
         db.exec('PRAGMA foreign_keys = OFF;');
         db.exec(sql);
         db.exec('PRAGMA foreign_keys = ON;');
         
-        // Verificar que se importaron los datos
         const newCount = db.prepare('SELECT COUNT(*) as count FROM negocios').get().count;
-        const newVentas = db.prepare('SELECT COUNT(*) as count FROM ventas').get().count;
-        console.log(`✅ BD importada exitosamente: ${newCount} negocios, ${newVentas} ventas`);
-        
+        console.log(`✅ BD importada: ${newCount} negocios`);
     } catch (error) {
         console.error('Error importando BD:', error.message);
     }
