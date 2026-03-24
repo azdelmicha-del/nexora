@@ -378,7 +378,7 @@
                 <div class="header-actions">
                     <button class="btn btn-secondary" onclick="imprimirCuadre()">🖨️ Imprimir Cuadre</button>
                     <button class="btn btn-secondary" onclick="imprimirDetalleVentas()">📄 Imprimir Detalle Ventas</button>
-                    <button class="btn btn-secondary" onclick="verHistorialCuadre()">📋 Historial</button>
+                    <button class="btn btn-secondary" onclick="mostrarHistorialCuadre()">📋 Historial</button>
                     <button class="btn btn-success" id="btnCerrarCaja" onclick="cerrarCaja()">🔒 Cerrar Caja</button>
                     <button class="btn btn-warning" id="btnAbrirCaja" style="display: none;" onclick="abrirCaja()">🔓 Abrir Caja</button>
                 </div>
@@ -437,28 +437,38 @@
         let datosCuadreActual = null;
         
         document.addEventListener('DOMContentLoaded', async () => {
-            const session = await checkSession();
-            if (!session || !session.authenticated) {
-                window.location.href = '/';
-                return;
+            try {
+                console.log('Cargando reportes...');
+                const session = await checkSession();
+                
+                if (!session || !session.authenticated) {
+                    console.log('Sesión no válida, redirigiendo...');
+                    window.location.href = '/';
+                    return;
+                }
+                
+                console.log('Sesión válida:', session.user.nombre);
+                
+                isAdmin = session.user.rol === 'admin';
+                if (isAdmin) {
+                    document.getElementById('tabCuadre').style.display = '';
+                }
+                
+                document.getElementById('userName').textContent = session.user.nombre;
+                document.getElementById('userRole').textContent = session.user.rol === 'admin' ? 'Administrador' : 'Empleado';
+                document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
+                
+                document.getElementById('btnHoy').addEventListener('click', () => setFiltro('hoy'));
+                document.getElementById('btnSemana').addEventListener('click', () => setFiltro('semana'));
+                document.getElementById('btnMes').addEventListener('click', () => setFiltro('mes'));
+                document.getElementById('btnPersonalizado').addEventListener('click', () => setFiltro('personalizado'));
+                
+                setFiltro('mes');
+                console.log('Reportes cargado correctamente');
+            } catch (error) {
+                console.error('Error al cargar reportes:', error);
+                alert('Error al cargar reportes. Por favor, recarga la página o inicia sesión nuevamente.');
             }
-            
-            isAdmin = session.user.rol === 'admin';
-            if (isAdmin) {
-                document.getElementById('tabCuadre').style.display = '';
-            }
-            
-            document.getElementById('userName').textContent = session.user.nombre;
-            document.getElementById('userRole').textContent = session.user.rol === 'admin' ? 'Administrador' : 'Empleado';
-            document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
-            
-            document.getElementById('btnHoy').addEventListener('click', () => setFiltro('hoy'));
-            document.getElementById('btnSemana').addEventListener('click', () => setFiltro('semana'));
-            document.getElementById('btnMes').addEventListener('click', () => setFiltro('mes'));
-            document.getElementById('btnPersonalizado').addEventListener('click', () => setFiltro('personalizado'));
-            
-            
-            setFiltro('mes');
         });
         
         function setFiltro(tipo) {
