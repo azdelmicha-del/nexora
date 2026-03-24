@@ -174,6 +174,7 @@
                     <button type="button" class="tab" onclick="showTab('horario')">Horario</button>
                     <button type="button" class="tab" onclick="showTab('pagos')">Métodos de Pago</button>
                     <button type="button" class="tab" onclick="showTab('reservas')">Reservas Online</button>
+                    <button type="button" class="tab" onclick="showTab('cuenta')">Mi Cuenta</button>
                     <button type="button" id="tabLicencias" class="tab" onclick="window.location.href='/licencias'" style="display: none;">Licencias</button>
                 </div>
                 
@@ -408,6 +409,36 @@
                         </div>
                     </div>
                 </div>
+                
+                <!-- Tab Mi Cuenta - Cambiar Contraseña -->
+                <div id="tab-cuenta" class="tab-content" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>🔐 Cambiar Contraseña</h3>
+                        </div>
+                        <div class="card-body">
+                            <div id="passwordMessage" style="display: none; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;"></div>
+                            
+                            <div class="form-group">
+                                <label for="currentPassword">Contraseña actual</label>
+                                <input type="password" id="currentPassword" placeholder="Ingresa tu contraseña actual">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="newPassword">Nueva contraseña</label>
+                                <input type="password" id="newPassword" placeholder="Mínimo 6 caracteres">
+                            </div>
+                            
+                            <div class="form-group">
+                                <label for="confirmPassword">Confirmar nueva contraseña</label>
+                                <input type="password" id="confirmPassword" placeholder="Repite la nueva contraseña">
+                            </div>
+                            
+                            <button type="button" onclick="changePassword()" class="btn btn-primary" style="margin-top: 1rem;">Cambiar Contraseña</button>
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="mt-4">
                     <button type="submit" class="btn btn-primary">Guardar Cambios</button>
                 </div>
@@ -625,6 +656,62 @@
         
         // Cargar config de reservas al iniciar
         setTimeout(loadBookingConfig, 500);
+        
+        // Función para cambiar contraseña
+        async function changePassword() {
+            const currentPassword = document.getElementById('currentPassword').value;
+            const newPassword = document.getElementById('newPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            const messageEl = document.getElementById('passwordMessage');
+            
+            // Validaciones
+            if (!currentPassword || !newPassword || !confirmPassword) {
+                showMessage(messageEl, 'Todos los campos son requeridos', 'error');
+                return;
+            }
+            
+            if (newPassword.length < 6) {
+                showMessage(messageEl, 'La nueva contraseña debe tener al menos 6 caracteres', 'error');
+                return;
+            }
+            
+            if (newPassword !== confirmPassword) {
+                showMessage(messageEl, 'Las contraseñas no coinciden', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/users/change-password', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ currentPassword, newPassword })
+                });
+                
+                const data = await response.json();
+                
+                if (!response.ok) {
+                    showMessage(messageEl, data.error, 'error');
+                    return;
+                }
+                
+                showMessage(messageEl, 'Contraseña actualizada correctamente', 'success');
+                
+                // Limpiar campos
+                document.getElementById('currentPassword').value = '';
+                document.getElementById('newPassword').value = '';
+                document.getElementById('confirmPassword').value = '';
+                
+            } catch (error) {
+                showMessage(messageEl, 'Error al cambiar contraseña', 'error');
+            }
+        }
+        
+        function showMessage(element, message, type) {
+            element.textContent = message;
+            element.style.display = 'block';
+            element.style.background = type === 'success' ? '#d1fae5' : '#fee2e2';
+            element.style.color = type === 'success' ? '#059669' : '#dc2626';
+        }
 
     </script>
 </body>

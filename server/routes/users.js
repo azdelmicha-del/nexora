@@ -121,6 +121,45 @@ router.post('/', async (req, res) => {
     }
 });
 
+// Cambiar contraseña propia
+router.put('/change-password', requireAuth, async (req, res) => {
+    try {
+        const { currentPassword, newPassword } = req.body;
+        
+        if (!currentPassword || !newPassword) {
+            return res.status(400).json({ error: 'Contraseña actual y nueva son requeridas' });
+        }
+        
+        if (newPassword.length < 6) {
+            return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+        }
+        
+        const db = getDb();
+        
+        // Obtener usuario actual
+        const user = db.prepare('SELECT id, password FROM usuarios WHERE id = ?').get(req.session.userId);
+        
+        if (!user) {
+            return res.status(404).json({ error: 'Usuario no encontrado' });
+        }
+        
+        // Verificar contraseña actual
+        const validPassword = await bcrypt.compare(currentPassword, user.password);
+        if (!validPassword) {
+            return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+        }
+        
+        // Actualizar contraseña
+        const hashedPassword = await bcrypt.hash(newPassword, 10);
+        db.prepare('UPDATE usuarios SET password = ? WHERE id = ?').run(hashedPassword, user.id);
+        
+        res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+        console.error('Error cambiando contraseña:', error);
+        res.status(500).json({ error: 'Error al cambiar contraseña' });
+    }
+});
+
 router.put('/:id', requireAdmin, async (req, res) => {
     try {
         let { nombre, email, rol, estado, password, horario_tipo, hora_entrada, hora_salida } = req.body;
