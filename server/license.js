@@ -147,15 +147,30 @@ function recordTrialStart(negocioId = null) {
 }
 
 function isLicenseValid(negocioId = null) {
-    // En producción (Render), siempre devolver válido
+    // En producción (Render), calcular días reales basándose en la BD
     if (process.env.NODE_ENV === 'production') {
-        return { 
-            valid: true, 
-            type: 'production', 
-            daysRemaining: 9999,
-            licenciaPlan: 'premium',
-            licenciaFechaInicio: new Date().toISOString(),
-            licenciaFechaExpiracion: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString()
+        if (!negocioId) {
+            return { 
+                valid: true, 
+                type: 'trial', 
+                daysRemaining: 7,
+                licenciaPlan: 'trial',
+                licenciaFechaInicio: null,
+                licenciaFechaExpiracion: null
+            };
+        }
+        
+        // Usar la función de BD para calcular días reales
+        const { getDiasLicenciaNegocio } = require('./database');
+        const result = getDiasLicenciaNegocio(negocioId);
+        
+        return {
+            valid: result.valid,
+            type: result.type,
+            daysRemaining: result.daysRemaining,
+            licenciaPlan: result.licenciaPlan,
+            licenciaFechaInicio: result.licenciaFechaInicio,
+            licenciaFechaExpiracion: result.licenciaFechaExpiracion
         };
     }
     
