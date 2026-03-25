@@ -75,14 +75,19 @@ router.get('/availability/:slug', (req, res) => {
         const bufferMin = negocio.buffer_entre_citas || 0;
 
         const ahora = new Date();
-        const esHoy = fecha === ahora.toISOString().split('T')[0];
+        const yearAhora = ahora.getFullYear();
+        const monthAhora = String(ahora.getMonth() + 1).padStart(2, '0');
+        const dayAhora = String(ahora.getDate()).padStart(2, '0');
+        const fechaHoy = `${yearAhora}-${monthAhora}-${dayAhora}`;
+        const esHoy = fecha === fechaHoy;
         const horaActualMin = esHoy ? (ahora.getHours() * 60 + ahora.getMinutes()) : null;
 
         const horarios = [];
         let actual = aperturaMin;
 
         while (actual + duracion <= cierreMin) {
-            if (horaActualMin && actual <= horaActualMin) {
+            // Saltar horarios que terminarían antes o en el momento actual
+            if (horaActualMin !== null && actual + duracion <= horaActualMin) {
                 actual += 30;
                 continue;
             }
@@ -123,41 +128,69 @@ router.post('/appointments', (req, res) => {
         const db = getDb();
         const { slug, servicio_id, fecha, hora, nombre, whatsapp, email, notas } = req.body;
 
+        // Validar campos requeridos
         if (!slug || !servicio_id || !fecha || !hora || !nombre || !whatsapp) {
             return res.status(400).json({ error: 'Campos requeridos faltantes' });
         }
 
-        const negocio = db.prepare(`SELECT id, buffer_entre_citas FROM negocios WHERE slug = ? AND estado = 'activo'`).get(slug);
+        // Obtener información del negocio (horario de operación)
+        const negocio = db.prepare(`SELECT id, buffer_entre_citas, hora_apertura, hora_cierre FROM negocios WHERE slug = ? AND estado = 'activo'`).get(slug);
         if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
 
+        // Obtener información del servicio
         const servicio = db.prepare(`SELECT duracion, nombre, precio FROM servicios WHERE id = ? AND negocio_id = ?`)
             .get(servicio_id, negocio.id);
         if (!servicio) return res.status(404).json({ error: 'Servicio no encontrado' });
 
-        // Validar fecha/hora no sea pasada
+        // REGLA 1: Validar que la fecha/hora no sea pasada (usando hora local)
         const ahora = new Date();
-        const fechaCita = new Date(fecha + 'T' + hora + ':00');
-        if (fechaCita < ahora) {
+        const [anio, mes, dia] = fecha.split('-').map(Number);
+        const [hh, mm] = hora.split(':').map(Number);
+        const fechaCitaLocal = new Date(anio, mes - 1, dia, hh, mm);
+        
+        if (fechaCitaLocal < ahora) {
             return res.status(400).json({ error: 'No se pueden crear citas en fechas u horas pasadas' });
         }
 
-        const [h, m] = hora.split(':').map(Number);
-        const finMin = h * 60 + m + servicio.duracion;
+        // REGLA 2: Validar que la cita esté dentro del horario del negocio
+        const [h, min] = hora.split(':').map(Number);
+        const [aperturaH, aperturaM] = negocio.hora_apertura.split(':').map(Number);
+        const [cierreH, cierreM] = negocio.hora_cierre.split(':').map(Number);
+        
+        const inicioMin = h * 60 + min;
+        const aperturaMin = aperturaH * 60 + aperturaM;
+        const cierreMin = cierreH * 60 + cierreM;
+        const duracionMin = servicio.duracion;
+        const finMin = inicioMin + duracionMin;
+
+        if (inicioMin < aperturaMin) {
+            return res.status(400).json({ error: `Horario fuera de servicio. El negocio abre a las ${negocio.hora_apertura}` });
+        }
+
+        if (finMin > cierreMin) {
+            return res.status(400).json({ error: `Horario fuera de servicio. El negocio cierra a las ${negocio.hora_cierre}` });
+        }
+
         const horaFin = `${Math.floor(finMin/60).toString().padStart(2,'0')}:${(finMin%60).toString().padStart(2,'0')}`;
         const bufferMin = negocio.buffer_entre_citas || 0;
 
-        // Aplicar buffer para detección de conflictos
-        const inicioConBuffer = Math.max(0, (h * 60 + m) - bufferMin);
+        // REGLA 3: Validar que no haya conflictos con otras citas
+        const inicioConBuffer = Math.max(0, inicioMin - bufferMin);
         const finConBuffer = finMin + bufferMin;
         const horaInicioBuffer = `${Math.floor(inicioConBuffer / 60).toString().padStart(2, '0')}:${(inicioConBuffer % 60).toString().padStart(2, '0')}`;
         const horaFinBuffer = `${Math.floor(finConBuffer / 60).toString().padStart(2, '0')}:${(finConBuffer % 60).toString().padStart(2, '0')}`;
 
         const conflict = db.prepare(`
-            SELECT id FROM citas WHERE negocio_id = ? AND fecha = ? AND estado != 'cancelada'
-            AND ((hora_inicio < ? AND hora_fin > ?) OR (hora_inicio < ? AND hora_fin > ?))
-        `).get(negocio.id, fecha, horaFinBuffer, horaInicioBuffer, horaFinBuffer, hora);
+            SELECT id FROM citas 
+            WHERE negocio_id = ? AND fecha = ? AND estado != 'cancelada'
+            AND (
+                (hora_inicio < ? AND hora_fin > ?) OR
+                (hora_inicio < ? AND hora_fin > ?) OR
+                (hora_inicio >= ? AND hora_fin <= ?)
+            )
+        `).get(negocio.id, fecha, horaFinBuffer, horaInicioBuffer, horaFinBuffer, hora, horaInicioBuffer, horaFinBuffer);
 
-        if (conflict) return res.status(409).json({ error: 'Horario no disponible' });
+        if (conflict) return res.status(409).json({ error: 'Este horario ya ha sido reservado por otro cliente' });
 
         let cliente = db.prepare(`SELECT id FROM clientes WHERE negocio_id = ? AND telefono = ?`)
             .get(negocio.id, whatsapp);

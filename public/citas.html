@@ -254,6 +254,7 @@
                     <button class="estado-btn pendiente" onclick="filtrarEstado('pendiente')" data-estado="pendiente">Pendientes</button>
                     <button class="estado-btn confirmada" onclick="filtrarEstado('confirmada')" data-estado="confirmada">Confirmadas</button>
                     <button class="estado-btn finalizada" onclick="filtrarEstado('finalizada')" data-estado="finalizada">Finalizadas</button>
+                    <button class="estado-btn cancelada" onclick="filtrarEstado('cancelada')" data-estado="cancelada">Canceladas</button>
                     <span id="filtroInfo" class="filtro-info" style="margin-left: auto; font-size: 0.85rem; color: var(--gray-600);"></span>
                 </div>
             </div>
@@ -296,7 +297,7 @@
                     
                     <div class="form-group">
                         <label>Fecha *</label>
-                        <input type="date" id="fecha" required onchange="cargarHorarios()">
+                        <input type="date" id="fecha" required onchange="cargarHorarios()" min="">
                     </div>
                     
                     <div class="form-group">
@@ -363,6 +364,52 @@
                 </button>
             </div>
             <div class="modal-body" id="detalleContent"></div>
+        </div>
+    </div>
+    
+    <!-- Modal de confirmación para eliminar cita -->
+    <div id="modalEliminar" class="modal-overlay">
+        <div style="background: white; border-radius: 16px; padding: 30px; max-width: 420px; width: 90%; text-align: center;">
+            <div style="width: 60px; height: 60px; background: #fef3c7; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 30px;">
+                ⚠️
+            </div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; line-height: 1.4;">
+                ¿Está seguro que desea ELIMINAR PERMANENTEMENTE esta cita cancelada?
+            </h3>
+            <p style="color: #666; font-size: 13px; margin-bottom: 24px;">
+                Esta acción no se puede deshacer.
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button onclick="cerrarModalEliminar()" style="flex: 1; padding: 12px 20px; border: 2px solid #e5e7eb; background: white; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; color: #666;">
+                    Cancelar
+                </button>
+                <button onclick="confirmarEliminacion()" style="flex: 1; padding: 12px 20px; border: none; background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; color: white;">
+                    Eliminar
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal de confirmación para facturar -->
+    <div id="modalFacturar" class="modal-overlay">
+        <div style="background: white; border-radius: 16px; padding: 30px; max-width: 420px; width: 90%; text-align: center;">
+            <div style="width: 60px; height: 60px; background: #dbeafe; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 30px;">
+                🧾
+            </div>
+            <h3 style="font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; line-height: 1.4;">
+                ¿Desea facturar esta cita?
+            </h3>
+            <p style="color: #666; font-size: 13px; margin-bottom: 24px;">
+                Se redirigirá a Facturar para completar el cobro.
+            </p>
+            <div style="display: flex; gap: 12px; justify-content: center;">
+                <button onclick="cerrarModalFacturar()" style="flex: 1; padding: 12px 20px; border: 2px solid #e5e7eb; background: white; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; color: #666;">
+                    Cancelar
+                </button>
+                <button onclick="procederAFacturar()" style="flex: 1; padding: 12px 20px; border: none; background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; color: white;">
+                    Aceptar
+                </button>
+            </div>
         </div>
     </div>
     
@@ -547,15 +594,20 @@
             const fechaDesde = document.getElementById('fechaDesde').value;
             const fechaHasta = document.getElementById('fechaHasta').value;
             
+            // Filtrar citas: si es "Todas", excluir canceladas
+            let citasFiltradas = estadoFiltro === null 
+                ? citas.filter(c => c.estado !== 'cancelada')
+                : citas;
+            
             let nombreFiltro = '';
             if (estadoFiltro) {
-                const nombres = { pendiente: 'Pendientes', confirmada: 'Confirmadas', finalizada: 'Finalizadas' };
+                const nombres = { pendiente: 'Pendientes', confirmada: 'Confirmadas', finalizada: 'Finalizadas', cancelada: 'Canceladas' };
                 nombreFiltro = nombres[estadoFiltro] || estadoFiltro;
             } else {
                 nombreFiltro = 'Todas';
             }
             
-            if (citas.length === 0) {
+            if (citasFiltradas.length === 0) {
                 let mensaje = 'No hay citas';
                 if (filtroFechaActivo && fechaDesde && fechaHasta) {
                     if (fechaDesde === fechaHasta) {
@@ -574,19 +626,19 @@
             let infoTexto = '';
             if (filtroFechaActivo && fechaDesde && fechaHasta) {
                 if (fechaDesde === fechaHasta) {
-                    infoTexto = `${citas.length} cita(s) ${nombreFiltro.toLowerCase()} para el ${formatDate(fechaDesde)}`;
+                    infoTexto = `${citasFiltradas.length} cita(s) ${nombreFiltro.toLowerCase()} para el ${formatDate(fechaDesde)}`;
                 } else {
-                    infoTexto = `${citas.length} cita(s) ${nombreFiltro.toLowerCase()} entre ${formatDate(fechaDesde)} y ${formatDate(fechaHasta)}`;
+                    infoTexto = `${citasFiltradas.length} cita(s) ${nombreFiltro.toLowerCase()} entre ${formatDate(fechaDesde)} y ${formatDate(fechaHasta)}`;
                 }
             } else if (estadoFiltro) {
-                infoTexto = `${citas.length} cita(s) ${nombreFiltro.toLowerCase()}`;
+                infoTexto = `${citasFiltradas.length} cita(s) ${nombreFiltro.toLowerCase()}`;
             } else {
-                infoTexto = `${citas.length} cita(s)`;
+                infoTexto = `${citasFiltradas.length} cita(s)`;
             }
             
             filtroInfo.textContent = infoTexto;
             
-            grid.innerHTML = citas.map(c => `
+            grid.innerHTML = citasFiltradas.map(c => `
                 <div class="cita-card ${c.estado}">
                     <div class="cita-header">
                         <div>
@@ -607,7 +659,10 @@
                             <button class="btn btn-secondary btn-sm" onclick="cambiarEstado(${c.id}, 'confirmada')">Confirmar</button>
                             <button class="btn btn-warning btn-sm" onclick="cambiarEstado(${c.id}, 'cancelada')">Cancelar</button>
                         ` : ''}
-                        <button class="btn btn-danger btn-sm" onclick="eliminarCita(${c.id})">Eliminar</button>
+                        ${c.estado === 'cancelada' 
+                            ? `<button class="btn btn-danger btn-sm" onclick="eliminarCita(${c.id})">Eliminar</button>`
+                            : ''
+                        }
                     </div>
                 </div>
             `).join('');
@@ -706,6 +761,10 @@
         function openModal() {
             let fechaInicial = new Date();
             fechaInicial.setHours(0, 0, 0, 0);
+            
+            // Establecer fecha mínima como hoy
+            const fechaMinima = `${fechaInicial.getFullYear()}-${String(fechaInicial.getMonth() + 1).padStart(2, '0')}-${String(fechaInicial.getDate()).padStart(2, '0')}`;
+            document.getElementById('fecha').min = fechaMinima;
             
             if (configNegocio && configNegocio.dias_laborales) {
                 const diasLaborales = configNegocio.dias_laborales.split(',').map(Number);
@@ -815,26 +874,60 @@
             }
         }
         
-        async function facturarCita(citaId, clienteId, servicioId) {
-            if (!confirm('¿Desea facturar esta cita? Se redirigirá a Facturar para completar el cobro.')) {
-                return;
-            }
+        let idCitaFacturar = null;
+        let datosFacturar = {};
+
+        function facturarCita(citaId, clienteId, servicioId) {
+            idCitaFacturar = citaId;
+            datosFacturar = { clienteId, servicioId };
+            document.getElementById('modalFacturar').classList.add('active');
+        }
+
+        function cerrarModalFacturar() {
+            document.getElementById('modalFacturar').classList.remove('active');
+            idCitaFacturar = null;
+            datosFacturar = {};
+        }
+
+        function procederAFacturar() {
+            if (!idCitaFacturar) return;
+            
+            // Capturar datos antes de cerrar el modal
+            const citaId = idCitaFacturar;
+            const clienteId = datosFacturar.clienteId;
+            const servicioId = datosFacturar.servicioId;
             
             showToast('Redirigiendo a Facturar...', 'info');
+            cerrarModalFacturar();
             
             setTimeout(() => {
                 window.location.href = `/pos?cita=${citaId}&cliente=${clienteId}&servicio=${servicioId}`;
             }, 500);
         }
         
-        async function eliminarCita(citaId) {
-            if (!confirm('¿Está seguro que desea eliminar esta cita?')) return;
+        let idParaEliminar = null;
+
+        function eliminarCita(citaId) {
+            idParaEliminar = citaId;
+            document.getElementById('modalEliminar').classList.add('active');
+        }
+
+        function cerrarModalEliminar() {
+            document.getElementById('modalEliminar').classList.remove('active');
+            idParaEliminar = null;
+        }
+
+        async function confirmarEliminacion() {
+            if (!idParaEliminar) return;
+            
             try {
-                await apiCall(`/appointments/${citaId}`, { method: 'DELETE' });
-                showAlert('Cita eliminada correctamente', 'success');
+                await apiCall(`/appointments/${idParaEliminar}`, { method: 'DELETE' });
+                showAlert('Cita eliminada permanentemente', 'success');
+                cerrarModalEliminar();
                 await cargarCitas();
             } catch (error) {
                 showAlert(error.message || 'Error al eliminar cita');
+                cerrarModalEliminar();
             }
         }
         
@@ -999,7 +1092,9 @@
         
         function formatDate(dateStr) {
             if (!dateStr) return '';
-            const date = new Date(dateStr);
+            // Parsear como fecha local, no UTC
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const date = new Date(year, month - 1, day);
             return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' });
         }
         

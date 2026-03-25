@@ -471,6 +471,13 @@
             }
         });
         
+        function formatDateISO(date) {
+            const year = date.getFullYear();
+            const month = String(date.getMonth() + 1).padStart(2, '0');
+            const day = String(date.getDate()).padStart(2, '0');
+            return `${year}-${month}-${day}`;
+        }
+
         function setFiltro(tipo) {
             filtroActual = tipo;
             const hoy = new Date();
@@ -478,21 +485,20 @@
             
             switch(tipo) {
                 case 'hoy':
-                    desde = hasta = hoy.toISOString().split('T')[0];
+                    desde = hasta = formatDateISO(hoy);
                     break;
                 case 'semana':
-                    var diaSemana = hoy.getDay();
-                    desde = new Date(hoy);
-                    desde.setDate(hoy.getDate() - diaSemana);
-                    hasta = new Date(hoy);
-                    desde = desde.toISOString().split('T')[0];
-                    hasta = hasta.toISOString().split('T')[0];
+                    const diaSemana = hoy.getDay();
+                    const inicioSemana = new Date(hoy);
+                    inicioSemana.setDate(hoy.getDate() - diaSemana);
+                    desde = formatDateISO(inicioSemana);
+                    hasta = formatDateISO(hoy);
                     break;
                 case 'mes':
-                    desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-                    hasta = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
-                    desde = desde.toISOString().split('T')[0];
-                    hasta = hasta.toISOString().split('T')[0];
+                    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                    const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+                    desde = formatDateISO(inicioMes);
+                    hasta = formatDateISO(finMes);
                     break;
                 case 'personalizado':
                     return;
@@ -569,51 +575,23 @@
             document.getElementById('btnCerrarCaja').style.display = data.caja_cerrada ? 'none' : 'inline-block';
             document.getElementById('btnAbrirCaja').style.display = data.caja_cerrada ? 'inline-block' : 'none';
             
-            if (data.caja_cerrada) {
-                content.innerHTML = `
-                    <h2>📊 Cuadre de Caja - ${formatDateFull(data.fecha)}</h2>
-                    <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.75rem; padding: 2rem; text-align: center; margin-top: 1rem;">
-                        <div style="font-size: 3rem; margin-bottom: 1rem;">🔒</div>
-                        <h3 style="color: #92400e; margin-bottom: 0.5rem;">Caja Cerrada</h3>
-                        <p style="color: #92400e; margin-bottom: 1rem;">El cuadre está bloqueado. Las ventas están pausadas.</p>
-                        <p style="color: #78350f; font-size: 0.875rem;">Haga clic en "Abrir Caja" para continuar vendiendo.</p>
-                    </div>
-                    <div class="cuadre-grid" style="opacity: 0.3; pointer-events: none;">
-                        <div class="cuadre-item">
-                            <div class="valor">${formatCurrency(data.resumen.total)}</div>
-                            <div class="etiqueta">Total Vendido</div>
-                        </div>
-                        <div class="cuadre-item">
-                            <div class="valor">${data.resumen.cantidad}</div>
-                            <div class="etiqueta">Ventas</div>
-                        </div>
-                        <div class="cuadre-item">
-                            <div class="valor">${formatCurrency(data.resumen.efectivo)}</div>
-                            <div class="etiqueta">Efectivo</div>
-                        </div>
-                        <div class="cuadre-item">
-                            <div class="valor">${formatCurrency(data.resumen.transferencia)}</div>
-                            <div class="etiqueta">Transferencia</div>
-                        </div>
-                        <div class="cuadre-item">
-                            <div class="valor">${formatCurrency(data.resumen.tarjeta)}</div>
-                            <div class="etiqueta">Tarjeta</div>
-                        </div>
-                    </div>
-                `;
-                ventas.innerHTML = '<div class="no-data"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg><p>Panel bloqueado - Caja cerrada</p></div>';
-                return;
-            }
-            
-            const estadoCaja = '';
             const fueraCuadreInfo = data.resumenFueraCuadre && data.resumenFueraCuadre.cantidad > 0
                 ? `<div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem; color: #92400e;">
                        <strong>⚠️ Ventas fuera de cuadre:</strong> ${data.resumenFueraCuadre.cantidad} ventas por ${formatCurrency(data.resumenFueraCuadre.total)}
                    </div>`
                 : '';
             
+            const cajaCerradaBanner = data.caja_cerrada
+                ? `<div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem; color: #92400e; display: flex; align-items: center; gap: 0.5rem;">
+                       <span style="font-size: 1.25rem;">🔒</span>
+                       <span><strong>Caja Cerrada</strong> - Haga clic en "Abrir Caja" para continuar vendiendo.</span>
+                   </div>`
+                : '';
+            
             content.innerHTML = `
-                <h2>📊 Cuadre de Caja - ${formatDateFull(data.fecha)}${estadoCaja}</h2>
+                ${cajaCerradaBanner}
+                <h2>📊 Cuadre de Caja - ${formatDateFull(data.fecha)}</h2>
+                ${fueraCuadreInfo}
                 <div class="cuadre-grid">
                     <div class="cuadre-item">
                         <div class="valor">${formatCurrency(data.resumen.total)}</div>
@@ -636,7 +614,6 @@
                         <div class="etiqueta">Tarjeta</div>
                     </div>
                 </div>
-                ${fueraCuadreInfo}
             `;
             
             if (data.ventas && data.ventas.length > 0) {
@@ -961,13 +938,15 @@
         
         function formatDate(dateStr) {
             if (!dateStr) return '';
-            const date = new Date(dateStr);
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const date = new Date(year, month - 1, day);
             return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
         }
         
         function formatDateFull(dateStr) {
             if (!dateStr) return '';
-            const date = new Date(dateStr);
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const date = new Date(year, month - 1, day);
             return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'long', year: 'numeric' });
         }
         

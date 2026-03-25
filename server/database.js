@@ -88,6 +88,14 @@ function initDatabase() {
         db.exec('ALTER TABLE negocios ADD COLUMN buffer_entre_citas INTEGER DEFAULT 0');
     }
     
+    // Limpiar citas erróneas del 2026-03-24 (bug de fecha)
+    const citasErroneas = db.prepare("SELECT COUNT(*) as count FROM citas WHERE fecha = '2026-03-24'").get();
+    if (citasErroneas.count > 0) {
+        console.log(`Limpiando ${citasErroneas.count} citas erróneas del 2026-03-24...`);
+        db.prepare("DELETE FROM citas WHERE fecha = '2026-03-24'").run();
+        console.log('Citas erróneas eliminadas.');
+    }
+    
     const negociosSinFechaInicio = db.prepare(`
         SELECT id FROM negocios 
         WHERE licencia_fecha_inicio IS NULL

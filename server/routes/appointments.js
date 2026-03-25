@@ -81,29 +81,34 @@ router.post('/', requireAuth, (req, res) => {
     try {
         const { cliente_id, servicio_id, fecha, hora, notas } = req.body;
 
+        // Validar campos requeridos
         if (!cliente_id || !servicio_id || !fecha || !hora) {
             return res.status(400).json({ error: 'Todos los campos son requeridos' });
         }
 
         const db = getDb();
 
+        // Obtener información del servicio
         const servicio = db.prepare('SELECT duracion FROM servicios WHERE id = ? AND negocio_id = ? AND estado = ?')
             .get(servicio_id, req.session.negocioId, 'activo');
         if (!servicio) {
             return res.status(400).json({ error: 'Servicio no válido' });
         }
 
+        // Obtener información del cliente
         const cliente = db.prepare('SELECT id FROM clientes WHERE id = ? AND negocio_id = ?')
             .get(cliente_id, req.session.negocioId);
         if (!cliente) {
             return res.status(400).json({ error: 'Cliente no válido' });
         }
 
+        // Obtener configuración del negocio (horario de operación)
         const config = db.prepare('SELECT hora_apertura, hora_cierre, dias_laborales, permitir_solapamiento, buffer_entre_citas FROM negocios WHERE id = ?')
             .get(req.session.negocioId);
 
         const bufferMin = config.buffer_entre_citas || 0;
 
+        // Convertir horarios a minutos para comparación en formato 24h
         const [horaInt, horaMin] = hora.split(':').map(Number);
         const [aperturaH, aperturaM] = config.hora_apertura.split(':').map(Number);
         const [cierreH, cierreM] = config.hora_cierre.split(':').map(Number);
@@ -114,33 +119,39 @@ router.post('/', requireAuth, (req, res) => {
         const duracionMin = servicio.duracion;
         const finMin = inicioMin + duracionMin;
 
+        // REGLA 1: Validar que la cita esté dentro del horario del negocio
         if (inicioMin < aperturaMin) {
-            return res.status(400).json({ error: `La hora de inicio es antes de la apertura (${config.hora_apertura})` });
+            return res.status(400).json({ error: `Horario fuera de servicio. El negocio abre a las ${config.hora_apertura}` });
         }
 
         if (finMin > cierreMin) {
-            return res.status(400).json({ error: `La cita termina después del cierre (${config.hora_cierre}). Último horario disponible: ${Math.floor((cierreMin - duracionMin) / 60)}:${String((cierreMin - duracionMin) % 60).padStart(2, '0')}` });
+            return res.status(400).json({ error: `Horario fuera de servicio. El negocio cierra a las ${config.hora_cierre}` });
         }
 
-        const finHora = Math.floor(finMin / 60);
-        const finMinutos = finMin % 60;
-        const horaFin = `${finHora.toString().padStart(2, '0')}:${finMinutos.toString().padStart(2, '0')}`;
+        // Calcular hora de fin de la cita
+        const horaFin = `${Math.floor(finMin / 60).toString().padStart(2, '0')}:${(finMin % 60).toString().padStart(2, '0')}`;
 
-        // Validar fecha/hora no sea pasada
+        // REGLA 2: Validar que la fecha/hora no sea pasada (usando hora local)
         const ahora = new Date();
-        const fechaCita = new Date(fecha + 'T' + hora + ':00');
-        if (fechaCita < ahora) {
+        const [y, m, d] = fecha.split('-').map(Number);
+        const [hh, mm] = hora.split(':').map(Number);
+        const fechaCitaLocal = new Date(y, m - 1, d, hh, mm);
+        
+        if (fechaCitaLocal < ahora) {
             return res.status(400).json({ error: 'No se pueden crear citas en fechas u horas pasadas' });
         }
 
+        // REGLA 3: Validar que no haya conflictos con otras citas
         if (config.permitir_solapamiento == 0) {
-            // Hora inicio y fin con buffer para detección de conflictos
+            // Calcular rangos con buffer para detección de conflictos
             const inicioConBuffer = Math.max(0, inicioMin - bufferMin);
             const finConBuffer = finMin + bufferMin;
             
             const horaInicioBuffer = `${Math.floor(inicioConBuffer / 60).toString().padStart(2, '0')}:${(inicioConBuffer % 60).toString().padStart(2, '0')}`;
             const horaFinBuffer = `${Math.floor(finConBuffer / 60).toString().padStart(2, '0')}:${(finConBuffer % 60).toString().padStart(2, '0')}`;
 
+            // Verificar si existe conflicto con citas activas (pendiente, confirmada, finalizada)
+            // Las citas canceladas NO bloquean el horario
             const conflict = db.prepare(`
                 SELECT id FROM citas
                 WHERE negocio_id = ? AND fecha = ? 
@@ -153,7 +164,7 @@ router.post('/', requireAuth, (req, res) => {
             `).get(req.session.negocioId, fecha, horaFinBuffer, horaInicioBuffer, horaFinBuffer, hora, horaInicioBuffer, horaFinBuffer);
 
             if (conflict) {
-                return res.status(400).json({ error: 'Ya existe una cita en ese horario. Selecciona otro horario disponible.' });
+                return res.status(400).json({ error: 'Este horario ya ha sido reservado por otro cliente' });
             }
         }
 
@@ -275,11 +286,14 @@ router.put('/:id', requireAuth, (req, res) => {
             return res.status(400).json({ error: 'No hay campos para actualizar' });
         }
 
-        // Validar fecha/hora no sea pasada si se está cambiando el horario
+        // Validar fecha/hora no sea pasada si se está cambiando el horario (usando hora local)
         if (cambiandoHorario) {
             const ahora = new Date();
-            const fechaCita = new Date(nuevaFecha + 'T' + nuevaHora + ':00');
-            if (fechaCita < ahora) {
+            const [y, m, d] = nuevaFecha.split('-').map(Number);
+            const [hh, mm] = nuevaHora.split(':').map(Number);
+            const fechaCitaLocal = new Date(y, m - 1, d, hh, mm);
+            
+            if (fechaCitaLocal < ahora) {
                 return res.status(400).json({ error: 'No se pueden agendar citas en fechas u horas pasadas' });
             }
         }
@@ -402,16 +416,19 @@ router.get('/horarios/disponibles', requireAuth, (req, res) => {
         const horarios = [];
         let actual = aperturaMin;
 
+        // Generar slots de 30 minutos desde apertura hasta cierre
         while (actual + duracion <= cierreMin) {
-            if (horaActualMin !== null && actual <= horaActualMin) {
+            // Para HOY: saltar horarios que terminarían antes o en el momento actual
+            if (esFechaHoy && horaActualMin !== null && actual + duracion <= horaActualMin) {
                 actual += 30;
                 continue;
             }
 
-            const horaActual = `${Math.floor(actual / 60).toString().padStart(2, '0')}:${(actual % 60).toString().padStart(2, '0')}`;
+            const horaSlot = `${Math.floor(actual / 60).toString().padStart(2, '0')}:${(actual % 60).toString().padStart(2, '0')}`;
             const finMin = actual + duracion;
             const horaFin = `${Math.floor(finMin / 60).toString().padStart(2, '0')}:${(finMin % 60).toString().padStart(2, '0')}`;
 
+            // Verificar conflictos con citas existentes
             let disponible = true;
             for (const cita of citas) {
                 const [cH, cM] = cita.hora_inicio.split(':').map(Number);
@@ -419,10 +436,11 @@ router.get('/horarios/disponibles', requireAuth, (req, res) => {
                 const citaInicio = cH * 60 + cM;
                 const citaFin = cfH * 60 + cfM;
 
-                // Aplicar buffer: verificar que la nueva cita + buffer no tope con la existente
+                // Aplicar buffer para detección de conflictos
                 const inicioConBuffer = Math.max(0, actual - bufferMin);
                 const finConBuffer = finMin + bufferMin;
 
+                // Verificar solapamiento
                 if (!(finConBuffer <= citaInicio || inicioConBuffer >= citaFin)) {
                     disponible = false;
                     break;
@@ -430,14 +448,15 @@ router.get('/horarios/disponibles', requireAuth, (req, res) => {
             }
 
             if (disponible) {
-                horarios.push(horaActual);
+                horarios.push(horaSlot);
             }
 
+            // Avanzar al siguiente slot de 30 minutos
             actual += 30;
         }
 
         const ultimoHorario = horarios.length > 0 
-            ? `${Math.floor((cierreMin - duracion) / 60)}:${String((cierreMin - duracion) % 60).padStart(2, '0')}`
+            ? `${Math.floor((cierreMin - duracion) / 60).toString().padStart(2, '0')}:${((cierreMin - duracion) % 60).toString().padStart(2, '0')}`
             : null;
 
         res.json({ 
@@ -467,10 +486,19 @@ router.delete('/:id', requireAdmin, (req, res) => {
             return res.status(404).json({ error: 'Cita no encontrada' });
         }
 
+        // Si la cita ya está cancelada, eliminar permanentemente
         if (cita.estado === 'cancelada') {
-            return res.status(400).json({ error: 'La cita ya está cancelada' });
+            db.prepare('DELETE FROM citas WHERE id = ?').run(citaId);
+            
+            db.prepare(`
+                INSERT INTO notificaciones (negocio_id, tipo, mensaje, referencia_id)
+                VALUES (?, 'cita', ?, ?)
+            `).run(req.session.negocioId, `Cita eliminada permanentemente`, citaId);
+            
+            return res.json({ success: true, message: 'Cita eliminada permanentemente' });
         }
 
+        // Si la cita no está cancelada, cancelarla (soft delete)
         db.prepare('UPDATE citas SET estado = ? WHERE id = ?').run('cancelada', citaId);
 
         db.prepare(`
@@ -480,8 +508,8 @@ router.delete('/:id', requireAdmin, (req, res) => {
 
         res.json({ success: true, message: 'Cita cancelada correctamente' });
     } catch (error) {
-        console.error('Error al cancelar cita:', error);
-        res.status(500).json({ error: 'Error al cancelar cita' });
+        console.error('Error al procesar cita:', error);
+        res.status(500).json({ error: 'Error al procesar cita' });
     }
 });
 

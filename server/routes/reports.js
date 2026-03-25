@@ -123,13 +123,13 @@ router.get('/servicios', requireAuth, (req, res) => {
                 COUNT(vd.id) as veces_vendido,
                 COALESCE(SUM(vd.subtotal), 0) as ingreso_total
             FROM venta_detalles vd
-            JOIN servicios s ON vd.servicio_id = s.id
+            JOIN servicios s ON vd.servicio_id = s.id AND s.negocio_id = ?
             JOIN ventas v ON vd.venta_id = v.id
             ${where}
             GROUP BY s.id, s.nombre, s.precio
             ORDER BY veces_vendido DESC
             LIMIT 20
-        `).all(...params);
+        `).all(negocioId, ...params);
 
         const porCategoria = db.prepare(`
             SELECT 
@@ -137,23 +137,23 @@ router.get('/servicios', requireAuth, (req, res) => {
                 COUNT(vd.id) as veces_vendido,
                 COALESCE(SUM(vd.subtotal), 0) as ingreso_total
             FROM venta_detalles vd
-            JOIN servicios s ON vd.servicio_id = s.id
+            JOIN servicios s ON vd.servicio_id = s.id AND s.negocio_id = ?
             LEFT JOIN categorias c ON s.categoria_id = c.id
             JOIN ventas v ON vd.venta_id = v.id
             ${where}
             GROUP BY c.id, c.nombre
             ORDER BY ingreso_total DESC
-        `).all(...params);
+        `).all(negocioId, ...params);
 
         const totalServicios = db.prepare(`
             SELECT 
                 COUNT(DISTINCT s.id) as servicios_vendidos,
                 COALESCE(SUM(vd.subtotal), 0) as ingreso_total
             FROM venta_detalles vd
-            JOIN servicios s ON vd.servicio_id = s.id
+            JOIN servicios s ON vd.servicio_id = s.id AND s.negocio_id = ?
             JOIN ventas v ON vd.venta_id = v.id
             ${where}
-        `).get(...params);
+        `).get(negocioId, ...params);
 
         res.json({
             topServicios,
@@ -191,23 +191,23 @@ router.get('/clientes', requireAuth, (req, res) => {
                 COUNT(*) as total_clientes,
                 SUM(CASE WHEN DATE(c.fecha_registro) >= DATE('now', '-30 days') THEN 1 ELSE 0 END) as nuevos_mes,
                 SUM(CASE WHEN EXISTS (
-                    SELECT 1 FROM ventas v WHERE v.cliente_id = c.id
+                    SELECT 1 FROM ventas v WHERE v.cliente_id = c.id AND v.negocio_id = ?
                 ) THEN 1 ELSE 0 END) as con_compras
             FROM clientes c
             WHERE c.negocio_id = ?${whereFecha}
-        `).get(negocioId, ...paramsFecha);
+        `).get(negocioId, negocioId, ...paramsFecha);
 
         const masFrecuentes = db.prepare(`
             SELECT c.id, c.nombre, c.telefono,
                    COUNT(v.id) as total_compras,
                    COALESCE(SUM(v.total), 0) as total_gastado
             FROM clientes c
-            LEFT JOIN ventas v ON c.id = v.cliente_id
+            LEFT JOIN ventas v ON c.id = v.cliente_id AND v.negocio_id = ?
             WHERE c.negocio_id = ?
             GROUP BY c.id, c.nombre, c.telefono
             ORDER BY total_compras DESC
             LIMIT 10
-        `).all(negocioId);
+        `).all(negocioId, negocioId);
 
         res.json({
             resumen,
@@ -293,23 +293,6 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
             WHERE negocio_id = ? AND fecha = ?
         `).get(req.session.negocioId, hoy);
 
-        if (cajaCerrada) {
-            return res.json({
-                resumen: {
-                    total: 0,
-                    cantidad: 0,
-                    efectivo: 0,
-                    transferencia: 0,
-                    tarjeta: 0
-                },
-                resumenFueraCuadre: { total: 0, cantidad: 0 },
-                ventas: [],
-                fecha: hoy,
-                caja_cerrada: true,
-                mensaje: 'La caja está cerrada. Espere a abrirla para ver el cuadre.'
-            });
-        }
-
         const resumen = db.prepare(`
             SELECT COALESCE(SUM(total), 0) as total,
                    COUNT(*) as cantidad,
@@ -358,7 +341,7 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
             resumenFueraCuadre,
             ventas: ventasConDetalles,
             fecha: hoy,
-            caja_cerrada: false
+            caja_cerrada: !!cajaCerrada
         });
     } catch (error) {
         console.error('Error:', error);
