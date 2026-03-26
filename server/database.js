@@ -88,6 +88,11 @@ function initDatabase() {
         db.exec('ALTER TABLE negocios ADD COLUMN buffer_entre_citas INTEGER DEFAULT 0');
     }
     
+    const hasZonaHoraria = negocioColumns.some(c => c.name === 'zona_horaria');
+    if (!hasZonaHoraria) {
+        db.exec('ALTER TABLE negocios ADD COLUMN zona_horaria INTEGER DEFAULT -4');
+    }
+    
     // Agregar columna cuadre_id a ventas para separar turnos de caja
     const ventasColumns = db.prepare("PRAGMA table_info(ventas)").all();
     const hasCuadreId = ventasColumns.some(c => c.name === 'cuadre_id');

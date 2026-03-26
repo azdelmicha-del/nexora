@@ -4,6 +4,23 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Función para obtener la hora actual en la zona horaria del negocio
+function getHoraNegocio(db, negocioId) {
+    const config = db.prepare('SELECT zona_horaria FROM negocios WHERE id = ?').get(negocioId);
+    const zonaHoraria = config ? config.zona_horaria : -4; // Default: UTC-4 (República Dominicana)
+    
+    const ahoraUTC = new Date();
+    const ahoraLocal = new Date(ahoraUTC.getTime() + (zonaHoraria * 60 * 60 * 1000));
+    
+    return {
+        fecha: `${ahoraLocal.getFullYear()}-${String(ahoraLocal.getMonth() + 1).padStart(2, '0')}-${String(ahoraLocal.getDate()).padStart(2, '0')}`,
+        hora: ahoraLocal.getHours(),
+        minuto: ahoraLocal.getMinutes(),
+        horaMinutos: ahoraLocal.getHours() * 60 + ahoraLocal.getMinutes(),
+        fechaObj: ahoraLocal
+    };
+}
+
 router.get('/', requireAuth, (req, res) => {
     try {
         const db = getDb();
@@ -132,13 +149,16 @@ router.post('/', requireAuth, (req, res) => {
         // Calcular hora de fin de la cita
         const horaFin = `${Math.floor(finMin / 60).toString().padStart(2, '0')}:${(finMin % 60).toString().padStart(2, '0')}`;
 
-        // REGLA 2: Validar que la fecha/hora no sea pasada (usando hora local)
-        const ahora = new Date();
+        // REGLA 2: Validar que la fecha/hora no sea pasada (usando zona horaria del negocio)
+        const horaNegocio = getHoraNegocio(db, req.session.negocioId);
         const [y, m, d] = fecha.split('-').map(Number);
         const [hh, mm] = hora.split(':').map(Number);
-        const fechaCitaLocal = new Date(y, m - 1, d, hh, mm);
         
-        if (fechaCitaLocal < ahora) {
+        // Crear fecha de la cita: interpretar como hora del negocio, convertir a UTC
+        // Ejemplo: 14:10 en RD (UTC-4) = 18:10 UTC
+        const fechaCitaUTC = Date.UTC(y, m - 1, d, hh, mm) - (horaNegocio.zona_horaria * 60 * 60 * 1000);
+        
+        if (fechaCitaUTC < Date.now()) {
             return res.status(400).json({ error: 'No se pueden crear citas en fechas u horas pasadas' });
         }
 
@@ -406,13 +426,14 @@ router.get('/horarios/disponibles', requireAuth, (req, res) => {
         const duracion = servicio.duracion;
         const bufferMin = config.buffer_entre_citas || 0;
 
-        const ahora = new Date();
+        // Usar zona horaria del negocio para determinar si es hoy
+        const horaNegocio = getHoraNegocio(db, req.session.negocioId);
         const esFechaHoy = (
-            ahora.getFullYear() === year &&
-            (ahora.getMonth() + 1) === month &&
-            ahora.getDate() === day
+            horaNegocio.fechaObj.getFullYear() === year &&
+            (horaNegocio.fechaObj.getMonth() + 1) === month &&
+            horaNegocio.fechaObj.getDate() === day
         );
-        const horaActualMin = esFechaHoy ? (ahora.getHours() * 60 + ahora.getMinutes()) : null;
+        const horaActualMin = esFechaHoy ? horaNegocio.horaMinutos : null;
 
         const horarios = [];
         let actual = aperturaMin;

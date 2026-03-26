@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS negocios (
     tiempo_anticipacion INTEGER DEFAULT 60,
     tiempo_cancelacion INTEGER DEFAULT 24,
     buffer_entre_citas INTEGER DEFAULT 0,
+    zona_horaria INTEGER DEFAULT -4,
     mostrar_impuestos INTEGER DEFAULT 0,
     activar_descuentos INTEGER DEFAULT 1,
     seleccion_obligatoria_cliente INTEGER DEFAULT 0,

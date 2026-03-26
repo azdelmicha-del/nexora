@@ -2,6 +2,24 @@ const express = require('express');
 const { getDb } = require('../database');
 const router = express.Router();
 
+// Función para obtener la hora actual en la zona horaria del negocio
+function getHoraNegocio(db, negocioId) {
+    const config = db.prepare('SELECT zona_horaria FROM negocios WHERE id = ?').get(negocioId);
+    const zonaHoraria = config ? config.zona_horaria : -4; // Default: UTC-4 (República Dominicana)
+    
+    const ahoraUTC = new Date();
+    const ahoraLocal = new Date(ahoraUTC.getTime() + (zonaHoraria * 60 * 60 * 1000));
+    
+    return {
+        fecha: `${ahoraLocal.getFullYear()}-${String(ahoraLocal.getMonth() + 1).padStart(2, '0')}-${String(ahoraLocal.getDate()).padStart(2, '0')}`,
+        hora: ahoraLocal.getHours(),
+        minuto: ahoraLocal.getMinutes(),
+        horaMinutos: ahoraLocal.getHours() * 60 + ahoraLocal.getMinutes(),
+        fechaObj: ahoraLocal,
+        zona_horaria: zonaHoraria
+    };
+}
+
 router.get('/business/:slug', (req, res) => {
     try {
         const db = getDb();
@@ -74,13 +92,10 @@ router.get('/availability/:slug', (req, res) => {
         const duracion = servicio.duracion;
         const bufferMin = negocio.buffer_entre_citas || 0;
 
-        const ahora = new Date();
-        const yearAhora = ahora.getFullYear();
-        const monthAhora = String(ahora.getMonth() + 1).padStart(2, '0');
-        const dayAhora = String(ahora.getDate()).padStart(2, '0');
-        const fechaHoy = `${yearAhora}-${monthAhora}-${dayAhora}`;
-        const esHoy = fecha === fechaHoy;
-        const horaActualMin = esHoy ? (ahora.getHours() * 60 + ahora.getMinutes()) : null;
+        // Usar zona horaria del negocio
+        const horaNegocio = getHoraNegocio(db, negocio.id);
+        const esHoy = fecha === horaNegocio.fecha;
+        const horaActualMin = esHoy ? horaNegocio.horaMinutos : null;
 
         const horarios = [];
         let actual = aperturaMin;
@@ -142,13 +157,15 @@ router.post('/appointments', (req, res) => {
             .get(servicio_id, negocio.id);
         if (!servicio) return res.status(404).json({ error: 'Servicio no encontrado' });
 
-        // REGLA 1: Validar que la fecha/hora no sea pasada (usando hora local)
-        const ahora = new Date();
+        // REGLA 1: Validar que la fecha/hora no sea pasada (usando zona horaria del negocio)
+        const horaNegocio = getHoraNegocio(db, negocio.id);
         const [anio, mes, dia] = fecha.split('-').map(Number);
         const [hh, mm] = hora.split(':').map(Number);
-        const fechaCitaLocal = new Date(anio, mes - 1, dia, hh, mm);
         
-        if (fechaCitaLocal < ahora) {
+        // Crear fecha de la cita: interpretar como hora del negocio, convertir a UTC
+        const fechaCitaUTC = Date.UTC(anio, mes - 1, dia, hh, mm) - (horaNegocio.zona_horaria * 60 * 60 * 1000);
+        
+        if (fechaCitaUTC < Date.now()) {
             return res.status(400).json({ error: 'No se pueden crear citas en fechas u horas pasadas' });
         }
 
