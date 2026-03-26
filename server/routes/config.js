@@ -65,12 +65,10 @@ router.get('/dashboard', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const negocioId = req.session.negocioId;
-        const hoy = new Date().toISOString().split('T')[0];
+        const ahora = new Date();
+        const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
 
-        const cajaCerrada = db.prepare(`
-            SELECT id FROM cajas_cerradas WHERE negocio_id = ? AND fecha = ?
-        `).get(negocioId, hoy);
-
+        // La caja siempre está abierta para nuevas ventas
         const clientesNuevos = db.prepare(`
             SELECT COUNT(*) as cantidad
             FROM clientes
@@ -90,8 +88,8 @@ router.get('/dashboard', requireAuth, (req, res) => {
         let ultimasVentas = [];
         let ultimasCitas = [];
 
-        if (!cajaCerrada) {
-            ventasHoy = db.prepare(`
+        // La caja siempre está abierta - cargar datos siempre
+        ventasHoy = db.prepare(`
                 SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as cantidad
                 FROM ventas
                 WHERE negocio_id = ? AND DATE(fecha) = ?
@@ -111,7 +109,6 @@ router.get('/dashboard', requireAuth, (req, res) => {
                 ORDER BY v.fecha DESC
                 LIMIT 5
             `).all(negocioId);
-        }
 
         ultimasCitas = db.prepare(`
             SELECT cit.id, cit.fecha, cit.hora_inicio, cit.estado, cl.nombre as cliente, s.nombre as servicio
@@ -135,7 +132,7 @@ router.get('/dashboard', requireAuth, (req, res) => {
             },
             ultimasVentas,
             ultimasCitas,
-            caja_cerrada: !!cajaCerrada
+            caja_cerrada: false // Siempre abierta para nuevas ventas
         });
     } catch (error) {
         console.error('Error al obtener dashboard:', error);

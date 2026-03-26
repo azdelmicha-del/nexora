@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS ventas (
     descuento REAL DEFAULT 0,
     metodo_pago TEXT NOT NULL,
     fuera_cuadre INTEGER DEFAULT 0,
+    cuadre_id INTEGER,
     fecha TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (negocio_id) REFERENCES negocios(id),
     FOREIGN KEY (cliente_id) REFERENCES clientes(id),

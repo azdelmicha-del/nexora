@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Nexora - Citas</title>
     <link rel="stylesheet" href="/css/styles.css">
     <style>
@@ -938,14 +938,15 @@
                 
                 const telefonoLimpio = cita.cliente_telefono ? cita.cliente_telefono.replace(/[\s\-\(\)]/g, '') : '';
                 
+                // Formatear fecha de la cita
                 const fechaFormateada = formatDate(cita.fecha);
                 const fechaParts = cita.fecha.split('-');
-                const manana = new Date(fechaParts[0], fechaParts[1] - 1, fechaParts[2]);
-                manana.setDate(manana.getDate() + 1);
-                const mananaStr = `${manana.getDate().toString().padStart(2, '0')}/${(manana.getMonth() + 1).toString().padStart(2, '0')}/${manana.getFullYear()}`;
+                const fechaCita = new Date(fechaParts[0], fechaParts[1] - 1, fechaParts[2]);
+                const fechaCorta = `${fechaCita.getDate().toString().padStart(2, '0')}/${(fechaCita.getMonth() + 1).toString().padStart(2, '0')}/${fechaCita.getFullYear()}`;
                 
+                // Mensajes con la MISMA fecha de la cita
                 const msgConfirmar = `Hola ${cita.cliente}, te confirmamos tu cita para ${cita.servicio} el día ${fechaFormateada} a las ${cita.hora_inicio}. ¡Te esperamos!`;
-                const msgRecordar = `Hola ${cita.cliente}, te recordamos tu cita para ${cita.servicio} mañana ${mananaStr} a las ${cita.hora_inicio}. ¡Te esperamos!`;
+                const msgRecordar = `Hola ${cita.cliente}, te recordamos tu cita para ${cita.servicio} el día ${fechaCorta} a las ${cita.hora_inicio}. ¡Te esperamos!`;
                 const msgCancelar = `Hola ${cita.cliente}, tu cita para ${cita.servicio} el día ${fechaFormateada} ha sido cancelada. Puedes reagendar cuando desees.`;
                 
                 const whatsappBase = telefonoLimpio ? `https://api.whatsapp.com/send?phone=${telefonoLimpio}&text=` : '';

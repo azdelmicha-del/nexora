@@ -88,6 +88,15 @@ function initDatabase() {
         db.exec('ALTER TABLE negocios ADD COLUMN buffer_entre_citas INTEGER DEFAULT 0');
     }
     
+    // Agregar columna cuadre_id a ventas para separar turnos de caja
+    const ventasColumns = db.prepare("PRAGMA table_info(ventas)").all();
+    const hasCuadreId = ventasColumns.some(c => c.name === 'cuadre_id');
+    if (!hasCuadreId) {
+        console.log('Agregando columna cuadre_id a tabla ventas...');
+        db.exec('ALTER TABLE ventas ADD COLUMN cuadre_id INTEGER');
+        console.log('Columna cuadre_id agregada.');
+    }
+    
     // Limpiar citas erróneas del 2026-03-24 (bug de fecha)
     const citasErroneas = db.prepare("SELECT COUNT(*) as count FROM citas WHERE fecha = '2026-03-24'").get();
     if (citasErroneas.count > 0) {

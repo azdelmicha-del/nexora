@@ -1,16 +1,9 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { formatters } = require('../utils/validators');
 
 const router = express.Router();
-
-function toTitleCase(str) {
-    return String(str).toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
-}
-
-function toUpperCase(str) {
-    return String(str).toUpperCase();
-}
 
 router.get('/', requireAuth, (req, res) => {
     try {
@@ -27,9 +20,13 @@ router.get('/', requireAuth, (req, res) => {
         `;
         const params = [negocioId];
 
+        // Por defecto solo mostrar servicios activos
         if (estado) {
             query += ' AND s.estado = ?';
             params.push(estado);
+        } else {
+            query += ' AND s.estado = ?';
+            params.push('activo');
         }
 
         if (categoria) {
@@ -78,7 +75,7 @@ router.post('/', requireAdmin, (req, res) => {
             return res.status(400).json({ error: 'El nombre es requerido' });
         }
 
-        nombre = toTitleCase(nombre.trim());
+        nombre = formatters.capitalize(nombre.trim());
         descripcion = descripcion ? descripcion.trim() : null;
 
         if (precio === undefined || precio === null || isNaN(precio)) {
@@ -133,7 +130,7 @@ router.put('/:id', requireAdmin, (req, res) => {
         const servicioId = req.params.id;
 
         if (nombre) {
-            nombre = toTitleCase(nombre.trim());
+            nombre = formatters.capitalize(nombre.trim());
         }
         if (descripcion) {
             descripcion = descripcion.trim();
@@ -222,20 +219,38 @@ router.delete('/:id', requireAdmin, (req, res) => {
         const servicioId = req.params.id;
         const db = getDb();
 
-        const servicio = db.prepare('SELECT id FROM servicios WHERE id = ? AND negocio_id = ?')
+        const servicio = db.prepare('SELECT id, estado FROM servicios WHERE id = ? AND negocio_id = ?')
             .get(servicioId, req.session.negocioId);
 
         if (!servicio) {
             return res.status(404).json({ error: 'Servicio no encontrado' });
         }
 
-        db.prepare('DELETE FROM venta_detalles WHERE servicio_id = ?').run(servicioId);
-        db.prepare('DELETE FROM servicios WHERE id = ?').run(servicioId);
+        if (servicio.estado === 'inactivo') {
+            return res.status(400).json({ error: 'Este servicio ya está desactivado' });
+        }
 
-        res.json({ success: true, message: 'Servicio eliminado' });
+        // Verificar si tiene citas activas (pendiente, confirmada, en_proceso)
+        const tieneCitasActivas = db.prepare(`
+            SELECT id FROM citas 
+            WHERE servicio_id = ? AND negocio_id = ? 
+            AND estado IN ('pendiente', 'confirmada', 'en_proceso')
+        `).get(servicioId, req.session.negocioId);
+
+        if (tieneCitasActivas) {
+            return res.status(400).json({ 
+                error: 'No se puede desactivar este servicio porque tiene citas activas. Primero cancele o finalice las citas pendientes.' 
+            });
+        }
+
+        // Soft delete: cambiar estado a inactivo
+        db.prepare("UPDATE servicios SET estado = 'inactivo' WHERE id = ? AND negocio_id = ?")
+            .run(servicioId, req.session.negocioId);
+
+        res.json({ success: true, message: 'Servicio desactivado correctamente' });
     } catch (error) {
-        console.error('Error al eliminar servicio:', error);
-        res.status(500).json({ error: 'Error al eliminar servicio' });
+        console.error('Error al desactivar servicio:', error);
+        res.status(500).json({ error: 'Error al desactivar servicio' });
     }
 });
 

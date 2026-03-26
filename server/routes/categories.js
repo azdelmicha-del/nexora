@@ -1,12 +1,9 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { formatters } = require('../utils/validators');
 
 const router = express.Router();
-
-function toUpperCase(str) {
-    return String(str).toUpperCase();
-}
 
 router.get('/', requireAuth, (req, res) => {
     try {
@@ -56,7 +53,7 @@ router.post('/', requireAdmin, (req, res) => {
             return res.status(400).json({ error: 'Nombre es requerido' });
         }
 
-        const nombreNormalizado = toUpperCase(nombre.trim());
+        const nombreNormalizado = formatters.toUpperCase(nombre.trim());
 
         const db = getDb();
 
@@ -93,7 +90,7 @@ router.put('/:id', requireAdmin, (req, res) => {
 
         if (nombre) {
             updates.push('nombre = ?');
-            values.push(toUpperCase(nombre.trim()));
+            values.push(formatters.toUpperCase(nombre.trim()));
         }
         if (estado && ['activo', 'inactivo'].includes(estado)) {
             updates.push('estado = ?');
@@ -128,9 +125,27 @@ router.delete('/:id', requireAdmin, (req, res) => {
             return res.status(404).json({ error: 'Categoría no encontrada' });
         }
 
-        db.prepare('DELETE FROM categorias WHERE id = ?').run(categoriaId);
+        // Verificar si tiene servicios activos vinculados
+        const tieneServiciosActivos = db.prepare(`
+            SELECT id, nombre FROM servicios 
+            WHERE categoria_id = ? AND estado = 'activo'
+        `).get(categoriaId);
 
-        res.json({ success: true, message: 'Categoría eliminada' });
+        if (tieneServiciosActivos) {
+            return res.status(400).json({ 
+                error: 'No se puede eliminar esta categoría porque tiene servicios activos. Primero desactive o elimine los servicios.' 
+            });
+        }
+
+        // Desvincular servicios inactivos (poner categoria_id = NULL)
+        db.prepare('UPDATE servicios SET categoria_id = NULL WHERE categoria_id = ? AND estado = ?')
+            .run(categoriaId, 'inactivo');
+
+        // Ahora sí se puede eliminar la categoría
+        db.prepare('DELETE FROM categorias WHERE id = ? AND negocio_id = ?')
+            .run(categoriaId, req.session.negocioId);
+
+        res.json({ success: true, message: 'Categoría eliminada correctamente' });
     } catch (error) {
         console.error('Error al eliminar categoría:', error);
         res.status(500).json({ error: 'Error al eliminar categoría' });

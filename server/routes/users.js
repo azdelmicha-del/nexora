@@ -2,12 +2,9 @@ const express = require('express');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../database');
 const { requireAdmin, requireAuth } = require('../middleware/auth');
+const { formatters, validators, errorMessages } = require('../utils/validators');
 
 const router = express.Router();
-
-function toTitleCase(str) {
-    return String(str).toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
-}
 
 router.get('/', requireAuth, (req, res) => {
     try {
@@ -88,7 +85,7 @@ router.post('/', async (req, res) => {
             return res.status(400).json({ error: 'Rol inválido' });
         }
 
-        const nombreNormalizado = toTitleCase(nombre.trim());
+        const nombreNormalizado = formatters.toTitleCase(nombre.trim());
         const emailNormalizado = email.toLowerCase().trim();
 
         if (nombreNormalizado.length > 100) {
@@ -166,7 +163,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
         const usuarioId = req.params.id;
 
         if (nombre) {
-            nombre = toTitleCase(nombre.trim());
+            nombre = formatters.toTitleCase(nombre.trim());
         }
         if (email) {
             email = email.toLowerCase().trim();

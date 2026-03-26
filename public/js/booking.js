@@ -277,7 +277,9 @@ function goToSection(name) {
     
     if (name === 'datos') {
         const fecha = document.getElementById('fecha').value;
-        const fechaObj = new Date(fecha + 'T12:00:00');
+        // Parsear como fecha local, no UTC
+        const [year, month, day] = fecha.split('-').map(Number);
+        const fechaObj = new Date(year, month - 1, day);
         const fechaStr = DIAS_COMPLETOS[fechaObj.getDay()] + ' ' + fechaObj.getDate() + '/' + (fechaObj.getMonth()+1) + '/' + fechaObj.getFullYear();
         
         document.getElementById('summary2-servicio').textContent = selectedService.nombre;
@@ -298,7 +300,9 @@ function validateDatos() {
 
 function showPreview() {
     const fecha = document.getElementById('fecha').value;
-    const fechaObj = new Date(fecha + 'T12:00:00');
+    // Parsear como fecha local, no UTC
+    const [year, month, day] = fecha.split('-').map(Number);
+    const fechaObj = new Date(year, month - 1, day);
     const fechaStr = DIAS_COMPLETOS[fechaObj.getDay()] + ', ' + fechaObj.getDate() + ' de ' + MESES[fechaObj.getMonth()] + ' ' + fechaObj.getFullYear();
     
     document.getElementById('preview-negocio').textContent = businessData.negocio.nombre;
@@ -348,9 +352,12 @@ async function submitBooking() {
 }
 
 function showSuccess(cita, formData) {
-    const fechaObj = new Date(cita.fecha + 'T12:00:00');
+    // Parsear fecha correctamente (sin desfase UTC)
+    const [year, month, day] = cita.fecha.split('-').map(Number);
+    const fechaObj = new Date(year, month - 1, day);
     const fechaStr = DIAS_COMPLETOS[fechaObj.getDay()] + ', ' + fechaObj.getDate() + ' de ' + MESES[fechaObj.getMonth()] + ' ' + fechaObj.getFullYear();
     
+    // Mostrar resumen de la cita en el modal
     let summaryHtml = 
         '<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span style="color:#666;">Negocio:</span><span style="font-weight:600;">' + businessData.negocio.nombre + '</span></div>' +
         '<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span style="color:#666;">Servicio:</span><span style="font-weight:600;">' + selectedService.nombre + '</span></div>' +
@@ -360,6 +367,7 @@ function showSuccess(cita, formData) {
     
     document.getElementById('modal-summary').innerHTML = summaryHtml;
     
+    // Configurar botón de WhatsApp
     if (businessData.negocio.telefono) {
         const tel = businessData.negocio.telefono.replace(/[^0-9]/g, '');
         const msg = encodeURIComponent('Hola! Cita agendada:\n' + selectedService.nombre + '\n' + fechaStr + ' a las ' + cita.hora_inicio + '\nCliente: ' + formData.nombre);
@@ -369,11 +377,135 @@ function showSuccess(cita, formData) {
         document.getElementById('modal-whatsapp').style.display = 'none';
     }
     
+    // Mostrar modal de confirmación
     document.getElementById('modal-overlay').classList.add('active');
 }
 
 function closeModalAndReset() {
     document.getElementById('modal-overlay').classList.remove('active');
+    resetForm();
+}
+
+function closeModalAndShowInfo() {
+    document.getElementById('modal-overlay').classList.remove('active');
+    showBusinessInfoScreen();
+}
+
+function showBusinessInfoScreen() {
+    // Ocultar el formulario
+    document.getElementById('form-container').classList.add('hidden');
+    document.getElementById('business-header').style.display = 'none';
+    document.getElementById('progress-bar').style.display = 'none';
+    
+    // Construir pantalla de información del negocio
+    const n = businessData.negocio;
+    const infoScreen = document.getElementById('business-info-screen');
+    
+    // Horario de trabajo
+    const diasNombres = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb'];
+    const diasLaborales = n.dias_laborales ? n.dias_laborales.split(',').map(Number) : [];
+    const diasTexto = diasLaborales.map(d => {
+        // Convertir de formato 1-7 (Lun-Dom) a 0-6 (Dom-Sáb)
+        const idx = d === 7 ? 0 : d;
+        return diasNombres[idx];
+    }).join(', ');
+    
+    // Lista de servicios
+    let serviciosHtml = '';
+    if (businessData.categorias) {
+        businessData.categorias.forEach(cat => {
+            try {
+                const servicios = JSON.parse(cat.servicios);
+                if (servicios[0] && servicios[0].id) {
+                    serviciosHtml += '<div style="margin-bottom: 16px;">';
+                    if (cat.nombre) {
+                        serviciosHtml += '<div style="font-size: 12px; color: #667eea; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">' + escapeHtml(cat.nombre) + '</div>';
+                    }
+                    serviciosHtml += '<div style="display: flex; flex-direction: column; gap: 8px;">';
+                    servicios.forEach(s => {
+                        const dur = s.duracion < 60 ? s.duracion + ' min' : Math.floor(s.duracion/60) + 'h' + (s.duracion%60 ? ' ' + s.duracion%60 + 'm' : '');
+                        serviciosHtml += 
+                            '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8f9fc; border-radius: 12px;">' +
+                                '<div>' +
+                                    '<div style="font-weight: 600; font-size: 14px;">' + escapeHtml(s.nombre) + '</div>' +
+                                    '<div style="font-size: 12px; color: #9ca3af;">' + dur + '</div>' +
+                                '</div>' +
+                                '<div style="font-weight: 700; color: #667eea;">RD$' + Number(s.precio).toFixed(2) + '</div>' +
+                            '</div>';
+                    });
+                    serviciosHtml += '</div></div>';
+                }
+            } catch(e) {}
+        });
+    }
+    
+    if (businessData.serviciosSinCategoria) {
+        serviciosHtml += '<div style="display: flex; flex-direction: column; gap: 8px;">';
+        businessData.serviciosSinCategoria.forEach(s => {
+            const dur = s.duracion < 60 ? s.duracion + ' min' : Math.floor(s.duracion/60) + 'h' + (s.duracion%60 ? ' ' + s.duracion%60 + 'm' : '');
+            serviciosHtml += 
+                '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; background: #f8f9fc; border-radius: 12px;">' +
+                    '<div>' +
+                        '<div style="font-weight: 600; font-size: 14px;">' + escapeHtml(s.nombre) + '</div>' +
+                        '<div style="font-size: 12px; color: #9ca3af;">' + dur + '</div>' +
+                    '</div>' +
+                    '<div style="font-weight: 700; color: #667eea;">RD$' + Number(s.precio).toFixed(2) + '</div>' +
+                '</div>';
+        });
+        serviciosHtml += '</div>';
+    }
+    
+    infoScreen.innerHTML = 
+        '<div style="text-align: center; padding: 20px 0;">' +
+            '<div style="width: 70px; height: 70px; background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 35px; color: white; box-shadow: 0 8px 25px rgba(16,185,129,0.4);">✓</div>' +
+            '<h2 style="font-size: 22px; font-weight: 700; margin-bottom: 8px;">¡Cita Agendada!</h2>' +
+            '<p style="color: #666; font-size: 14px;">Tu cita ha sido registrada correctamente</p>' +
+        '</div>' +
+        
+        '<div class="card" style="margin-top: 20px;">' +
+            '<div style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">📍 Sobre nosotros</div>' +
+            '<p style="color: #666; font-size: 14px; line-height: 1.6;">' + (n.descripcion || 'Bienvenido a ' + n.nombre) + '</p>' +
+            (n.direccion ? '<p style="color: #9ca3af; font-size: 13px; margin-top: 8px;">📍 ' + escapeHtml(n.direccion) + '</p>' : '') +
+        '</div>' +
+        
+        '<div class="card">' +
+            '<div style="font-size: 16px; font-weight: 600; margin-bottom: 16px;">💼 Nuestros Servicios</div>' +
+            serviciosHtml +
+        '</div>' +
+        
+        '<div class="card">' +
+            '<div style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">🕐 Horario de Atención</div>' +
+            '<div style="display: flex; justify-content: space-between; padding: 12px; background: #f8f9fc; border-radius: 12px;">' +
+                '<div>' +
+                    '<div style="font-weight: 600; font-size: 14px;">Días laborales</div>' +
+                    '<div style="font-size: 13px; color: #9ca3af;">' + diasTexto + '</div>' +
+                '</div>' +
+                '<div style="text-align: right;">' +
+                    '<div style="font-weight: 600; font-size: 14px;">' + n.hora_apertura + ' - ' + n.hora_cierre + '</div>' +
+                    '<div style="font-size: 13px; color: #9ca3af;">Horario</div>' +
+                '</div>' +
+            '</div>' +
+        '</div>' +
+        
+        '<div style="display: flex; flex-direction: column; gap: 12px; margin-top: 20px;">' +
+            (n.telefono ? 
+                '<a href="https://wa.me/' + n.telefono.replace(/[^0-9]/g, '') + '" target="_blank" style="display: flex; align-items: center; justify-content: center; gap: 8px; background: linear-gradient(135deg, #25d366 0%, #128c7e 100%); color: white; padding: 14px; border-radius: 14px; text-decoration: none; font-weight: 600; font-size: 15px;">📱 Contactar por WhatsApp</a>'
+                : ''
+            ) +
+            '<button onclick="resetAndShowForm()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 14px; border-radius: 14px; border: none; font-weight: 600; font-size: 15px; cursor: pointer; font-family: inherit;">📅 Agendar otra cita</button>' +
+        '</div>';
+    
+    infoScreen.style.display = 'block';
+}
+
+function resetAndShowForm() {
+    // Ocultar pantalla de info
+    document.getElementById('business-info-screen').style.display = 'none';
+    document.getElementById('business-header').style.display = 'block';
+    document.getElementById('progress-bar').style.display = 'flex';
+    document.getElementById('form-container').classList.remove('hidden');
+    
+    // Resetear formulario
     resetForm();
 }
 

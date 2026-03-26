@@ -10,14 +10,11 @@ router.get('/config', requireAuth, (req, res) => {
         const config = db.prepare('SELECT metodo_efectivo, metodo_transferencia, metodo_tarjeta, activar_descuentos FROM negocios WHERE id = ?')
             .get(req.session.negocioId);
         
-        const hoy = new Date().toISOString().split('T')[0];
-        const cajaCerrada = db.prepare(`
-            SELECT id FROM cajas_cerradas WHERE negocio_id = ? AND fecha = ?
-        `).get(req.session.negocioId, hoy);
-        
+        // La caja siempre está abierta para nuevas ventas
+        // El historial de cierres se mantiene para consulta
         res.json({
             ...config,
-            caja_cerrada: !!cajaCerrada
+            caja_cerrada: false
         });
     } catch (error) {
         console.error('Error:', error);
@@ -44,17 +41,8 @@ router.post('/', requireAuth, (req, res) => {
 
         const db = getDb();
         
-        const hoy = new Date().toISOString().split('T')[0];
-        const cajaCerrada = db.prepare(`
-            SELECT id FROM cajas_cerradas WHERE negocio_id = ? AND fecha = ?
-        `).get(req.session.negocioId, hoy);
-        
-        if (cajaCerrada) {
-            return res.status(403).json({ 
-                error: 'Caja cerrada',
-                message: 'La caja ya fue cerrada. No se pueden realizar ventas hasta abrirla de nuevo.'
-            });
-        }
+        // La caja siempre está abierta para nuevas ventas
+        // No verificamos cajas_cerradas porque el historial se mantiene aparte
 
         let total = 0;
         for (const item of items) {

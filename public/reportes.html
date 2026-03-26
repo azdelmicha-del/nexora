@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Nexora - Reportes</title>
     <link rel="stylesheet" href="/css/styles.css">
     <style>
@@ -178,6 +178,76 @@
             background: var(--primary);
             color: white;
             border-color: var(--primary);
+        }
+        
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .modal-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .modal-overlay .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            max-width: 450px;
+            width: 90%;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.2);
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .modal-overlay.active .modal {
+            transform: scale(1);
+        }
+        
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .modal-header h3 {
+            margin: 0;
+            font-size: 1.25rem;
+        }
+        
+        .modal-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--gray-400);
+            padding: 4px;
+        }
+        
+        .modal-close:hover {
+            color: var(--gray-600);
+        }
+        
+        .modal-body {
+            margin-bottom: 1.5rem;
+        }
+        
+        .modal-footer {
+            display: flex;
+            gap: 1rem;
+            justify-content: flex-end;
         }
         
         .cuadre-resumen {
@@ -379,8 +449,7 @@
                     <button class="btn btn-secondary" onclick="imprimirCuadre()">🖨️ Imprimir Cuadre</button>
                     <button class="btn btn-secondary" onclick="imprimirDetalleVentas()">📄 Imprimir Detalle Ventas</button>
                     <button class="btn btn-secondary" onclick="mostrarHistorialCuadre()">📋 Historial</button>
-                    <button class="btn btn-success" id="btnCerrarCaja" onclick="cerrarCaja()">🔒 Cerrar Caja</button>
-                    <button class="btn btn-warning" id="btnAbrirCaja" style="display: none;" onclick="abrirCaja()">🔓 Abrir Caja</button>
+                    <button class="btn btn-success" id="btnAccionCaja" onclick="cerrarCaja()">🔒 Cuadrar y Cerrar Caja</button>
                 </div>
                 <div class="cuadre-resumen" id="cuadreContent"></div>
                 <div class="seccion-reporte">
@@ -572,8 +641,17 @@
             const content = document.getElementById('cuadreContent');
             const ventas = document.getElementById('cuadreVentas');
             
-            document.getElementById('btnCerrarCaja').style.display = data.caja_cerrada ? 'none' : 'inline-block';
-            document.getElementById('btnAbrirCaja').style.display = data.caja_cerrada ? 'inline-block' : 'none';
+            // Unificar botón según estado de caja
+            const btnAccion = document.getElementById('btnAccionCaja');
+            if (data.caja_cerrada) {
+                btnAccion.textContent = '🔓 Abrir Caja';
+                btnAccion.className = 'btn btn-warning';
+                btnAccion.onclick = () => { abrirCaja(); };
+            } else {
+                btnAccion.textContent = '🔒 Cuadrar y Cerrar Caja';
+                btnAccion.className = 'btn btn-success';
+                btnAccion.onclick = () => { cerrarCaja(); };
+            }
             
             const fueraCuadreInfo = data.resumenFueraCuadre && data.resumenFueraCuadre.cantidad > 0
                 ? `<div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem; color: #92400e;">
@@ -1102,7 +1180,7 @@
         
         function cerrarCaja() {
             if (datosCuadreActual && datosCuadreActual.caja_cerrada) {
-                alert('La caja ya fue cerrada hoy');
+                showModalError('La caja ya fue cerrada hoy');
                 return;
             }
             document.getElementById('notasCierre').value = '';
@@ -1116,34 +1194,43 @@
         async function confirmarCerrarCaja() {
             try {
                 const notas = document.getElementById('notasCierre').value;
-                await apiCall('/reports/cuadre/cerrar', {
+                const result = await apiCall('/reports/cuadre/cerrar', {
                     method: 'POST',
                     body: JSON.stringify({ notas })
                 });
                 
                 cerrarModalCerrarCaja();
-                showToast('Caja cerrada correctamente', 'success');
+                showModalSuccess(`Caja cerrada correctamente. Total: RD$${Number(result.resumen.total).toFixed(2)}`, '¡Caja Cerrada!');
                 await cargarCuadre();
                 
-                if (confirm('Caja cerrada correctamente. ¿Desea ver el historial de cierres?')) {
-                    mostrarHistorialCuadre();
-                }
+                // Preguntar si desea ver historial después de 2 segundos
+                setTimeout(() => {
+                    showModalConfirm('¿Desea ver el historial de cierres?', () => {
+                        mostrarHistorialCuadre();
+                    });
+                }, 2000);
             } catch (error) {
-                alert(error.message || 'Error al cerrar caja');
+                cerrarModalCerrarCaja();
+                // Mensaje amigable cuando no hay ventas
+                if (error.message && error.message.includes('No hay ventas')) {
+                    showModalError('Favor realice una venta antes de cuadrar la caja.', 'Sin Ventas');
+                } else {
+                    showModalError(error.message || 'Error al cerrar caja');
+                }
             }
         }
         
         async function abrirCaja() {
-            if (!confirm('¿Está seguro que desea ABRIR la caja? Las ventas posteriores se registrarán normalmente.')) {
-                return;
-            }
-            try {
-                await apiCall('/reports/cuadre/abrir', { method: 'POST' });
-                alert('Caja abierta correctamente. Las ventas ahora se registrarán normalmente.');
-                await cargarCuadre();
-            } catch (error) {
-                alert(error.message || 'Error al abrir caja');
-            }
+            showModalConfirm('¿Está seguro que desea ABRIR la caja? Las ventas posteriores se registrarán normalmente.', async () => {
+                try {
+                    await apiCall('/reports/cuadre/abrir', { method: 'POST' });
+                    datosCuadreActual = null; // LIMPIAR ESTADO LOCAL
+                    showModalSuccess('Caja abierta correctamente. Las ventas ahora se registrarán normalmente.', '¡Caja Abierta!');
+                    setTimeout(() => location.reload(), 1000);
+                } catch (error) {
+                    showModalError(error.message || 'Error al abrir caja');
+                }
+            });
         }
         
         async function mostrarHistorialCuadre() {
@@ -1156,8 +1243,12 @@
         
         async function cargarHistorialCuadre() {
             try {
-                // Limpiar cuadres antiguos automáticamente
-                await apiCall('/reports/cuadre/cleanup', { method: 'DELETE' });
+                // Limpiar cuadres antiguos automáticamente (ignorar si falla)
+                try {
+                    await apiCall('/reports/cuadre/cleanup', { method: 'DELETE' });
+                } catch (e) {
+                    // Ignorar error de limpieza
+                }
                 
                 // Cargar historial actualizado
                 const historial = await apiCall('/reports/cuadre/historial');
@@ -1269,31 +1360,27 @@
         }
         
         async function eliminarCuadre(id) {
-            if (!confirm('¿Está seguro que desea eliminar este cuadre? Esta acción no se puede deshacer.')) {
-                return;
-            }
-            
-            try {
-                await apiCall(`/reports/cuadre/${id}`, { method: 'DELETE' });
-                alert('Cuadre eliminado');
-                await cargarHistorialCuadre();
-            } catch (error) {
-                alert(error.message || 'Error al eliminar cuadre');
-            }
+            showModalConfirm('¿Está seguro que desea eliminar este cuadre? Esta acción no se puede deshacer.', async () => {
+                try {
+                    await apiCall(`/reports/cuadre/${id}`, { method: 'DELETE' });
+                    showModalSuccess('Cuadre eliminado correctamente');
+                    await cargarHistorialCuadre();
+                } catch (error) {
+                    showModalError(error.message || 'Error al eliminar cuadre');
+                }
+            });
         }
         
         async function limpiarCuadresAntiguos() {
-            if (!confirm('¿Desea eliminar los cuadres de más de 7 días?')) {
-                return;
-            }
-            
-            try {
-                const result = await apiCall('/reports/cuadre/cleanup', { method: 'DELETE' });
-                alert(result.mensaje);
-                await cargarHistorialCuadre();
-            } catch (error) {
-                alert(error.message || 'Error al limpiar cuadres');
-            }
+            showModalConfirm('¿Desea eliminar los cuadres de más de 7 días?', async () => {
+                try {
+                    const result = await apiCall('/reports/cuadre/cleanup', { method: 'DELETE' });
+                    showModalSuccess(result.mensaje);
+                    await cargarHistorialCuadre();
+                } catch (error) {
+                    showModalError(error.message || 'Error al limpiar cuadres');
+                }
+            });
         }
     </script>
     <script src="/js/license-banner.js"></script>

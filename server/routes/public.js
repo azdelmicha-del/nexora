@@ -85,10 +85,10 @@ router.get('/availability/:slug', (req, res) => {
         const horarios = [];
         let actual = aperturaMin;
 
-        while (actual + duracion <= cierreMin) {
+        while (actual < cierreMin) {
             // Saltar horarios que terminarían antes o en el momento actual
             if (horaActualMin !== null && actual + duracion <= horaActualMin) {
-                actual += 30;
+                actual += 5;
                 continue;
             }
 
@@ -114,7 +114,7 @@ router.get('/availability/:slug', (req, res) => {
             }
 
             if (disponible) horarios.push({ hora: h, horaFin: hf });
-            actual += 30;
+            actual += 5;
         }
 
         res.json({ horarios });
@@ -167,7 +167,8 @@ router.post('/appointments', (req, res) => {
             return res.status(400).json({ error: `Horario fuera de servicio. El negocio abre a las ${negocio.hora_apertura}` });
         }
 
-        if (finMin > cierreMin) {
+        // Permitir que la cita inicie antes del cierre, aunque termine después
+        if (inicioMin >= cierreMin) {
             return res.status(400).json({ error: `Horario fuera de servicio. El negocio cierra a las ${negocio.hora_cierre}` });
         }
 

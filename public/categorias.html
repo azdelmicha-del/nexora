@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="mobile-web-app-capable" content="yes">
     <title>Nexora - Categorías</title>
     <link rel="stylesheet" href="/css/styles.css">
 </head>
@@ -275,14 +275,20 @@
         }
         
         async function deleteCategoria(id, nombre) {
-            if (!confirm(`¿Está seguro que desea eliminar la categoría "${nombre}"?`)) return;
-            try {
-                await apiCall(`/categories/${id}`, { method: 'DELETE' });
-                showToast('Categoría eliminada correctamente', 'success');
-                await loadCategorias();
-            } catch (error) {
-                showToast(error.message || 'Error al eliminar categoría', 'error');
-            }
+            showModalConfirm(
+                `¿Está seguro que desea eliminar la categoría "${nombre}"?`,
+                async () => {
+                    try {
+                        await apiCall(`/categories/${id}`, { method: 'DELETE' });
+                        showModalSuccess('Categoría eliminada correctamente', '¡Eliminada!');
+                        await loadCategorias();
+                    } catch (error) {
+                        showModalError(error.message || 'Error al eliminar categoría');
+                    }
+                },
+                null,
+                'Eliminar Categoría'
+            );
         }
         
         async function initPage() {

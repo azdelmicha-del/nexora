@@ -422,3 +422,90 @@ function showTrialBanner(daysRemaining) {
         document.querySelector('.main-content').style.marginTop = '50px';
     }
 }
+
+// ============================================
+// SISTEMA GLOBAL DE MODALES ESTILIZADOS
+// ============================================
+
+let modalContainer = null;
+
+function initModalContainer() {
+    if (!modalContainer) {
+        modalContainer = document.createElement('div');
+        modalContainer.id = 'global-modal-container';
+        document.body.appendChild(modalContainer);
+    }
+}
+
+// Modal de éxito
+function showModalSuccess(message, title = '¡Éxito!') {
+    initModalContainer();
+    
+    modalContainer.innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeGlobalModal()">
+            <div style="background:white; border-radius:24px; padding:32px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="width:80px; height:80px; background:linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:40px; color:white; box-shadow:0 8px 25px rgba(16,185,129,0.4);">✓</div>
+                <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">${title}</h2>
+                <p style="color:#666; margin-bottom:28px; font-size:15px; line-height:1.5;">${message}</p>
+                <button onclick="closeGlobalModal()" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; padding:16px 32px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; width:100%; box-shadow:0 4px 15px rgba(16,185,129,0.4);">Aceptar</button>
+            </div>
+        </div>
+    `;
+}
+
+// Modal de error
+function showModalError(message, title = 'Error') {
+    initModalContainer();
+    
+    modalContainer.innerHTML = `
+        <div class="modal-overlay active" onclick="if(event.target===this)closeGlobalModal()">
+            <div style="background:white; border-radius:24px; padding:32px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="width:80px; height:80px; background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:40px; color:white; box-shadow:0 8px 25px rgba(239,68,68,0.4);">✕</div>
+                <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">${title}</h2>
+                <p style="color:#666; margin-bottom:28px; font-size:15px; line-height:1.5;">${message}</p>
+                <button onclick="closeGlobalModal()" style="background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color:white; padding:16px 32px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; width:100%; box-shadow:0 4px 15px rgba(239,68,68,0.4);">Aceptar</button>
+            </div>
+        </div>
+    `;
+}
+
+// Modal de confirmación
+function showModalConfirm(message, onConfirm, onCancel = null, title = '¿Estás seguro?') {
+    initModalContainer();
+    
+    // Guardar callbacks en variables locales para que no se pierdan al cerrar
+    const confirmCallback = onConfirm;
+    const cancelCallback = onCancel;
+    
+    modalContainer.innerHTML = `
+        <div class="modal-overlay active">
+            <div style="background:white; border-radius:24px; padding:32px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                <div style="width:80px; height:80px; background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:40px; color:white; box-shadow:0 8px 25px rgba(245,158,11,0.4);">⚠️</div>
+                <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">${title}</h2>
+                <p style="color:#666; margin-bottom:28px; font-size:15px; line-height:1.5;">${message}</p>
+                <div style="display:flex; gap:12px;">
+                    <button id="modalCancelBtn" style="flex:1; background:#f3f4f6; color:#666; padding:16px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; transition:all 0.2s;">Cancelar</button>
+                    <button id="modalConfirmBtn" style="flex:1; background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:white; padding:16px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; box-shadow:0 4px 15px rgba(245,158,11,0.4); transition:all 0.2s;">Confirmar</button>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    // Asignar eventos después de crear el HTML
+    document.getElementById('modalConfirmBtn').addEventListener('click', () => {
+        closeGlobalModal();
+        if (confirmCallback) confirmCallback();
+    });
+    
+    document.getElementById('modalCancelBtn').addEventListener('click', () => {
+        closeGlobalModal();
+        if (cancelCallback) cancelCallback();
+    });
+}
+
+// Cerrar modal global
+function closeGlobalModal() {
+    if (modalContainer) {
+        modalContainer.innerHTML = '';
+    }
+}

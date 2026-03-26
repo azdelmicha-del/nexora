@@ -1,12 +1,9 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { formatters, validators, errorMessages } = require('../utils/validators');
 
 const router = express.Router();
-
-function toTitleCase(str) {
-    return String(str).toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
-}
 
 router.get('/', requireAuth, (req, res) => {
     try {
@@ -91,31 +88,33 @@ router.post('/', requireAuth, (req, res) => {
             return res.status(400).json({ error: 'El nombre es requerido' });
         }
 
-        nombre = toTitleCase(nombre.trim());
-        email = email ? email.toLowerCase().trim() : null;
-        notas = notas ? notas.trim() : null;
+        // Formatear nombre (Title Case)
+        nombre = formatters.toTitleCase(nombre);
 
         if (nombre.length > 100) {
             return res.status(400).json({ error: 'El nombre no puede exceder 100 caracteres' });
         }
 
+        // Validar teléfono dominicano
         if (!telefono || telefono.trim() === '') {
             return res.status(400).json({ error: 'El celular es requerido' });
         }
 
-        const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,20}$/;
-        if (!phoneRegex.test(telefono)) {
-            return res.status(400).json({ error: 'Formato de celular inválido' });
+        if (!validators.telefonoRD(telefono)) {
+            return res.status(400).json({ error: errorMessages.telefonoInvalido });
         }
 
-        const digitsOnly = telefono.replace(/[\D]/g, '');
-        if (digitsOnly.length < 10 || digitsOnly.length > 15) {
-            return res.status(400).json({ error: 'El celular debe tener entre 10 y 15 dígitos' });
+        telefono = formatters.toPhone(telefono);
+
+        // Formatear y validar email
+        if (email) {
+            email = formatters.toEmail(email);
+            if (!validators.email(email)) {
+                return res.status(400).json({ error: errorMessages.emailNoPermitido });
+            }
         }
 
-        if (telefono && telefono.length > 20) {
-            return res.status(400).json({ error: 'El teléfono no puede exceder 20 caracteres' });
-        }
+        notas = notas ? notas.trim() : null;
 
         const db = getDb();
 
@@ -150,32 +149,33 @@ router.put('/:id', requireAuth, (req, res) => {
         let { nombre, telefono, email, notas, estado } = req.body;
         const clienteId = req.params.id;
 
+        // Formatear nombre (Title Case)
         if (nombre) {
-            nombre = toTitleCase(nombre.trim());
+            nombre = formatters.toTitleCase(nombre);
+            if (nombre.length > 100) {
+                return res.status(400).json({ error: 'El nombre no puede exceder 100 caracteres' });
+            }
         }
+
+        // Formatear y validar email
         if (email) {
-            email = email.toLowerCase().trim();
+            email = formatters.toEmail(email);
+            if (!validators.email(email)) {
+                return res.status(400).json({ error: errorMessages.emailNoPermitido });
+            }
         }
+
+        // Formatear notas
         if (notas) {
             notas = notas.trim();
         }
 
-        if (nombre && nombre.length > 100) {
-            return res.status(400).json({ error: 'El nombre no puede exceder 100 caracteres' });
-        }
-
+        // Validar teléfono dominicano
         if (telefono !== undefined && telefono !== null && telefono !== '') {
-            const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,20}$/;
-            if (!phoneRegex.test(telefono)) {
-                return res.status(400).json({ error: 'Formato de celular inválido' });
+            if (!validators.telefonoRD(telefono)) {
+                return res.status(400).json({ error: errorMessages.telefonoInvalido });
             }
-            const digitsOnly = telefono.replace(/[\D]/g, '');
-            if (digitsOnly.length < 10 || digitsOnly.length > 15) {
-                return res.status(400).json({ error: 'El celular debe tener entre 10 y 15 dígitos' });
-            }
-            if (telefono.length > 20) {
-                return res.status(400).json({ error: 'El teléfono no puede exceder 20 caracteres' });
-            }
+            telefono = formatters.toPhone(telefono);
         }
 
         const db = getDb();

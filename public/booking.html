@@ -708,7 +708,7 @@
         <!-- Modal de confirmación -->
         <div id="modal-overlay" class="modal-overlay">
             <div class="modal-content" style="position: relative;">
-                <button class="modal-close" onclick="closeModalAndReset()">
+                <button class="modal-close" onclick="closeModalAndShowInfo()">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
                     </svg>
@@ -717,11 +717,16 @@
                 <h2 style="font-size:22px; font-weight:700; margin-bottom:8px;">¡Cita Confirmada!</h2>
                 <p style="color:#666; margin-bottom:20px; font-size:14px;">Tu cita ha sido registrada exitosamente</p>
                 <div id="modal-summary" style="background:#f8f9fa; border-radius:12px; padding:16px; text-align:left; margin-bottom:20px; font-size:13px;"></div>
-                <a id="modal-whatsapp" href="#" target="_blank" style="display:inline-flex; align-items:center; gap:8px; background:#25d366; color:white; padding:12px 24px; border-radius:50px; text-decoration:none; font-weight:600; font-size:14px; margin-bottom:10px;">📱 Confirmar por WhatsApp</a>
-                <br>
-                <button onclick="closeModalAndReset()" style="background:#f3f4f6; border:none; padding:12px 24px; border-radius:12px; cursor:pointer; font-weight:600; font-size:14px; margin-top:12px; font-family:inherit;">Agendar otra cita</button>
+                <div style="display: flex; flex-direction: column; gap: 10px;">
+                    <a id="modal-whatsapp" href="#" target="_blank" style="display:flex; align-items:center; justify-content:center; gap:8px; background:#25d366; color:white; padding:14px; border-radius:14px; text-decoration:none; font-weight:600; font-size:15px;">📱 Confirmar por WhatsApp</a>
+                    <button onclick="closeModalAndShowInfo()" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); border:none; padding:14px; border-radius:14px; cursor:pointer; font-weight:600; font-size:15px; color:white; font-family:inherit;">Ver información del negocio</button>
+                    <button onclick="closeModalAndReset()" style="background:#f3f4f6; border:none; padding:14px; border-radius:14px; cursor:pointer; font-weight:600; font-size:14px; color:#666; font-family:inherit;">✕ Cerrar</button>
+                </div>
             </div>
         </div>
+        
+        <!-- Pantalla de información del negocio (después de agendar) -->
+        <div id="business-info-screen" style="display: none;"></div>
         
         <div class="powered-by">Sistema de reservas por <a href="#">Nexora</a></div>
     </div>

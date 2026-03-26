@@ -119,12 +119,13 @@ router.post('/', requireAuth, (req, res) => {
         const duracionMin = servicio.duracion;
         const finMin = inicioMin + duracionMin;
 
-        // REGLA 1: Validar que la cita esté dentro del horario del negocio
+        // REGLA 1: Validar que la cita INICIE dentro del horario del negocio
         if (inicioMin < aperturaMin) {
             return res.status(400).json({ error: `Horario fuera de servicio. El negocio abre a las ${config.hora_apertura}` });
         }
 
-        if (finMin > cierreMin) {
+        // Permitir que la cita inicie antes del cierre, aunque termine después
+        if (inicioMin >= cierreMin) {
             return res.status(400).json({ error: `Horario fuera de servicio. El negocio cierra a las ${config.hora_cierre}` });
         }
 
@@ -416,11 +417,11 @@ router.get('/horarios/disponibles', requireAuth, (req, res) => {
         const horarios = [];
         let actual = aperturaMin;
 
-        // Generar slots de 30 minutos desde apertura hasta cierre
-        while (actual + duracion <= cierreMin) {
+        // Generar slots: permitir cita si INICIA antes del cierre (aunque termine después)
+        while (actual < cierreMin) {
             // Para HOY: saltar horarios que terminarían antes o en el momento actual
             if (esFechaHoy && horaActualMin !== null && actual + duracion <= horaActualMin) {
-                actual += 30;
+                actual += 5;
                 continue;
             }
 
@@ -452,7 +453,7 @@ router.get('/horarios/disponibles', requireAuth, (req, res) => {
             }
 
             // Avanzar al siguiente slot de 30 minutos
-            actual += 30;
+            actual += 5;
         }
 
         const ultimoHorario = horarios.length > 0 
