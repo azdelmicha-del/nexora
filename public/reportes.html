@@ -1029,9 +1029,9 @@
         }
         
         function formatTime(datetimeStr) {
-            if (!datetimeStr) return '';
+             if (!datetimeStr) return '';
             const date = new Date(datetimeStr);
-            return date.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+            return date.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: false });
         }
         
         function escapeHtml(text) {

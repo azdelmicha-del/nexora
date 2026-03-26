@@ -1009,9 +1009,9 @@
         
         function renderRecibo(venta) {
             const content = document.getElementById('reciboContent');
-            const fecha = new Date(venta.fecha);
+             const fecha = new Date(venta.fecha);
             const fechaStr = fecha.toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' });
-            const horaStr = fecha.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+            const horaStr = fecha.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: false });
             
             let itemsHtml = '';
             if (venta.detalles && venta.detalles.length > 0) {
