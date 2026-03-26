@@ -149,7 +149,10 @@ router.post('/appointments', (req, res) => {
         }
 
         // Obtener información del negocio (horario de operación)
-        const negocio = db.prepare(`SELECT id, buffer_entre_citas, hora_apertura, hora_cierre FROM negocios WHERE slug = ? AND estado = 'activo'`).get(slug);
+        const negocio = db.prepare(`
+            SELECT id, buffer_entre_citas, hora_apertura, hora_cierre, zona_horaria, duracion_minima_cita, tiempo_anticipacion 
+            FROM negocios WHERE slug = ? AND estado = 'activo'
+        `).get(slug);
         if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
 
         // Obtener información del servicio
@@ -157,16 +160,33 @@ router.post('/appointments', (req, res) => {
             .get(servicio_id, negocio.id);
         if (!servicio) return res.status(404).json({ error: 'Servicio no encontrado' });
 
+        const zonaHoraria = negocio.zona_horaria || -4;
+        const duracionMinima = negocio.duracion_minima_cita || 30;
+        const tiempoAnticipacion = negocio.tiempo_anticipacion || 0;
+
+        // Validar duración mínima del servicio
+        if (servicio.duracion < duracionMinima) {
+            return res.status(400).json({ error: `El servicio debe durar al menos ${duracionMinima} minutos` });
+        }
+
         // REGLA 1: Validar que la fecha/hora no sea pasada (usando zona horaria del negocio)
-        const horaNegocio = getHoraNegocio(db, negocio.id);
         const [anio, mes, dia] = fecha.split('-').map(Number);
         const [hh, mm] = hora.split(':').map(Number);
         
-        // Crear fecha de la cita: interpretar como hora del negocio, convertir a UTC
-        const fechaCitaUTC = Date.UTC(anio, mes - 1, dia, hh, mm) - (horaNegocio.zona_horaria * 60 * 60 * 1000);
+        // 14:10 en RD (UTC-4) = 18:10 UTC
+        const fechaCitaUTC = Date.UTC(anio, mes - 1, dia, hh, mm) - (zonaHoraria * 60 * 60 * 1000);
+        const ahoraUTC = Date.now();
         
-        if (fechaCitaUTC < Date.now()) {
+        if (fechaCitaUTC < ahoraUTC) {
             return res.status(400).json({ error: 'No se pueden crear citas en fechas u horas pasadas' });
+        }
+
+        // Validar tiempo de anticipación
+        if (tiempoAnticipacion > 0) {
+            const milisegundosAnticipacion = tiempoAnticipacion * 60 * 1000;
+            if (fechaCitaUTC < ahoraUTC + milisegundosAnticipacion) {
+                return res.status(400).json({ error: `Debe agendar con al menos ${tiempoAnticipacion} minutos de anticipación` });
+            }
         }
 
         // REGLA 2: Validar que la cita esté dentro del horario del negocio

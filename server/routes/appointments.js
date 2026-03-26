@@ -120,10 +120,16 @@ router.post('/', requireAuth, (req, res) => {
         }
 
         // Obtener configuración del negocio (horario de operación)
-        const config = db.prepare('SELECT hora_apertura, hora_cierre, dias_laborales, permitir_solapamiento, buffer_entre_citas FROM negocios WHERE id = ?')
-            .get(req.session.negocioId);
+        const config = db.prepare(`
+            SELECT hora_apertura, hora_cierre, dias_laborales, permitir_solapamiento, 
+                   buffer_entre_citas, zona_horaria, duracion_minima_cita, tiempo_anticipacion 
+            FROM negocios WHERE id = ?
+        `).get(req.session.negocioId);
 
         const bufferMin = config.buffer_entre_citas || 0;
+        const zonaHoraria = config.zona_horaria || -4;
+        const duracionMinima = config.duracion_minima_cita || 30;
+        const tiempoAnticipacion = config.tiempo_anticipacion || 0;
 
         // Convertir horarios a minutos para comparación en formato 24h
         const [horaInt, horaMin] = hora.split(':').map(Number);
@@ -135,6 +141,11 @@ router.post('/', requireAuth, (req, res) => {
         const cierreMin = cierreH * 60 + cierreM;
         const duracionMin = servicio.duracion;
         const finMin = inicioMin + duracionMin;
+
+        // REGLA 0: Validar duración mínima del servicio
+        if (duracionMin < duracionMinima) {
+            return res.status(400).json({ error: `El servicio debe durar al menos ${duracionMinima} minutos` });
+        }
 
         // REGLA 1: Validar que la cita INICIE dentro del horario del negocio
         if (inicioMin < aperturaMin) {
@@ -150,16 +161,24 @@ router.post('/', requireAuth, (req, res) => {
         const horaFin = `${Math.floor(finMin / 60).toString().padStart(2, '0')}:${(finMin % 60).toString().padStart(2, '0')}`;
 
         // REGLA 2: Validar que la fecha/hora no sea pasada (usando zona horaria del negocio)
-        const horaNegocio = getHoraNegocio(db, req.session.negocioId);
+        // Convertir la hora de la cita a UTC para comparar
         const [y, m, d] = fecha.split('-').map(Number);
         const [hh, mm] = hora.split(':').map(Number);
         
-        // Crear fecha de la cita: interpretar como hora del negocio, convertir a UTC
-        // Ejemplo: 14:10 en RD (UTC-4) = 18:10 UTC
-        const fechaCitaUTC = Date.UTC(y, m - 1, d, hh, mm) - (horaNegocio.zona_horaria * 60 * 60 * 1000);
+        // 14:10 en RD (UTC-4) = 18:10 UTC
+        const fechaCitaUTC = Date.UTC(y, m - 1, d, hh, mm) - (zonaHoraria * 60 * 60 * 1000);
+        const ahoraUTC = Date.now();
         
-        if (fechaCitaUTC < Date.now()) {
+        if (fechaCitaUTC < ahoraUTC) {
             return res.status(400).json({ error: 'No se pueden crear citas en fechas u horas pasadas' });
+        }
+
+        // REGLA 2.1: Validar tiempo de anticipación
+        if (tiempoAnticipacion > 0) {
+            const milisegundosAnticipacion = tiempoAnticipacion * 60 * 1000;
+            if (fechaCitaUTC < ahoraUTC + milisegundosAnticipacion) {
+                return res.status(400).json({ error: `Debe agendar con al menos ${tiempoAnticipacion} minutos de anticipación` });
+            }
         }
 
         // REGLA 3: Validar que no haya conflictos con otras citas
