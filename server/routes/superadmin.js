@@ -48,6 +48,14 @@ router.post('/login', (req, res) => {
             db.exec('ALTER TABLE super_admins ADD COLUMN last_attempt TEXT');
         }
         
+        // Seed: crear superadmin por defecto si no existe ninguno
+        const superAdminCount = db.prepare('SELECT COUNT(*) as count FROM super_admins').get().count;
+        if (superAdminCount === 0) {
+            const hashedPassword = bcrypt.hashSync('SuperAdmin2026!', 10);
+            db.prepare('INSERT INTO super_admins (email, password, nombre) VALUES (?, ?, ?)')
+                .run('azdelmicha@gmail.com', hashedPassword, 'Administrador');
+        }
+        
         const admin = db.prepare('SELECT * FROM super_admins WHERE email = ? AND estado = ?').get(email, 'activo');
         
         if (!admin) {
