@@ -36,7 +36,7 @@ router.get('/business/:slug', (req, res) => {
         const categorias = db.prepare(`
             SELECT c.id, c.nombre, json_group_array(json_object(
                 'id', s.id, 'nombre', s.nombre, 'precio', s.precio, 
-                'duracion', s.duracion, 'descripcion', s.descripcion
+                'duracion', s.duracion, 'descripcion', s.descripcion, 'imagen', s.imagen
             )) as servicios
             FROM categorias c
             LEFT JOIN servicios s ON s.categoria_id = c.id AND s.estado = 'activo'
@@ -45,7 +45,7 @@ router.get('/business/:slug', (req, res) => {
         `).all(negocio.id);
 
         const serviciosSinCategoria = db.prepare(`
-            SELECT id, nombre, precio, duracion, descripcion
+            SELECT id, nombre, precio, duracion, descripcion, imagen
             FROM servicios WHERE negocio_id = ? AND categoria_id IS NULL AND estado = 'activo'
         `).all(negocio.id);
 

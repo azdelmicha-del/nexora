@@ -74,6 +74,16 @@ function initDatabase() {
         db.exec('ALTER TABLE usuarios ADD COLUMN last_login TEXT');
     }
     
+    const hasLoginAttempts = userColumns.some(c => c.name === 'login_attempts');
+    if (!hasLoginAttempts) {
+        db.exec('ALTER TABLE usuarios ADD COLUMN login_attempts INTEGER DEFAULT 0');
+    }
+    
+    const hasLastAttempt = userColumns.some(c => c.name === 'last_attempt');
+    if (!hasLastAttempt) {
+        db.exec('ALTER TABLE usuarios ADD COLUMN last_attempt TEXT');
+    }
+    
     const negocioColumns = db.prepare("PRAGMA table_info(negocios)").all();
     const hasLicenciaPlan = negocioColumns.some(c => c.name === 'licencia_plan');
     if (!hasLicenciaPlan) {
@@ -125,6 +135,13 @@ function initDatabase() {
     }
     
     limpiarVentasAntiguas();
+    
+    // Agregar columna imagen a servicios
+    const serviciosColumns = db.prepare("PRAGMA table_info(servicios)").all();
+    const hasImagen = serviciosColumns.some(c => c.name === 'imagen');
+    if (!hasImagen) {
+        db.exec('ALTER TABLE servicios ADD COLUMN imagen TEXT');
+    }
     
     console.log('Base de datos inicializada');
     return db;

@@ -384,7 +384,21 @@
                 const data = await res.json();
                 
                 if (!res.ok) {
-                    errorEl.textContent = data.error;
+                    errorEl.classList.remove('show');
+                    
+                    if (data.error === 'account_locked') {
+                        showModalError(
+                            `Demasiados intentos fallidos. Intenta de nuevo en <strong>${data.minutesRemaining} minutos</strong>.`,
+                            'Cuenta bloqueada'
+                        );
+                        return;
+                    }
+                    
+                    if (data.attemptsRemaining) {
+                        errorEl.textContent = `${data.error}. Te quedan ${data.attemptsRemaining} intento${data.attemptsRemaining > 1 ? 's' : ''}.`;
+                    } else {
+                        errorEl.textContent = data.error;
+                    }
                     errorEl.classList.add('show');
                     return;
                 }
@@ -428,6 +442,39 @@
                         <div class="stat-label">Total Ventas</div>
                     </div>
                 `;
+                
+                // Barra de almacenamiento
+                const alm = stats.almacenamiento;
+                const barColor = alm.porcentaje < 50 ? '#10b981' : alm.porcentaje < 80 ? '#f59e0b' : '#ef4444';
+                const barLabel = alm.porcentaje < 50 ? 'Nivel seguro' : alm.porcentaje < 80 ? 'Nivel moderado' : 'Nivel alto - revisar';
+                
+                let storageBar = document.getElementById('storage-bar-container');
+                if (!storageBar) {
+                    storageBar = document.createElement('div');
+                    storageBar.id = 'storage-bar-container';
+                    storageBar.style.cssText = 'background:white; border-radius:12px; padding:20px; margin-top:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.06);';
+                    document.getElementById('stats-grid').parentNode.insertBefore(storageBar, document.getElementById('stats-grid').nextSibling);
+                }
+                
+                storageBar.innerHTML = `
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
+                        <div>
+                            <div style="font-size:0.85rem; font-weight:600; color:#1a1a2e;">Almacenamiento de Base de Datos</div>
+                            <div style="font-size:0.75rem; color:#999;">${alm.totalMB} MB de ${alm.limiteGB} GB usados</div>
+                        </div>
+                        <div style="text-align:right;">
+                            <div style="font-size:1.25rem; font-weight:700; color:${barColor};">${alm.porcentaje}%</div>
+                            <div style="font-size:0.7rem; color:#999;">${barLabel}</div>
+                        </div>
+                    </div>
+                    <div style="background:#e5e7eb; border-radius:10px; height:20px; overflow:hidden;">
+                        <div style="background:linear-gradient(90deg, ${barColor}, ${barColor}dd); height:100%; width:${Math.max(alm.porcentaje, 1)}%; border-radius:10px; transition:width 0.5s ease;"></div>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.7rem; color:#999;">
+                        <span>📷 Imágenes: ${alm.imagenesMB} MB</span>
+                        <span>📊 Datos: ${(alm.totalMB - alm.imagenesMB).toFixed(2)} MB</span>
+                    </div>
+                `;
             } catch (error) {
                 console.error('Error loading stats:', error);
             }
@@ -453,6 +500,7 @@
                                 `<button class="btn-sm btn-success" onclick="cambiarEstado(${n.id}, 'activo')">Activar</button>`
                             }
                             <button class="btn-sm btn-info" onclick="verDetalle(${n.id})">Ver</button>
+                            <button class="btn-sm btn-warning" onclick="resetPassword(${n.id})">🔑 Reset Pass</button>
                             <button class="btn-sm btn-danger" onclick="eliminarNegocio(${n.id})">Eliminar</button>
                         </td>
                     </tr>
@@ -463,35 +511,96 @@
         }
         
         async function cambiarEstado(id, estado) {
-            if (!confirm(`¿Estás seguro de ${estado === 'activo' ? 'activar' : 'suspender'} este negocio?`)) return;
-            
-            try {
-                await fetch(`/api/superadmin/negocios/${id}/estado`, {
-                    method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ estado })
-                });
-                loadNegocios();
-                loadStats();
-            } catch (error) {
-                alert('Error al cambiar estado');
-            }
+            const accion = estado === 'activo' ? 'activar' : 'suspender';
+            showModalConfirm(
+                `¿Estás seguro de ${accion} este negocio?`,
+                async () => {
+                    try {
+                        await fetch(`/api/superadmin/negocios/${id}/estado`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ estado })
+                        });
+                        loadNegocios();
+                        loadStats();
+                        showModalSuccess(`Negocio ${estado === 'activo' ? 'activado' : 'suspendido'} correctamente.`);
+                    } catch (error) {
+                        showModalError('Error al cambiar estado');
+                    }
+                },
+                null,
+                estado === 'activo' ? 'Suspender negocio' : 'Activar negocio'
+            );
         }
         
         async function eliminarNegocio(id) {
-            if (!confirm('¿Estás seguro de eliminar este negocio? Esta acción no se puede deshacer.')) return;
-            
-            try {
-                await fetch(`/api/superadmin/negocios/${id}`, { method: 'DELETE' });
-                loadNegocios();
-                loadStats();
-            } catch (error) {
-                alert('Error al eliminar negocio');
-            }
+            showModalConfirm(
+                'Esta acción desactivará el negocio y todos sus usuarios. No se puede deshacer.',
+                async () => {
+                    try {
+                        await fetch(`/api/superadmin/negocios/${id}`, { method: 'DELETE' });
+                        loadNegocios();
+                        loadStats();
+                        showModalSuccess('Negocio eliminado correctamente.');
+                    } catch (error) {
+                        showModalError('Error al eliminar negocio');
+                    }
+                },
+                null,
+                '¿Eliminar negocio?'
+            );
         }
         
         function verDetalle(id) {
             window.open(`/api/superadmin/negocios/${id}`, '_blank');
+        }
+        
+        async function resetPassword(id) {
+            showModalConfirm(
+                'Se generará una nueva contraseña temporal para el administrador de este negocio.',
+                async () => {
+                    try {
+                        const res = await fetch(`/api/superadmin/negocios/${id}/reset-password`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' }
+                        });
+                        
+                        const data = await res.json();
+                        
+                        if (!res.ok) {
+                            showModalError(data.error);
+                            return;
+                        }
+                        
+                        showModalSuccess(
+                            `<div style="text-align:left; background:#f8f9fa; border-radius:12px; padding:20px; margin-top:16px;">
+                                <div style="margin-bottom:12px;">
+                                    <span style="font-size:12px; color:#999; text-transform:uppercase; letter-spacing:0.5px;">Negocio</span>
+                                    <p style="margin:4px 0 0; font-weight:600; color:#1a1a2e;">${data.negocio}</p>
+                                </div>
+                                <div style="margin-bottom:12px;">
+                                    <span style="font-size:12px; color:#999; text-transform:uppercase; letter-spacing:0.5px;">Usuario</span>
+                                    <p style="margin:4px 0 0; font-weight:600; color:#1a1a2e;">${data.usuario.nombre}</p>
+                                </div>
+                                <div style="margin-bottom:12px;">
+                                    <span style="font-size:12px; color:#999; text-transform:uppercase; letter-spacing:0.5px;">Email</span>
+                                    <p style="margin:4px 0 0; font-weight:600; color:#1a1a2e;">${data.usuario.email}</p>
+                                </div>
+                                <div style="margin-bottom:0;">
+                                    <span style="font-size:12px; color:#999; text-transform:uppercase; letter-spacing:0.5px;">Contraseña temporal</span>
+                                    <p style="margin:4px 0 0; font-weight:700; color:#10b981; font-size:18px; font-family:monospace; background:#d1fae5; padding:10px 14px; border-radius:8px; letter-spacing:1px;">${data.usuario.contrasenaTemporal}</p>
+                                </div>
+                            </div>
+                            <p style="margin-top:16px; font-size:13px; color:#999;">Comparte esta contraseña con el usuario por WhatsApp o email.</p>`,
+                            'Contraseña Reseteada'
+                        );
+                    } catch (error) {
+                        showModalError('Error al resetear contraseña');
+                    }
+                },
+                null,
+                '¿Resetear contraseña?'
+            );
         }
         
         async function logout() {
@@ -500,6 +609,78 @@
                 showLogin();
             } catch (error) {
                 console.error('Error logout:', error);
+            }
+        }
+    </script>
+    
+    <!-- Sistema de modales premium -->
+    <script>
+        let modalContainer = null;
+
+        function initModalContainer() {
+            if (!modalContainer) {
+                modalContainer = document.createElement('div');
+                modalContainer.id = 'global-modal-container';
+                document.body.appendChild(modalContainer);
+            }
+        }
+
+        function showModalSuccess(message, title = '¡Éxito!') {
+            initModalContainer();
+            modalContainer.innerHTML = `
+                <div class="modal-overlay active" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:10000;" onclick="if(event.target===this)closeGlobalModal()">
+                    <div style="background:white; border-radius:24px; padding:32px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                        <div style="width:80px; height:80px; background:linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:40px; color:white; box-shadow:0 8px 25px rgba(16,185,129,0.4);">✓</div>
+                        <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">${title}</h2>
+                        <div style="color:#666; margin-bottom:28px; font-size:15px; line-height:1.5;">${message}</div>
+                        <button onclick="closeGlobalModal()" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; padding:16px 32px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; width:100%; box-shadow:0 4px 15px rgba(16,185,129,0.4);">Aceptar</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showModalError(message, title = 'Error') {
+            initModalContainer();
+            modalContainer.innerHTML = `
+                <div class="modal-overlay active" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:10000;" onclick="if(event.target===this)closeGlobalModal()">
+                    <div style="background:white; border-radius:24px; padding:32px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                        <div style="width:80px; height:80px; background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:40px; color:white; box-shadow:0 8px 25px rgba(239,68,68,0.4);">✕</div>
+                        <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">${title}</h2>
+                        <p style="color:#666; margin-bottom:28px; font-size:15px; line-height:1.5;">${message}</p>
+                        <button onclick="closeGlobalModal()" style="background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color:white; padding:16px 32px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; width:100%; box-shadow:0 4px 15px rgba(239,68,68,0.4);">Aceptar</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function showModalConfirm(message, onConfirm, onCancel, title = '¿Estás seguro?') {
+            initModalContainer();
+            modalContainer.innerHTML = `
+                <div class="modal-overlay active" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:10000;">
+                    <div style="background:white; border-radius:24px; padding:32px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                        <div style="width:80px; height:80px; background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:40px; color:white; box-shadow:0 8px 25px rgba(245,158,11,0.4);">⚠️</div>
+                        <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">${title}</h2>
+                        <p style="color:#666; margin-bottom:28px; font-size:15px; line-height:1.5;">${message}</p>
+                        <div style="display:flex; gap:12px;">
+                            <button id="modalCancelBtn" style="flex:1; background:#f3f4f6; color:#666; padding:16px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; transition:all 0.2s;">Cancelar</button>
+                            <button id="modalConfirmBtn" style="flex:1; background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:white; padding:16px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; box-shadow:0 4px 15px rgba(245,158,11,0.4); transition:all 0.2s;">Confirmar</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.getElementById('modalConfirmBtn').addEventListener('click', () => {
+                closeGlobalModal();
+                if (onConfirm) onConfirm();
+            });
+            document.getElementById('modalCancelBtn').addEventListener('click', () => {
+                closeGlobalModal();
+                if (onCancel) onCancel();
+            });
+        }
+
+        function closeGlobalModal() {
+            if (modalContainer) {
+                modalContainer.innerHTML = '';
             }
         }
     </script>

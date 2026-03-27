@@ -3,8 +3,16 @@ const { getDb } = require('../database');
 const { autoBackup } = require('../backup-protection');
 const router = express.Router();
 
+// Middleware: solo superadmin autenticado
+function requireDebugAuth(req, res, next) {
+    if (!req.session.superAdminId) {
+        return res.status(401).json({ error: 'No autorizado' });
+    }
+    next();
+}
+
 // Endpoint para verificar datos
-router.get('/debug/data', (req, res) => {
+router.get('/debug/data', requireDebugAuth, (req, res) => {
     try {
         const db = getDb();
         
@@ -28,7 +36,7 @@ router.get('/debug/data', (req, res) => {
 });
 
 // Endpoint para hacer backup manual
-router.post('/debug/backup', (req, res) => {
+router.post('/debug/backup', requireDebugAuth, (req, res) => {
     try {
         const backupPath = autoBackup();
         if (backupPath) {

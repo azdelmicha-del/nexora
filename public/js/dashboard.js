@@ -11,9 +11,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     
     setInterval(verificarLicencia, 60000);
 
-    document.getElementById('userName').textContent = sessionData.userName;
-    document.getElementById('userRole').textContent = sessionData.userRol === 'admin' ? 'Administrador' : 'Empleado';
-    document.getElementById('userAvatar').textContent = sessionData.userName.charAt(0).toUpperCase();
+    // Info del usuario la maneja sidebar.js
 
     if (sessionData.userRol !== 'admin') {
         document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
@@ -95,6 +93,7 @@ async function loadDashboard() {
         document.getElementById('clientesNuevos').textContent = data.hoy.clientesNuevos.cantidad;
         document.getElementById('totalClientes').textContent = data.resumen.totalClientes;
         document.getElementById('serviciosActivos').textContent = data.resumen.serviciosActivos;
+        document.getElementById('categoriasActivas').textContent = data.resumen.categoriasActivas;
 
         renderCitasProximas(data.ultimasCitas, data.caja_cerrada);
     } catch (error) {

@@ -13,7 +13,7 @@ router.get('/', requireAuth, (req, res) => {
 
         let query = `
             SELECT s.id, s.nombre, s.precio, s.duracion, s.categoria_id, 
-                   s.descripcion, s.estado, s.fecha_creacion, c.nombre as categoria
+                   s.descripcion, s.estado, s.fecha_creacion, s.imagen, c.nombre as categoria
             FROM servicios s
             LEFT JOIN categorias c ON s.categoria_id = c.id
             WHERE s.negocio_id = ?
@@ -49,7 +49,7 @@ router.get('/:id', requireAuth, (req, res) => {
         const db = getDb();
         const servicio = db.prepare(`
             SELECT s.id, s.negocio_id, s.nombre, s.precio, s.duracion, 
-                   s.categoria_id, s.descripcion, s.estado, s.fecha_creacion,
+                   s.categoria_id, s.descripcion, s.estado, s.fecha_creacion, s.imagen,
                    c.nombre as categoria
             FROM servicios s
             LEFT JOIN categorias c ON s.categoria_id = c.id
@@ -69,7 +69,7 @@ router.get('/:id', requireAuth, (req, res) => {
 
 router.post('/', requireAdmin, (req, res) => {
     try {
-        let { nombre, precio, duracion, categoria_id, descripcion, estado } = req.body;
+        let { nombre, precio, duracion, categoria_id, descripcion, estado, imagen } = req.body;
 
         if (!nombre || nombre.trim() === '') {
             return res.status(400).json({ error: 'El nombre es requerido' });
@@ -94,11 +94,15 @@ router.post('/', requireAdmin, (req, res) => {
             return res.status(400).json({ error: 'El nombre no puede exceder 100 caracteres' });
         }
 
+        if (imagen && imagen.length > 1000000) {
+            return res.status(400).json({ error: 'La imagen es demasiado grande después de procesar. Intenta con una foto más pequeña.' });
+        }
+
         const db = getDb();
 
         const result = db.prepare(`
-            INSERT INTO servicios (negocio_id, nombre, precio, duracion, categoria_id, descripcion, estado)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO servicios (negocio_id, nombre, precio, duracion, categoria_id, descripcion, estado, imagen)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             req.session.negocioId,
             nombre,
@@ -106,12 +110,13 @@ router.post('/', requireAdmin, (req, res) => {
             duracion,
             categoria_id || null,
             descripcion,
-            estado || 'activo'
+            estado || 'activo',
+            imagen || null
         );
 
         const servicio = db.prepare(`
             SELECT s.id, s.nombre, s.precio, s.duracion, s.categoria_id,
-                   s.descripcion, s.estado, s.fecha_creacion, c.nombre as categoria
+                   s.descripcion, s.estado, s.fecha_creacion, s.imagen, c.nombre as categoria
             FROM servicios s
             LEFT JOIN categorias c ON s.categoria_id = c.id
             WHERE s.id = ?
@@ -126,7 +131,7 @@ router.post('/', requireAdmin, (req, res) => {
 
 router.put('/:id', requireAdmin, (req, res) => {
     try {
-        let { nombre, precio, duracion, categoria_id, descripcion, estado } = req.body;
+        let { nombre, precio, duracion, categoria_id, descripcion, estado, imagen } = req.body;
         const servicioId = req.params.id;
 
         if (nombre) {
@@ -191,6 +196,13 @@ router.put('/:id', requireAdmin, (req, res) => {
             updates.push('estado = ?');
             values.push(estado);
         }
+        if (imagen !== undefined) {
+            if (imagen && imagen.length > 1000000) {
+                return res.status(400).json({ error: 'La imagen es demasiado grande después de procesar. Intenta con una foto más pequeña.' });
+            }
+            updates.push('imagen = ?');
+            values.push(imagen || null);
+        }
 
         if (updates.length === 0) {
             return res.status(400).json({ error: 'No hay campos para actualizar' });
@@ -201,7 +213,7 @@ router.put('/:id', requireAdmin, (req, res) => {
 
         const updated = db.prepare(`
             SELECT s.id, s.nombre, s.precio, s.duracion, s.categoria_id,
-                   s.descripcion, s.estado, s.fecha_creacion, c.nombre as categoria
+                   s.descripcion, s.estado, s.fecha_creacion, s.imagen, c.nombre as categoria
             FROM servicios s
             LEFT JOIN categorias c ON s.categoria_id = c.id
             WHERE s.id = ?

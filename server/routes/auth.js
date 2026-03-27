@@ -173,6 +173,7 @@ router.post('/login', async (req, res) => {
         
         const user = db.prepare(`
             SELECT u.id, u.nombre, u.email, u.password, u.rol, u.negocio_id, u.estado, u.last_login, u.fecha_creacion,
+                   u.login_attempts, u.last_attempt,
                    n.estado as negocio_estado
             FROM usuarios u
             JOIN negocios n ON u.negocio_id = n.id
@@ -189,6 +190,28 @@ router.post('/login', async (req, res) => {
 
         if (user.negocio_estado !== 'activo') {
             return res.status(401).json({ error: 'Negocio suspendido' });
+        }
+        
+        // Verificar bloqueo por intentos fallidos
+        const MAX_ATTEMPTS = 3;
+        const LOCKOUT_MINUTES = 15;
+        
+        if (user.login_attempts >= MAX_ATTEMPTS && user.last_attempt) {
+            const lastAttempt = new Date(user.last_attempt);
+            const minutesSince = (new Date() - lastAttempt) / (1000 * 60);
+            
+            if (minutesSince < LOCKOUT_MINUTES) {
+                const minutesRemaining = Math.ceil(LOCKOUT_MINUTES - minutesSince);
+                return res.status(429).json({
+                    error: 'account_locked',
+                    message: `Has excedido el número máximo de intentos. Intenta de nuevo en ${minutesRemaining} minutos.`,
+                    minutesRemaining: minutesRemaining,
+                    locked: true
+                });
+            } else {
+                db.prepare('UPDATE usuarios SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(user.id);
+                user.login_attempts = 0;
+            }
         }
         
         const license = require('../license');
@@ -221,8 +244,27 @@ router.post('/login', async (req, res) => {
 
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
-            return res.status(401).json({ error: 'Credenciales incorrectas' });
+            const newAttempts = (user.login_attempts || 0) + 1;
+            db.prepare('UPDATE usuarios SET login_attempts = ?, last_attempt = ? WHERE id = ?')
+                .run(newAttempts, new Date().toISOString(), user.id);
+            
+            if (newAttempts >= MAX_ATTEMPTS) {
+                return res.status(429).json({
+                    error: 'account_locked',
+                    message: `Has excedido el número máximo de intentos. Intenta de nuevo en ${LOCKOUT_MINUTES} minutos.`,
+                    minutesRemaining: LOCKOUT_MINUTES,
+                    locked: true
+                });
+            }
+            
+            return res.status(401).json({
+                error: 'Credenciales incorrectas',
+                attemptsRemaining: MAX_ATTEMPTS - newAttempts
+            });
         }
+        
+        // Resetear intentos en login exitoso
+        db.prepare('UPDATE usuarios SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(user.id);
         
         db.prepare('UPDATE usuarios SET last_login = ? WHERE id = ?').run(new Date().toISOString(), user.id);
 

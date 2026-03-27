@@ -21,9 +21,19 @@ const publicRoutes = require('./routes/public');
 const testDbRoutes = require('./routes/test-db');
 const superAdminRoutes = require('./routes/superadmin');
 const debugRoutes = require('./routes/debug');
+const estadoResultadoRoutes = require('./routes/estado-resultado');
+
+const crypto = require('crypto');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (!process.env.SESSION_SECRET) {
+    console.log('⚠️  SESSION_SECRET no configurado. Se generó uno aleatorio.');
+} else {
+    console.log('✅ SESSION_SECRET configurado correctamente.');
+}
 
 initDatabase();
 initLicense();
@@ -54,7 +64,7 @@ app.use(express.urlencoded({ extended: true }));
 app.use(sanitizeInput);
 
 app.use(session({
-    secret: process.env.SESSION_SECRET || 'nexora-fallback-secret-do-not-use-in-prod',
+    secret: SESSION_SECRET,
     resave: true,
     saveUninitialized: true,
     cookie: {
@@ -81,6 +91,7 @@ app.use('/api/license', licenseRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api', testDbRoutes);
 app.use('/api/superadmin', superAdminRoutes);
+app.use('/api/estado-resultado', estadoResultadoRoutes);
 app.use('/api', debugRoutes);
 
 app.get('/', (req, res) => {
@@ -121,6 +132,10 @@ app.get('/servicios', requireAuth, (req, res) => {
 
 app.get('/categorias', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'categorias.html'));
+});
+
+app.get('/estado-resultado', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'estado-resultado.html'));
 });
 
 app.get('/clientes', requireAuth, (req, res) => {

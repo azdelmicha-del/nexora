@@ -134,15 +134,44 @@ function renderServices() {
 
 function createServiceCard(s, categoria) {
     const dur = s.duracion < 60 ? s.duracion + ' min' : Math.floor(s.duracion/60) + 'h' + (s.duracion%60 ? ' ' + s.duracion%60 + 'm' : '');
-    const icono = getIconoCategoria(categoria || s.nombre);
+    
+    let mediaHtml;
+    if (s.imagen) {
+        mediaHtml = '<img src="' + s.imagen + '" style="width:100%; height:120px; object-fit:cover; border-radius:10px; margin-bottom:12px; cursor:zoom-in;" alt="' + escapeHtml(s.nombre) + '" onclick="event.stopPropagation(); openLightbox(this.src, \'' + escapeHtml(s.nombre).replace(/'/g, "\\'") + '\')">';
+    } else {
+        const icono = getIconoCategoria(categoria || s.nombre);
+        mediaHtml = '<div class="icon-wrapper">' + icono + '</div>';
+    }
     
     return '<div class="service-card" data-id="' + s.id + '" data-name="' + escapeHtml(s.nombre) + '" data-price="' + s.precio + '" data-duration="' + s.duracion + '" data-category="' + escapeHtml(categoria) + '">' +
-        '<div class="icon-wrapper">' + icono + '</div>' +
+        mediaHtml +
         '<div class="service-name">' + escapeHtml(s.nombre) + '</div>' +
         '<div class="service-duration">' + dur + '</div>' +
         '<div class="service-price">RD$' + Number(s.precio).toFixed(2) + '</div>' +
         (categoria ? '<div class="service-category">' + escapeHtml(categoria) + '</div>' : '') +
     '</div>';
+}
+
+function openLightbox(src, nombre) {
+    let overlay = document.getElementById('lightbox-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'lightbox-overlay';
+        overlay.style.cssText = 'position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.85); display:flex; align-items:center; justify-content:center; z-index:10000; cursor:zoom-out; padding:20px;';
+        overlay.onclick = () => overlay.remove();
+        document.body.appendChild(overlay);
+    } else {
+        overlay.innerHTML = '';
+        overlay.style.display = 'flex';
+    }
+    
+    overlay.innerHTML = `
+        <div onclick="event.stopPropagation()" style="max-width:90vw; max-height:90vh; text-align:center;">
+            <img src="${src}" style="max-width:100%; max-height:80vh; border-radius:12px; box-shadow:0 20px 60px rgba(0,0,0,0.5);" alt="${nombre}">
+            <p style="color:white; margin-top:12px; font-size:14px; opacity:0.8;">${nombre}</p>
+        </div>
+        <button onclick="document.getElementById('lightbox-overlay').remove()" style="position:absolute; top:20px; right:20px; background:rgba(255,255,255,0.2); border:none; color:white; width:40px; height:40px; border-radius:50%; font-size:24px; cursor:pointer;">×</button>
+    `;
 }
 
 function filterServices() {

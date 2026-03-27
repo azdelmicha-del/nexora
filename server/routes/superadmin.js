@@ -1,6 +1,8 @@
 const express = require('express');
 const { getDb } = require('../database');
 const bcrypt = require('bcryptjs');
+const fs = require('fs');
+const path = require('path');
 
 const router = express.Router();
 
@@ -31,9 +33,20 @@ router.post('/login', (req, res) => {
                 password TEXT NOT NULL,
                 nombre TEXT NOT NULL,
                 estado TEXT DEFAULT 'activo',
+                login_attempts INTEGER DEFAULT 0,
+                last_attempt TEXT,
                 fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        
+        // Migrar columnas si la tabla ya existía sin ellas
+        const saColumns = db.prepare("PRAGMA table_info(super_admins)").all();
+        if (!saColumns.some(c => c.name === 'login_attempts')) {
+            db.exec('ALTER TABLE super_admins ADD COLUMN login_attempts INTEGER DEFAULT 0');
+        }
+        if (!saColumns.some(c => c.name === 'last_attempt')) {
+            db.exec('ALTER TABLE super_admins ADD COLUMN last_attempt TEXT');
+        }
         
         const admin = db.prepare('SELECT * FROM super_admins WHERE email = ? AND estado = ?').get(email, 'activo');
         
@@ -41,10 +54,51 @@ router.post('/login', (req, res) => {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
         }
         
+        // Verificar bloqueo por intentos fallidos
+        const MAX_ATTEMPTS = 3;
+        const LOCKOUT_MINUTES = 15;
+        
+        if (admin.login_attempts >= MAX_ATTEMPTS && admin.last_attempt) {
+            const lastAttempt = new Date(admin.last_attempt);
+            const minutesSince = (new Date() - lastAttempt) / (1000 * 60);
+            
+            if (minutesSince < LOCKOUT_MINUTES) {
+                const minutesRemaining = Math.ceil(LOCKOUT_MINUTES - minutesSince);
+                return res.status(429).json({
+                    error: 'account_locked',
+                    message: `Cuenta bloqueada. Intenta de nuevo en ${minutesRemaining} minutos.`,
+                    minutesRemaining: minutesRemaining,
+                    locked: true
+                });
+            } else {
+                db.prepare('UPDATE super_admins SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(admin.id);
+                admin.login_attempts = 0;
+            }
+        }
+        
         const validPassword = bcrypt.compareSync(password, admin.password);
         if (!validPassword) {
-            return res.status(401).json({ error: 'Credenciales incorrectas' });
+            const newAttempts = (admin.login_attempts || 0) + 1;
+            db.prepare('UPDATE super_admins SET login_attempts = ?, last_attempt = ? WHERE id = ?')
+                .run(newAttempts, new Date().toISOString(), admin.id);
+            
+            if (newAttempts >= MAX_ATTEMPTS) {
+                return res.status(429).json({
+                    error: 'account_locked',
+                    message: `Cuenta bloqueada. Intenta de nuevo en ${LOCKOUT_MINUTES} minutos.`,
+                    minutesRemaining: LOCKOUT_MINUTES,
+                    locked: true
+                });
+            }
+            
+            return res.status(401).json({
+                error: 'Credenciales incorrectas',
+                attemptsRemaining: MAX_ATTEMPTS - newAttempts
+            });
         }
+        
+        // Resetear intentos en login exitoso
+        db.prepare('UPDATE super_admins SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(admin.id);
         
         req.session.superAdminId = admin.id;
         req.session.superAdminEmail = admin.email;
@@ -196,10 +250,80 @@ router.put('/negocios/:id/licencia', requireSuperAdmin, (req, res) => {
     }
 });
 
+// Resetear contraseña de admin de un negocio
+router.post('/negocios/:id/reset-password', requireSuperAdmin, async (req, res) => {
+    try {
+        const db = getDb();
+        const negocioId = req.params.id;
+
+        const negocio = db.prepare('SELECT id, nombre FROM negocios WHERE id = ?').get(negocioId);
+        if (!negocio) {
+            return res.status(404).json({ error: 'Negocio no encontrado' });
+        }
+
+        const admin = db.prepare("SELECT id, nombre, email FROM usuarios WHERE negocio_id = ? AND rol = 'admin'").get(negocioId);
+        if (!admin) {
+            return res.status(404).json({ error: 'No se encontró administrador para este negocio' });
+        }
+
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+        let tempPassword = 'Temp';
+        for (let i = 0; i < 6; i++) {
+            tempPassword += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        tempPassword += '!';
+
+        const hashedPassword = await bcrypt.hash(tempPassword, 10);
+        db.prepare('UPDATE usuarios SET password = ? WHERE id = ?').run(hashedPassword, admin.id);
+
+        res.json({
+            success: true,
+            message: 'Contraseña reseteada correctamente',
+            negocio: negocio.nombre,
+            usuario: {
+                nombre: admin.nombre,
+                email: admin.email,
+                contrasenaTemporal: tempPassword
+            }
+        });
+    } catch (error) {
+        console.error('Error reseteando contraseña:', error);
+        res.status(500).json({ error: 'Error al resetear contraseña' });
+    }
+});
+
 // Estadísticas generales
 router.get('/stats', requireSuperAdmin, (req, res) => {
     try {
         const db = getDb();
+        
+        // Obtener tamaño de la base de datos
+        const dbPath = path.join(__dirname, '..', '..', 'data', 'nexora.db');
+        let dbSizeBytes = 0;
+        try {
+            const stat = fs.statSync(dbPath);
+            dbSizeBytes = stat.size;
+        } catch (e) {
+            // Fallback: usar page_count * page_size
+            const pragma = db.prepare('PRAGMA page_count').get();
+            const pageSize = db.prepare('PRAGMA page_size').get();
+            if (pragma && pageSize) {
+                dbSizeBytes = pragma.page_count * pageSize.page_size;
+            }
+        }
+        
+        const dbSizeMB = (dbSizeBytes / (1024 * 1024)).toFixed(2);
+        const maxSizeGB = 1; // Límite práctico de SQLite
+        const maxSizeBytes = maxSizeGB * 1024 * 1024 * 1024;
+        const porcentajeUso = ((dbSizeBytes / maxSizeBytes) * 100).toFixed(2);
+        
+        // Obtener tamaño de imágenes (texto base64 en servicios)
+        const imagenesSize = db.prepare(`
+            SELECT COALESCE(SUM(LENGTH(imagen)), 0) as total
+            FROM servicios WHERE imagen IS NOT NULL AND imagen != ''
+        `).get();
+        
+        const imagenesMB = (imagenesSize.total / (1024 * 1024)).toFixed(2);
         
         const stats = {
             totalNegocios: db.prepare('SELECT COUNT(*) as count FROM negocios WHERE estado != ?').get('eliminado').count,
@@ -207,7 +331,13 @@ router.get('/stats', requireSuperAdmin, (req, res) => {
             negociosSuspendidos: db.prepare('SELECT COUNT(*) as count FROM negocios WHERE estado = ?').get('suspendido').count,
             totalUsuarios: db.prepare('SELECT COUNT(*) as count FROM usuarios').get().count,
             totalCitas: db.prepare('SELECT COUNT(*) as count FROM citas').get().count,
-            totalVentas: db.prepare('SELECT COUNT(*) as count FROM ventas').get().count
+            totalVentas: db.prepare('SELECT COUNT(*) as count FROM ventas').get().count,
+            almacenamiento: {
+                totalMB: parseFloat(dbSizeMB),
+                porcentaje: parseFloat(porcentajeUso),
+                limiteGB: maxSizeGB,
+                imagenesMB: parseFloat(imagenesMB)
+            }
         };
         
         res.json(stats);

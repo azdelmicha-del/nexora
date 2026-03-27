@@ -182,6 +182,20 @@ CREATE TABLE IF NOT EXISTS cajas_cerradas (
     FOREIGN KEY (user_id) REFERENCES usuarios(id)
 );
 
+-- Tabla: Estado de Resultado (Items manuales)
+CREATE TABLE IF NOT EXISTS estado_resultado_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    negocio_id INTEGER NOT NULL,
+    tipo TEXT NOT NULL CHECK(tipo IN ('ingreso', 'gasto')),
+    categoria TEXT NOT NULL CHECK(categoria IN ('ventas', 'costo_ventas', 'gastos_operativos', 'otros_ingresos', 'otros_gastos')),
+    descripcion TEXT NOT NULL,
+    monto REAL NOT NULL DEFAULT 0,
+    fecha TEXT NOT NULL,
+    notas TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+);
+
 -- Índices para optimizar consultas
 CREATE INDEX IF NOT EXISTS idx_usuarios_negocio ON usuarios(negocio_id);
 CREATE INDEX IF NOT EXISTS idx_servicios_negocio ON servicios(negocio_id);

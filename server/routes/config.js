@@ -83,6 +83,10 @@ router.get('/dashboard', requireAuth, (req, res) => {
             SELECT COUNT(*) as cantidad FROM servicios WHERE negocio_id = ? AND estado = 'activo'
         `).get(negocioId);
 
+        const categoriasActivas = db.prepare(`
+            SELECT COUNT(*) as cantidad FROM categorias WHERE negocio_id = ? AND estado = 'activo'
+        `).get(negocioId);
+
         let ventasHoy = { total: 0, cantidad: 0 };
         let citasHoy = { cantidad: 0 };
         let ultimasVentas = [];
@@ -128,7 +132,8 @@ router.get('/dashboard', requireAuth, (req, res) => {
             },
             resumen: {
                 totalClientes: totalClientes.cantidad,
-                serviciosActivos: serviciosActivos.cantidad
+                serviciosActivos: serviciosActivos.cantidad,
+                categoriasActivas: categoriasActivas.cantidad
             },
             ultimasVentas,
             ultimasCitas,
