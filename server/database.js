@@ -143,6 +143,15 @@ function initDatabase() {
         db.exec('ALTER TABLE servicios ADD COLUMN imagen TEXT');
     }
     
+    // Agregar columna subtipo a estado_resultado_items
+    const erColumns = db.prepare("PRAGMA table_info(estado_resultado_items)").all();
+    const hasSubtipo = erColumns.some(c => c.name === 'subtipo');
+    if (!hasSubtipo) {
+        db.exec('ALTER TABLE estado_resultado_items ADD COLUMN subtipo TEXT');
+        // Migrar items existentes
+        db.exec("UPDATE estado_resultado_items SET subtipo = 'costo' WHERE tipo = 'gasto' AND categoria IN ('costo_ventas', 'gastos_operativos', 'otros_gastos')");
+    }
+    
     console.log('Base de datos inicializada');
     return db;
 }

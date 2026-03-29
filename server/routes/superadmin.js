@@ -180,8 +180,18 @@ router.get('/negocios/:id', requireSuperAdmin, (req, res) => {
         }
         
         const usuarios = db.prepare('SELECT id, nombre, email, rol, estado FROM usuarios WHERE negocio_id = ?').all(req.params.id);
+        const totalCitas = db.prepare('SELECT COUNT(*) as count FROM citas WHERE negocio_id = ?').get(req.params.id).count;
+        const totalVentas = db.prepare('SELECT COUNT(*) as count FROM ventas WHERE negocio_id = ?').get(req.params.id).count;
         
-        res.json({ negocio, usuarios });
+        res.json({ 
+            negocio, 
+            usuarios,
+            stats: {
+                totalUsuarios: usuarios.length,
+                totalCitas,
+                totalVentas
+            }
+        });
     } catch (error) {
         console.error('Error obteniendo negocio:', error);
         res.status(500).json({ error: 'Error del servidor' });

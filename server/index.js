@@ -138,6 +138,10 @@ app.get('/estado-resultado', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'estado-resultado.html'));
 });
 
+app.get('/egresos', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'egresos.html'));
+});
+
 app.get('/clientes', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'clientes.html'));
 });

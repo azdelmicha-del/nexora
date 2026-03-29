@@ -187,6 +187,7 @@ CREATE TABLE IF NOT EXISTS estado_resultado_items (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     negocio_id INTEGER NOT NULL,
     tipo TEXT NOT NULL CHECK(tipo IN ('ingreso', 'gasto')),
+    subtipo TEXT CHECK(subtipo IN ('costo', 'gasto')),
     categoria TEXT NOT NULL CHECK(categoria IN ('ventas', 'costo_ventas', 'gastos_operativos', 'otros_ingresos', 'otros_gastos')),
     descripcion TEXT NOT NULL,
     monto REAL NOT NULL DEFAULT 0,

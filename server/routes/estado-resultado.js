@@ -29,6 +29,36 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
         
         const items = db.prepare(query).all(...params);
         
+        // Obtener ventas automáticas del POS
+        let ventasQuery = `
+            SELECT id, total as monto, fecha, metodo_pago, 'venta_pos' as categoria, 'ingreso' as tipo, 
+                   'Venta #' || id as descripcion, 'ingreso' as subtipo
+            FROM ventas 
+            WHERE negocio_id = ?
+        `;
+        const ventasParams = [req.session.negocioId];
+        
+        if (desde) {
+            ventasQuery += ' AND date(fecha) >= ?';
+            ventasParams.push(desde);
+        }
+        if (hasta) {
+            ventasQuery += ' AND date(fecha) <= ?';
+            ventasParams.push(hasta);
+        }
+        
+        ventasQuery += ' ORDER BY fecha DESC';
+        
+        const ventasPOS = db.prepare(ventasQuery).all(...ventasParams);
+        const totalVentasPOS = ventasPOS.reduce((sum, v) => v.monto, 0);
+        
+        // Combinar items manuales + ventas POS
+        const todosLosItems = [...items, ...ventasPOS].sort((a, b) => {
+            if (b.fecha > a.fecha) return 1;
+            if (b.fecha < a.fecha) return -1;
+            return 0;
+        });
+        
         // Calcular totales por categoría
         const totales = {
             ventas: 0,
@@ -38,20 +68,30 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
             otros_gastos: 0
         };
         
+        // Sumar ventas manuales
         items.forEach(item => {
             if (totales.hasOwnProperty(item.categoria)) {
                 totales[item.categoria] += item.monto;
             }
         });
         
+        // Sumar ventas del POS al total de ventas
+        totales.ventas += totalVentasPOS;
+        
         // Calcular resultados
         const ingresosTotales = totales.ventas;
+        const totalCostos = totales.costo_ventas + totales.gastos_operativos + totales.otros_gastos;
+        const totalGastos = items.filter(i => i.tipo === 'gasto' && i.subtipo === 'gasto').reduce((s, i) => s + i.monto, 0);
         const utilidadBruta = ingresosTotales - totales.costo_ventas;
         const utilidadOperativa = utilidadBruta - totales.gastos_operativos;
-        const resultadoNeto = utilidadOperativa + totales.otros_ingresos - totales.otros_gastos;
+        const resultadoNeto = utilidadOperativa + totales.otros_ingresos - totales.otros_gastos - totalGastos;
         
         res.json({
-            items,
+            items: todosLosItems,
+            ventasPOS: {
+                total: totalVentasPOS,
+                cantidad: ventasPOS.length
+            },
             totales,
             resumen: {
                 ingresos_totales: ingresosTotales,
@@ -61,6 +101,8 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
                 utilidad_operativa: utilidadOperativa,
                 otros_ingresos: totales.otros_ingresos,
                 otros_gastos: totales.otros_gastos,
+                total_costos: totalCostos,
+                total_gastos: totalGastos,
                 resultado_neto: resultadoNeto
             }
         });
@@ -73,7 +115,7 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
 // Agregar item al estado de resultado
 router.post('/', requireAuth, requireAdmin, (req, res) => {
     try {
-        const { tipo, categoria, descripcion, monto, fecha, notas } = req.body;
+        const { tipo, subtipo, categoria, descripcion, monto, fecha, notas } = req.body;
         
         if (!tipo || !categoria || !descripcion || !monto || !fecha) {
             return res.status(400).json({ error: 'Todos los campos son requeridos' });
@@ -92,14 +134,21 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
             return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
         }
         
+        // Determinar subtipo automáticamente si no se envía
+        let subtipoFinal = subtipo;
+        if (!subtipoFinal && tipo === 'gasto') {
+            subtipoFinal = 'costo'; // Por defecto, gastos son costos del negocio
+        }
+        
         const db = getDb();
         
         const result = db.prepare(`
-            INSERT INTO estado_resultado_items (negocio_id, tipo, categoria, descripcion, monto, fecha, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO estado_resultado_items (negocio_id, tipo, subtipo, categoria, descripcion, monto, fecha, notas)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             req.session.negocioId,
             tipo,
+            subtipoFinal,
             categoria,
             descripcion.trim(),
             parseFloat(monto),

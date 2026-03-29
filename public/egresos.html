@@ -1,0 +1,689 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="mobile-web-app-capable" content="yes">
+    <title>Nexora - Egresos</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        /* Tabs premium */
+        .tabs-premium {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1.5rem;
+            background: white;
+            border-radius: 14px;
+            padding: 6px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        
+        .tab-premium {
+            flex: 1;
+            padding: 0.85rem 1.25rem;
+            border: none;
+            background: transparent;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            border-radius: 10px;
+            transition: all 0.25s;
+            color: var(--gray-500);
+            font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+        }
+        
+        .tab-premium.active {
+            color: white;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        
+        .tab-premium.active.tab-costos {
+            background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        }
+        
+        .tab-premium.active.tab-gastos {
+            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        }
+        
+        .tab-premium:not(.active):hover {
+            background: var(--gray-50);
+        }
+        
+        .tab-count {
+            background: rgba(0,0,0,0.1);
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-size: 0.7rem;
+            font-weight: 700;
+        }
+        
+        .tab-premium.active .tab-count {
+            background: rgba(255,255,255,0.25);
+        }
+        
+        /* Toolbar */
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .filtros-fecha {
+            display: flex;
+            gap: 0.5rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .filtros-fecha input[type="date"] {
+            padding: 0.5rem 0.75rem;
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-family: inherit;
+            color: var(--gray-700);
+        }
+        
+        .btn-filtro {
+            padding: 0.5rem 1rem;
+            background: white;
+            color: var(--gray-600);
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .btn-filtro:hover { background: var(--gray-50); }
+        .btn-filtro.activo { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        .btn-nuevo {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.65rem 1.25rem;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.15);
+        }
+        
+        .btn-nuevo:hover { transform: translateY(-1px); }
+        .btn-nuevo.btn-costo { background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); }
+        .btn-nuevo.btn-gasto { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
+        
+        /* Resumen cards */
+        .resumen-hero {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem 2rem;
+            margin-bottom: 1.5rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        
+        .resumen-hero .total-grande {
+            font-size: 2.5rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .resumen-hero .total-grande.costo { color: #f59e0b; }
+        .resumen-hero .total-grande.gasto { color: #ef4444; }
+        
+        .resumen-hero .info-lateral {
+            text-align: right;
+        }
+        
+        .resumen-hero .info-lateral .count {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+        
+        .resumen-hero .info-lateral .label {
+            font-size: 0.75rem;
+            color: var(--gray-400);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        
+        /* Categorías */
+        .categorias-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1rem;
+        }
+        
+        .categoria-card {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            transition: box-shadow 0.2s;
+        }
+        
+        .categoria-card:hover {
+            box-shadow: 0 4px 20px rgba(0,0,0,0.1);
+        }
+        
+        .categoria-card-header {
+            padding: 1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--gray-100);
+        }
+        
+        .categoria-card-header .nombre {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--gray-800);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .categoria-card-header .total {
+            font-size: 1rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .categoria-card-header .total.costo { color: #f59e0b; }
+        .categoria-card-header .total.gasto { color: #ef4444; }
+        
+        .categoria-card-body {
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        
+        .item-fila {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.7rem 1.25rem;
+            border-bottom: 1px solid var(--gray-50);
+            transition: background 0.15s;
+        }
+        
+        .item-fila:last-child { border-bottom: none; }
+        .item-fila:hover { background: #fafafa; }
+        
+        .item-fila .item-desc {
+            flex: 1;
+            font-size: 0.85rem;
+            color: var(--gray-700);
+            font-weight: 500;
+        }
+        
+        .item-fila .item-fecha {
+            font-size: 0.72rem;
+            color: var(--gray-400);
+            margin-left: 0.75rem;
+            white-space: nowrap;
+        }
+        
+        .item-fila .item-monto {
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-left: 0.75rem;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+        
+        .item-fila .item-monto.costo { color: #f59e0b; }
+        .item-fila .item-monto.gasto { color: #ef4444; }
+        
+        .item-fila .item-acciones {
+            display: flex;
+            gap: 0.25rem;
+            margin-left: 0.5rem;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+        
+        .item-fila:hover .item-acciones { opacity: 1; }
+        
+        .item-fila .item-acciones button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px 6px;
+            border-radius: 6px;
+            color: var(--gray-400);
+            font-size: 0.75rem;
+            transition: all 0.15s;
+        }
+        
+        .item-fila .item-acciones button:hover { background: var(--gray-100); color: var(--gray-700); }
+        .item-fila .item-acciones button.btn-del:hover { color: #ef4444; background: #fef2f2; }
+        
+        .categoria-card-empty {
+            padding: 2rem;
+            text-align: center;
+            color: var(--gray-400);
+            font-size: 0.85rem;
+        }
+        
+        .btn-agregar-mini {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.4rem;
+            width: 100%;
+            padding: 0.6rem;
+            border: none;
+            background: var(--gray-50);
+            color: var(--gray-500);
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            border-top: 1px solid var(--gray-100);
+        }
+        
+        .btn-agregar-mini:hover { background: var(--gray-100); color: var(--gray-700); }
+        
+        /* Scrollbar */
+        .categoria-card-body::-webkit-scrollbar { width: 4px; }
+        .categoria-card-body::-webkit-scrollbar-track { background: transparent; }
+        .categoria-card-body::-webkit-scrollbar-thumb { background: var(--gray-200); border-radius: 4px; }
+        
+        @media (max-width: 768px) {
+            .resumen-hero { flex-direction: column; text-align: center; gap: 1rem; }
+            .resumen-hero .info-lateral { text-align: center; }
+            .categorias-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Egresos</h1>
+                <p class="text-muted">Registra costos y gastos del negocio</p>
+            </div>
+            
+            <!-- Hero resumen - dos totales -->
+            <div class="resumen-hero" style="display:grid; grid-template-columns:1fr 1fr; gap:0; padding:0; border-radius:16px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:1.5rem;">
+                <div style="padding:1.5rem 2rem; background:white; border-right:1px solid var(--gray-100);">
+                    <div style="font-size:0.75rem; color:#f59e0b; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.25rem; font-weight:600;">📦 Total Costos</div>
+                    <div style="display:flex; align-items:baseline; gap:1rem;">
+                        <span class="total-grande costo" id="heroCostos" style="font-size:2rem;">RD$0.00</span>
+                        <span style="font-size:0.85rem; color:var(--gray-400);"><span id="heroCountCostos">0</span> registros</span>
+                    </div>
+                </div>
+                <div style="padding:1.5rem 2rem; background:white;">
+                    <div style="font-size:0.75rem; color:#ef4444; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.25rem; font-weight:600;">💸 Total Gastos Personales</div>
+                    <div style="display:flex; align-items:baseline; gap:1rem;">
+                        <span class="total-grande gasto" id="heroGastos" style="font-size:2rem;">RD$0.00</span>
+                        <span style="font-size:0.85rem; color:var(--gray-400);"><span id="heroCountGastos">0</span> registros</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Toolbar -->
+            <div class="toolbar">
+                <div class="filtros-fecha">
+                    <input type="hidden" id="fechaDesde">
+                    <input type="hidden" id="fechaHasta">
+                    <button class="btn-filtro" onclick="setFiltro('hoy', this)">Hoy</button>
+                    <button class="btn-filtro activo" onclick="setFiltro('mes', this)">Este mes</button>
+                    <button class="btn-filtro" onclick="setFiltro('mesAnterior', this)">Mes anterior</button>
+                </div>
+                <button class="btn-nuevo" id="btnNuevo" onclick="abrirModal()" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%);">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Nuevo Registro
+                </button>
+            </div>
+            
+            <!-- Secciones lado a lado -->
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:1.5rem;" id="seccionesContainer"></div>
+        </main>
+    </div>
+    
+    <!-- Modal -->
+    <div class="modal-overlay" id="modalItem">
+        <div class="modal" style="max-width: 500px;">
+            <div class="modal-header">
+                <h3 id="modalTitulo">Nuevo Registro</h3>
+                <button class="modal-close" onclick="cerrarModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <form id="formItem">
+                    <input type="hidden" id="itemId">
+                    <div class="form-group">
+                        <label>Categoría *</label>
+                        <select id="itemCategoria" class="form-select"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Descripción *</label>
+                        <input type="text" id="itemDescripcion" class="form-input" placeholder="Ej: Compra de productos">
+                    </div>
+                    <div class="form-group">
+                        <label>Monto (RD$) *</label>
+                        <input type="number" id="itemMonto" class="form-input" step="0.01" min="0" placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Fecha *</label>
+                        <input type="date" id="itemFecha" class="form-input">
+                    </div>
+                    <div class="form-group">
+                        <label>Notas</label>
+                        <textarea id="itemNotas" class="form-input" rows="2" placeholder="Notas adicionales"></textarea>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
+                <button type="button" class="btn btn-primary" onclick="guardarItem()">Guardar</button>
+            </div>
+        </div>
+    </div>
+    
+    <script src="/js/api.js"></script>
+    <script src="/js/sidebar.js"></script>
+    <script>
+        let datosActuales = null;
+        let editandoId = null;
+        
+        const categoriasConfig = {
+            costos: [
+                { value: 'costo_ventas', label: 'Costo de Ventas', icon: '📦' },
+                { value: 'gastos_operativos', label: 'Gastos Operativos', icon: '🏢' },
+                { value: 'otros_gastos', label: 'Otros Costos', icon: '📋' }
+            ],
+            gastos: [
+                { value: 'otros_gastos', label: 'Gastos Personales', icon: '💸' }
+            ]
+        };
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            const session = await checkSession();
+            if (!session || !session.authenticated) {
+                window.location.href = '/';
+                return;
+            }
+            
+            setFiltro('mes');
+        });
+        
+        function setFiltro(tipo, btn) {
+            document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('activo'));
+            if (btn) btn.classList.add('activo');
+            
+            const hoy = new Date();
+            let desde, hasta;
+            
+            if (tipo === 'hoy') {
+                desde = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+                hasta = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate());
+            } else if (tipo === 'mes') {
+                desde = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                hasta = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+            } else if (tipo === 'mesAnterior') {
+                desde = new Date(hoy.getFullYear(), hoy.getMonth() - 1, 1);
+                hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
+            }
+            
+            document.getElementById('fechaDesde').value = formatDateISO(desde);
+            document.getElementById('fechaHasta').value = formatDateISO(hasta);
+            cargarDatos();
+        }
+        
+        function formatDateISO(date) {
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
+        }
+        
+        async function cargarDatos() {
+            const desde = document.getElementById('fechaDesde').value;
+            const hasta = document.getElementById('fechaHasta').value;
+            
+            try {
+                datosActuales = await apiCall(`/estado-resultado?desde=${desde}&hasta=${hasta}`);
+                
+                const costos = datosActuales.items.filter(i => i.tipo === 'gasto' && (i.subtipo === 'costo' || !i.subtipo));
+                const gastos = datosActuales.items.filter(i => i.tipo === 'gasto' && i.subtipo === 'gasto');
+                
+                const totalCostos = costos.reduce((s, i) => s + i.monto, 0);
+                const totalGastos = gastos.reduce((s, i) => s + i.monto, 0);
+                
+                // Hero
+                document.getElementById('heroCostos').textContent = formatCurrency(totalCostos);
+                document.getElementById('heroCountCostos').textContent = costos.length;
+                document.getElementById('heroGastos').textContent = formatCurrency(totalGastos);
+                document.getElementById('heroCountGastos').textContent = gastos.length;
+                
+                // Render ambas secciones
+                renderSecciones(costos, gastos);
+            } catch (error) {
+                console.error('Error:', error);
+                showToast(error.message, 'error');
+            }
+        }
+        
+        function renderSecciones(costos, gastos) {
+            const container = document.getElementById('seccionesContainer');
+            
+            container.innerHTML = `
+                <div>
+                    ${renderBloqueCategoria(costos, 'costos', '📦 Costos', 'costo')}
+                    <button class="btn-nuevo btn-costo" style="width:100%; margin-top:0.75rem; justify-content:center;" onclick="abrirModalSection('costos')">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Nuevo Costo
+                    </button>
+                </div>
+                <div>
+                    ${renderBloqueCategoria(gastos, 'gastos', '💸 Gastos Personales', 'gasto')}
+                    <button class="btn-nuevo btn-gasto" style="width:100%; margin-top:0.75rem; justify-content:center;" onclick="abrirModalSection('gastos')">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Nuevo Gasto
+                    </button>
+                </div>
+            `;
+        }
+        
+        function renderBloqueCategoria(items, tipoSeccion, titulo, tipoClass) {
+            const cats = categoriasConfig[tipoSeccion];
+            const total = items.reduce((s, i) => s + i.monto, 0);
+            
+            let html = `
+                <div class="categoria-card" style="border-top:4px solid ${tipoClass === 'costo' ? '#f59e0b' : '#ef4444'};">
+                    <div class="categoria-card-header" style="background:${tipoClass === 'costo' ? '#fffbeb' : '#fef2f2'};">
+                        <span class="nombre" style="font-size:1rem;">${titulo}</span>
+                        <span class="total ${tipoClass}" style="font-size:1.1rem;">${formatCurrency(total)}</span>
+                    </div>
+            `;
+            
+            cats.forEach(cat => {
+                const itemsCat = items.filter(i => i.categoria === cat.value);
+                const totalCat = itemsCat.reduce((s, i) => s + i.monto, 0);
+                
+                html += `
+                    <div style="padding:0.5rem 1.25rem; background:var(--gray-50); display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--gray-100);">
+                        <span style="font-size:0.78rem; font-weight:600; color:var(--gray-600);">${cat.icon} ${cat.label}</span>
+                        <span style="font-size:0.82rem; font-weight:700; color:${tipoClass === 'costo' ? '#f59e0b' : '#ef4444'};">${formatCurrency(totalCat)}</span>
+                    </div>
+                `;
+                
+                if (itemsCat.length === 0) {
+                    html += '<div class="categoria-card-empty" style="padding:1rem;">Sin registros</div>';
+                } else {
+                    itemsCat.forEach(item => {
+                        html += `
+                            <div class="item-fila">
+                                <span class="item-desc">${escapeHtml(item.descripcion)}</span>
+                                <span class="item-fecha">${formatDate(item.fecha)}</span>
+                                <span class="item-monto ${tipoClass}">${formatCurrency(item.monto)}</span>
+                                <div class="item-acciones">
+                                    <button onclick="editarItem(${item.id})" title="Editar">✏️</button>
+                                    <button class="btn-del" onclick="eliminarItem(${item.id})" title="Eliminar">🗑️</button>
+                                </div>
+                            </div>
+                        `;
+                    });
+                }
+            });
+            
+            html += '</div>';
+            return html;
+        }
+        
+        function abrirModalSection(seccion) {
+            const cats = categoriasConfig[seccion];
+            const select = document.getElementById('itemCategoria');
+            select.innerHTML = cats.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+            
+            editandoId = null;
+            document.getElementById('modalTitulo').textContent = seccion === 'costos' ? 'Nuevo Costo' : 'Nuevo Gasto';
+            document.getElementById('itemId').value = '';
+            document.getElementById('itemDescripcion').value = '';
+            document.getElementById('itemMonto').value = '';
+            document.getElementById('itemFecha').value = formatDateISO(new Date());
+            document.getElementById('itemNotas').value = '';
+            document.getElementById('itemCategoria').dataset.subtipo = seccion === 'costos' ? 'costo' : 'gasto';
+            
+            document.getElementById('modalItem').classList.add('active');
+        }
+        
+        function abrirModal(categoria) {
+            editandoId = null;
+            document.getElementById('modalTitulo').textContent = 'Nuevo Registro';
+            document.getElementById('itemId').value = '';
+            
+            const select = document.getElementById('itemCategoria');
+            const allCats = [...categoriasConfig.costos, ...categoriasConfig.gastos];
+            const unique = [...new Map(allCats.map(c => [c.value, c])).values()];
+            select.innerHTML = unique.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+            
+            if (categoria) {
+                select.value = categoria;
+            }
+            
+            document.getElementById('itemDescripcion').value = '';
+            document.getElementById('itemMonto').value = '';
+            document.getElementById('itemFecha').value = formatDateISO(new Date());
+            document.getElementById('itemNotas').value = '';
+            document.getElementById('itemCategoria').dataset.subtipo = 'costo';
+            
+            document.getElementById('modalItem').classList.add('active');
+        }
+        
+        async function editarItem(id) {
+            const item = datosActuales.items.find(i => i.id === id);
+            if (!item) return;
+            
+            editandoId = id;
+            document.getElementById('modalTitulo').textContent = 'Editar Registro';
+            document.getElementById('itemId').value = id;
+            
+            const select = document.getElementById('itemCategoria');
+            const allCats = [...categoriasConfig.costos, ...categoriasConfig.gastos];
+            const unique = [...new Map(allCats.map(c => [c.value, c])).values()];
+            select.innerHTML = unique.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
+            select.value = item.categoria;
+            select.dataset.subtipo = item.subtipo || 'costo';
+            
+            document.getElementById('itemDescripcion').value = item.descripcion;
+            document.getElementById('itemMonto').value = item.monto;
+            document.getElementById('itemFecha').value = item.fecha;
+            document.getElementById('itemNotas').value = item.notas || '';
+            
+            document.getElementById('modalItem').classList.add('active');
+        }
+        
+        function cerrarModal() {
+            document.getElementById('modalItem').classList.remove('active');
+            editandoId = null;
+        }
+        
+        async function guardarItem() {
+            const data = {
+                tipo: 'gasto',
+                subtipo: document.getElementById('itemCategoria').dataset.subtipo || 'costo',
+                categoria: document.getElementById('itemCategoria').value,
+                descripcion: document.getElementById('itemDescripcion').value,
+                monto: parseFloat(document.getElementById('itemMonto').value),
+                fecha: document.getElementById('itemFecha').value,
+                notas: document.getElementById('itemNotas').value || null
+            };
+            
+            if (!data.descripcion || !data.monto || !data.fecha) {
+                showToast('Todos los campos son requeridos', 'error');
+                return;
+            }
+            
+            try {
+                if (editandoId) {
+                    await apiCall(`/estado-resultado/${editandoId}`, {
+                        method: 'PUT',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('Registro actualizado', 'success');
+                } else {
+                    await apiCall('/estado-resultado', {
+                        method: 'POST',
+                        body: JSON.stringify(data)
+                    });
+                    showToast('Registro guardado', 'success');
+                }
+                
+                cerrarModal();
+                cargarDatos();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+        
+        async function eliminarItem(id) {
+            showModalConfirm('¿Eliminar este registro?', async () => {
+                try {
+                    await apiCall(`/estado-resultado/${id}`, { method: 'DELETE' });
+                    showToast('Registro eliminado', 'success');
+                    cargarDatos();
+                } catch (error) {
+                    showToast(error.message, 'error');
+                }
+            });
+        }
+        
+        function formatCurrency(amount) {
+            return 'RD$' + Number(amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+        }
+        
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const [year, month, day] = dateStr.split('-').map(Number);
+            return new Date(year, month - 1, day).toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text || '';
+            return div.innerHTML;
+        }
+    </script>
+</body>
+</html>

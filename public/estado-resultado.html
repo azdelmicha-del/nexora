@@ -6,340 +6,433 @@
     <meta name="mobile-web-app-capable" content="yes">
     <title>Estado de Resultado - Nexora</title>
     <link rel="stylesheet" href="/css/styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
-        .resumen-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        .toolbar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
             gap: 1rem;
             margin-bottom: 1.5rem;
-            overflow: visible;
         }
-        
-        .resumen-card {
-            background: white;
-            border-radius: 12px;
-            padding: 1.25rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-        
-        .resumen-card .label {
-            font-size: 0.75rem;
-            color: var(--gray-500);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            margin-bottom: 0.5rem;
-        }
-        
-        .resumen-card .valor {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: var(--gray-900);
-        }
-        
-        .resumen-card .valor.positivo { color: #10b981; }
-        .resumen-card .valor.negativo { color: #ef4444; }
-        
-        .resumen-card-destacado {
-            box-shadow: 0 4px 15px rgba(16,185,129,0.25) !important;
-        }
-        
-        .resumen-card-destacado.positivo {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%) !important;
-        }
-        
-        .resumen-card-destacado.negativo {
-            background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%) !important;
-        }
-        
-        /* Tooltips */
-        .resumen-card {
-            position: relative;
-            cursor: help;
-        }
-        
-        .resumen-tooltip {
-            display: none;
-            position: absolute;
-            top: calc(100% + 8px);
-            left: 50%;
-            transform: translateX(-50%);
-            background: #1a1a2e;
-            color: white;
-            padding: 10px 14px;
-            border-radius: 10px;
-            font-size: 0.78rem;
-            line-height: 1.5;
-            width: 240px;
-            z-index: 100;
-            box-shadow: 0 8px 25px rgba(0,0,0,0.25);
-            pointer-events: none;
-        }
-        
-        .resumen-tooltip::after {
-            content: '';
-            position: absolute;
-            bottom: 100%;
-            left: 50%;
-            transform: translateX(-50%);
-            border: 6px solid transparent;
-            border-bottom-color: #1a1a2e;
-        }
-        
-        .resumen-card:hover .resumen-tooltip {
-            display: block;
-            animation: tooltipIn 0.15s ease;
-        }
-        
-        @keyframes tooltipIn {
-            from { opacity: 0; transform: translateX(-50%) translateY(-4px); }
-            to { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
-        
-        .categoria-section {
-            background: white;
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
-        }
-        
-        .categoria-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 1rem;
-            padding-bottom: 0.75rem;
-            border-bottom: 1px solid var(--gray-100);
-        }
-        
-        .categoria-titulo {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--gray-800);
-        }
-        
-        .categoria-total {
-            font-size: 1.1rem;
-            font-weight: 700;
-        }
-        
-        .categoria-total.ingreso { color: #10b981; }
-        .categoria-total.gasto { color: #ef4444; }
-        
-        .item-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem 0;
-            border-bottom: 1px solid var(--gray-50);
-        }
-        
-        .item-row:last-child { border-bottom: none; }
-        
-        .item-info {
-            flex: 1;
-        }
-        
-        .item-descripcion {
-            font-weight: 500;
-            color: var(--gray-800);
-        }
-        
-        .item-fecha {
-            font-size: 0.75rem;
-            color: var(--gray-400);
-        }
-        
-        .item-monto {
-            font-weight: 600;
-            margin-right: 1rem;
-        }
-        
-        .item-monto.ingreso { color: #10b981; }
-        .item-monto.gasto { color: #ef4444; }
-        
-        .item-acciones {
-            display: flex;
-            gap: 0.5rem;
-        }
-        
-        .btn-add-item {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            padding: 0.5rem 1rem;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-        
-        .btn-add-item:hover {
-            background: var(--primary-dark);
-        }
-        
-        .resultado-final {
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            border-radius: 16px;
-            padding: 2rem;
-            text-align: center;
-            margin-top: 1.5rem;
-        }
-        
-        .resultado-label {
-            font-size: 0.9rem;
-            color: rgba(255,255,255,0.7);
-            margin-bottom: 0.5rem;
-        }
-        
-        .resultado-valor {
-            font-size: 2.5rem;
-            font-weight: 700;
-            color: white;
-        }
-        
-        .resultado-valor.positivo { color: #10b981; }
-        .resultado-valor.negativo { color: #ef4444; }
         
         .filtros-fecha {
             display: flex;
-            gap: 1rem;
-            margin-bottom: 1.5rem;
-            flex-wrap: wrap;
+            gap: 0.5rem;
             align-items: center;
-        }
-        
-        .filtros-fecha label {
-            font-size: 0.85rem;
-            color: var(--gray-600);
+            flex-wrap: wrap;
         }
         
         .filtros-fecha input[type="date"] {
             padding: 0.5rem 0.75rem;
             border: 1px solid var(--gray-200);
             border-radius: 8px;
+            font-size: 0.8rem;
+            font-family: inherit;
+            color: var(--gray-700);
+        }
+        
+        .btn-filtro {
+            padding: 0.5rem 1rem;
+            background: white;
+            color: var(--gray-600);
+            border: 1px solid var(--gray-200);
+            border-radius: 8px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: inherit;
+        }
+        
+        .btn-filtro:hover { background: var(--gray-50); }
+        .btn-filtro.activo { background: var(--primary); color: white; border-color: var(--primary); }
+        
+        .periodo-label {
+            font-size: 0.8rem;
+            color: var(--gray-500);
+            font-weight: 500;
+        }
+        
+        /* Resultado Neto - Hero Card */
+        .resultado-hero {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            border-radius: 20px;
+            padding: 2.5rem;
+            text-align: center;
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .resultado-hero::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -30%;
+            width: 300px;
+            height: 300px;
+            background: radial-gradient(circle, rgba(255,255,255,0.08) 0%, transparent 70%);
+            border-radius: 50%;
+        }
+        
+        .resultado-hero.positivo { background: linear-gradient(135deg, #065f46 0%, #047857 50%, #10b981 100%); }
+        .resultado-hero.negativo { background: linear-gradient(135deg, #7f1d1d 0%, #991b1b 50%, #ef4444 100%); }
+        
+        .resultado-label {
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: rgba(255,255,255,0.6);
+            margin-bottom: 0.5rem;
+        }
+        
+        .resultado-valor {
+            font-size: 3rem;
+            font-weight: 800;
+            color: white;
+            font-variant-numeric: tabular-nums;
+            position: relative;
+            z-index: 1;
+        }
+        
+        .resultado-status {
+            font-size: 0.9rem;
+            color: rgba(255,255,255,0.7);
+            margin-top: 0.5rem;
+        }
+        
+        /* Cards de resumen */
+        .resumen-tres {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+        
+        .resumen-card {
+            background: white;
+            border-radius: 16px;
+            padding: 1.5rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .resumen-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 4px;
+        }
+        
+        .resumen-card.ventas::before { background: linear-gradient(90deg, #10b981, #34d399); }
+        .resumen-card.costos::before { background: linear-gradient(90deg, #f59e0b, #fbbf24); }
+        .resumen-card.gastos::before { background: linear-gradient(90deg, #ef4444, #f87171); }
+        
+        .resumen-card .icono {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1rem;
+            font-size: 24px;
+        }
+        
+        .resumen-card.ventas .icono { background: #d1fae5; }
+        .resumen-card.costos .icono { background: #fef3c7; }
+        .resumen-card.gastos .icono { background: #fee2e2; }
+        
+        .resumen-card .titulo {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--gray-500);
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        
+        .resumen-card .monto {
+            font-size: 1.5rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .resumen-card.ventas .monto { color: #10b981; }
+        .resumen-card.costos .monto { color: #f59e0b; }
+        .resumen-card.gastos .monto { color: #ef4444; }
+        
+        /* Secciones de detalle */
+        .secciones {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1rem;
+        }
+        
+        .seccion {
+            background: white;
+            border-radius: 16px;
+            overflow: hidden;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+        }
+        
+        .seccion-header {
+            padding: 1rem 1.25rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--gray-100);
+        }
+        
+        .seccion-header .titulo {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--gray-800);
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        
+        .seccion-header .badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 20px;
+            font-weight: 600;
+        }
+        
+        .seccion.ventas .badge { background: #d1fae5; color: #065f46; }
+        .seccion.costos .badge { background: #fef3c7; color: #92400e; }
+        .seccion.gastos .badge { background: #fee2e2; color: #991b1b; }
+        
+        .seccion-body {
+            padding: 0.5rem 0;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+        
+        .item-linea {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.6rem 1.25rem;
+            transition: background 0.15s;
+        }
+        
+        .item-linea:hover { background: var(--gray-50); }
+        
+        .item-linea .desc {
+            font-size: 0.82rem;
+            color: var(--gray-700);
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .item-linea .fecha {
+            font-size: 0.7rem;
+            color: var(--gray-400);
+            margin-left: 0.5rem;
+            white-space: nowrap;
+        }
+        
+        .item-linea .monto {
+            font-size: 0.82rem;
+            font-weight: 600;
+            font-variant-numeric: tabular-nums;
+            margin-left: 1rem;
+        }
+        
+        .seccion.ventas .item-linea .monto { color: #10b981; }
+        .seccion.costos .item-linea .monto { color: #f59e0b; }
+        .seccion.gastos .item-linea .monto { color: #ef4444; }
+        
+        .seccion-footer {
+            padding: 0.75rem 1.25rem;
+            border-top: 2px solid var(--gray-100);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: var(--gray-50);
+        }
+        
+        .seccion-footer .label {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--gray-600);
+        }
+        
+        .seccion-footer .total {
+            font-size: 1rem;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+        }
+        
+        .seccion.ventas .seccion-footer .total { color: #10b981; }
+        .seccion.costos .seccion-footer .total { color: #f59e0b; }
+        .seccion.gastos .seccion-footer .total { color: #ef4444; }
+        
+        .seccion-empty {
+            padding: 2rem 1.25rem;
+            text-align: center;
+            color: var(--gray-400);
             font-size: 0.85rem;
         }
         
-        .btn-filtrar {
-            padding: 0.5rem 1.25rem;
-            background: var(--primary);
-            color: white;
-            border: none;
-            border-radius: 8px;
+        /* Fórmula */
+        .formula-bar {
+            background: white;
+            border-radius: 16px;
+            padding: 1.25rem 1.5rem;
+            margin-top: 1.5rem;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+            align-items: center;
             font-size: 0.85rem;
-            font-weight: 500;
-            cursor: pointer;
+            color: var(--gray-500);
+        }
+        
+        .formula-bar .op { font-weight: 700; color: var(--gray-400); }
+        .formula-bar .val { font-weight: 600; color: var(--gray-700); }
+        .formula-bar .val.positivo { color: #10b981; }
+        .formula-bar .val.negativo { color: #ef4444; }
+        
+        @media (max-width: 900px) {
+            .resumen-tres { grid-template-columns: 1fr; }
+            .secciones { grid-template-columns: 1fr; }
+            .resultado-valor { font-size: 2rem; }
         }
     </style>
 </head>
 <body>
     <div class="layout">
-        <!-- Sidebar dinámico -->
-        
         <main class="main-content">
             <div class="page-header">
                 <h1>Estado de Resultado</h1>
-                <p class="text-muted">Análisis de ingresos, gastos y rentabilidad</p>
+                <p class="text-muted">Resumen financiero del período seleccionado</p>
             </div>
             
+            <!-- Toolbar -->
+            <div class="toolbar">
                 <div class="filtros-fecha">
-                    <label>Desde</label>
-                    <input type="date" id="fechaDesde">
-                    <label>Hasta</label>
-                    <input type="date" id="fechaHasta">
-                    <button class="btn-filtrar" onclick="setFiltro('hoy', this)">Hoy</button>
-                    <button class="btn-filtrar activo" onclick="setFiltro('mes', this)">Este mes</button>
-                    <button class="btn-filtrar" onclick="setFiltro('mesAnterior', this)">Mes anterior</button>
+                    <button class="btn-filtro" onclick="setFiltro('hoy', this)">Hoy</button>
+                    <button class="btn-filtro activo" onclick="setFiltro('mes', this)">Este mes</button>
+                    <button class="btn-filtro" onclick="setFiltro('mesAnterior', this)">Mes anterior</button>
+                    <span class="periodo-label" id="periodoLabel"></span>
                 </div>
+            </div>
             
-            <div class="resumen-grid" id="resumenGrid"></div>
+            <!-- Resultado Neto Hero -->
+            <div class="resultado-hero" id="resultadoHero">
+                <div class="resultado-label">Resultado Neto</div>
+                <div class="resultado-valor" id="resultadoValor">RD$0.00</div>
+                <div class="resultado-status" id="resultadoStatus">-</div>
+            </div>
             
-            <div id="categoriasContainer"></div>
+            <!-- Cards de resumen -->
+            <div class="resumen-tres">
+                <div class="resumen-card ventas">
+                    <div class="icono">📈</div>
+                    <div class="titulo">Ventas Facturadas</div>
+                    <div class="monto" id="totalVentas">RD$0.00</div>
+                </div>
+                <div class="resumen-card costos">
+                    <div class="icono">📦</div>
+                    <div class="titulo">Costo de Ventas</div>
+                    <div class="monto" id="totalCostos">RD$0.00</div>
+                </div>
+                <div class="resumen-card" style="--accent:#8b5cf6;">
+                    <div class="icono" style="background:#ede9fe;">🏢</div>
+                    <div class="titulo">Gastos Operativos</div>
+                    <div class="monto" id="totalGastosOp" style="color:#8b5cf6;">RD$0.00</div>
+                </div>
+                <div class="resumen-card gastos">
+                    <div class="icono">💸</div>
+                    <div class="titulo">Gastos Personales</div>
+                    <div class="monto" id="totalGastos">RD$0.00</div>
+                </div>
+            </div>
             
-            <div class="resultado-final" id="resultadoFinal"></div>
+            <!-- Cuatro columnas de detalle -->
+            <div class="secciones" style="grid-template-columns: repeat(4, 1fr);">
+                <!-- VENTAS -->
+                <div class="seccion ventas">
+                    <div class="seccion-header">
+                        <span class="titulo">📈 Ventas Facturadas</span>
+                        <span class="badge" id="badgeVentas">0</span>
+                    </div>
+                    <div class="seccion-body" id="listaVentas"></div>
+                    <div class="seccion-footer">
+                        <span class="label">Total Ventas</span>
+                        <span class="total" id="footerVentas">RD$0.00</span>
+                    </div>
+                </div>
+                
+                <!-- COSTOS -->
+                <div class="seccion costos">
+                    <div class="seccion-header">
+                        <span class="titulo">📦 Costo de Ventas</span>
+                        <span class="badge" id="badgeCostos">0</span>
+                    </div>
+                    <div class="seccion-body" id="listaCostos"></div>
+                    <div class="seccion-footer">
+                        <span class="label">Total Costos</span>
+                        <span class="total" id="footerCostos">RD$0.00</span>
+                    </div>
+                </div>
+                
+                <!-- GASTOS OPERATIVOS -->
+                <div class="seccion" style="border-top: 4px solid #8b5cf6;">
+                    <div class="seccion-header">
+                        <span class="titulo">🏢 Gastos Operativos</span>
+                        <span class="badge" style="background:#ede9fe; color:#5b21b6;" id="badgeGastosOp">0</span>
+                    </div>
+                    <div class="seccion-body" id="listaGastosOp"></div>
+                    <div class="seccion-footer">
+                        <span class="label">Total Gastos Op.</span>
+                        <span class="total" style="color:#8b5cf6;" id="footerGastosOp">RD$0.00</span>
+                    </div>
+                </div>
+                
+                <!-- GASTOS -->
+                <div class="seccion gastos">
+                    <div class="seccion-header">
+                        <span class="titulo">💸 Gastos Personales</span>
+                        <span class="badge" id="badgeGastos">0</span>
+                    </div>
+                    <div class="seccion-body" id="listaGastos"></div>
+                    <div class="seccion-footer">
+                        <span class="label">Total Gastos</span>
+                        <span class="total" id="footerGastos">RD$0.00</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Fórmula -->
+            <div class="formula-bar">
+                <span class="val positivo" id="formulaVentas">RD$0</span>
+                <span class="op">−</span>
+                <span class="val negativo" id="formulaCostos">RD$0</span>
+                <span class="op">−</span>
+                <span class="val negativo" id="formulaGastos">RD$0</span>
+                <span class="op">=</span>
+                <span class="val" id="formulaResultado">RD$0</span>
+            </div>
         </main>
-    </div>
-    
-    <!-- Modal para agregar/editar item -->
-    <div class="modal-overlay" id="modalItem">
-        <div class="modal" style="max-width: 500px;">
-            <div class="modal-header">
-                <h3 id="modalTitulo">Agregar Item</h3>
-                <button class="modal-close" onclick="cerrarModal()">
-                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                </button>
-            </div>
-            <div class="modal-body">
-                <form id="formItem">
-                    <input type="hidden" id="itemId">
-                    <div class="form-group">
-                        <label>Tipo *</label>
-                        <select id="itemTipo" class="form-select" onchange="actualizarCategorias()">
-                            <option value="ingreso">Ingreso</option>
-                            <option value="gasto">Gasto</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>Categoría *</label>
-                        <select id="itemCategoria" class="form-select"></select>
-                    </div>
-                    <div class="form-group">
-                        <label>Descripción *</label>
-                        <input type="text" id="itemDescripcion" class="form-input" placeholder="Ej: Venta de servicios">
-                    </div>
-                    <div class="form-group">
-                        <label>Monto (RD$) *</label>
-                        <input type="number" id="itemMonto" class="form-input" step="0.01" min="0" placeholder="0.00">
-                    </div>
-                    <div class="form-group">
-                        <label>Fecha *</label>
-                        <input type="date" id="itemFecha" class="form-input">
-                    </div>
-                    <div class="form-group">
-                        <label>Notas</label>
-                        <textarea id="itemNotas" class="form-input" rows="2" placeholder="Notas adicionales"></textarea>
-                    </div>
-                </form>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" onclick="cerrarModal()">Cancelar</button>
-                <button type="button" class="btn btn-primary" onclick="guardarItem()">Guardar</button>
-            </div>
-        </div>
     </div>
     
     <script src="/js/api.js"></script>
     <script src="/js/sidebar.js"></script>
     <script>
-        let datosActuales = null;
-        let editandoId = null;
-        
-        const categoriasConfig = {
-            ingreso: [
-                { value: 'ventas', label: 'Ventas de servicios' },
-                { value: 'otros_ingresos', label: 'Otros ingresos' }
-            ],
-            gasto: [
-                { value: 'costo_ventas', label: 'Costo de ventas' },
-                { value: 'gastos_operativos', label: 'Gastos operativos' },
-                { value: 'otros_gastos', label: 'Otros gastos' }
-            ]
-        };
-        
-        const categoriasLabels = {
-            ventas: 'Ventas',
-            costo_ventas: 'Costo de Ventas',
-            gastos_operativos: 'Gastos Operativos',
-            otros_ingresos: 'Otros Ingresos',
-            otros_gastos: 'Otros Gastos'
-        };
-        
         document.addEventListener('DOMContentLoaded', async () => {
             const session = await checkSession();
             if (!session || !session.authenticated) {
@@ -347,13 +440,11 @@
                 return;
             }
             
-            // Establecer fechas por defecto (mes actual)
             setFiltro('mes');
-            actualizarCategorias();
         });
         
         function setFiltro(tipo, btn) {
-            document.querySelectorAll('.btn-filtrar').forEach(b => b.classList.remove('activo'));
+            document.querySelectorAll('.btn-filtro').forEach(b => b.classList.remove('activo'));
             if (btn) btn.classList.add('activo');
             
             const hoy = new Date();
@@ -370,218 +461,129 @@
                 hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
             }
             
-            document.getElementById('fechaDesde').value = formatDateISO(desde);
-            document.getElementById('fechaHasta').value = formatDateISO(hasta);
-            cargarDatos();
+            document.getElementById('periodoLabel').textContent = 
+                `${formatDateShort(desde)} — ${formatDateShort(hasta)}`;
+            
+            cargarDatos(desde, hasta);
         }
         
         function formatDateISO(date) {
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         }
         
-        async function cargarDatos() {
-            const desde = document.getElementById('fechaDesde').value;
-            const hasta = document.getElementById('fechaHasta').value;
-            
+        function formatDateShort(date) {
+            return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
+        }
+        
+        async function cargarDatos(desde, hasta) {
             try {
-                datosActuales = await apiCall(`/estado-resultado?desde=${desde}&hasta=${hasta}`);
-                renderResumen(datosActuales.resumen);
-                renderCategorias(datosActuales.items, datosActuales.totales);
-                renderResultadoFinal(datosActuales.resumen.resultado_neto);
+                const data = await apiCall(`/estado-resultado?desde=${formatDateISO(desde)}&hasta=${formatDateISO(hasta)}`);
+                renderTodo(data);
             } catch (error) {
                 console.error('Error:', error);
                 showToast(error.message, 'error');
             }
         }
         
-        function renderResumen(resumen) {
-            const grid = document.getElementById('resumenGrid');
-            grid.innerHTML = `
-                <div class="resumen-card">
-                    <div class="resumen-tooltip">Total de ventas registradas manualmente en el período. Incluye ventas de la categoría "Ventas".</div>
-                    <div class="label">Ingresos Totales</div>
-                    <div class="valor positivo">${formatCurrency(resumen.ingresos_totales)}</div>
-                </div>
-                <div class="resumen-card">
-                    <div class="resumen-tooltip">Lo que invertiste para poder vender: productos, materiales, comisiones, etc.</div>
-                    <div class="label">Costo de Ventas</div>
-                    <div class="valor negativo">${formatCurrency(resumen.costo_ventas)}</div>
-                </div>
-                <div class="resumen-card">
-                    <div class="resumen-tooltip">Ventas − Costo de Ventas.<br>Margen bruto antes de gastos fijos del negocio.</div>
-                    <div class="label">Utilidad Bruta</div>
-                    <div class="valor ${resumen.utilidad_bruta >= 0 ? 'positivo' : 'negativo'}">${formatCurrency(resumen.utilidad_bruta)}</div>
-                </div>
-                <div class="resumen-card">
-                    <div class="resumen-tooltip">Gastos fijos para operar: alquiler, luz, agua, salarios, internet, teléfono.</div>
-                    <div class="label">Gastos Operativos</div>
-                    <div class="valor negativo">${formatCurrency(resumen.gastos_operativos)}</div>
-                </div>
-                <div class="resumen-card resumen-card-destacado ${resumen.resultado_neto >= 0 ? 'positivo' : 'negativo'}">
-                    <div class="resumen-tooltip" style="background:#fff; color:#1a1a2e;">(Ventas − Costo − Gastos Operativos) + Otros Ingresos − Otros Gastos.<br>Tu ganancia o pérdida real del período.</div>
-                    <div class="label" style="color: rgba(255,255,255,0.7);">Resultado Neto</div>
-                    <div class="valor" style="color: white; font-size: 1.6rem;">${resumen.resultado_neto >= 0 ? '+' : ''}${formatCurrency(resumen.resultado_neto)}</div>
-                </div>
-            `;
+        function renderTodo(data) {
+            const items = data.items;
+            
+            // Separar items en 4 grupos
+            const ventas = items.filter(i => i.tipo === 'ingreso');
+            const costos = items.filter(i => i.tipo === 'gasto' && (i.subtipo === 'costo' || !i.subtipo) && i.categoria !== 'gastos_operativos');
+            const gastosOp = items.filter(i => i.categoria === 'gastos_operativos');
+            const gastos = items.filter(i => i.tipo === 'gasto' && i.subtipo === 'gasto');
+            
+            const totalVentas = ventas.reduce((s, i) => s + i.monto, 0);
+            const totalCostos = costos.reduce((s, i) => s + i.monto, 0);
+            const totalGastosOp = gastosOp.reduce((s, i) => s + i.monto, 0);
+            const totalGastos = gastos.reduce((s, i) => s + i.monto, 0);
+            const resultado = totalVentas - totalCostos - totalGastosOp - totalGastos;
+            
+            // Resultado Hero
+            const hero = document.getElementById('resultadoHero');
+            hero.className = 'resultado-hero ' + (resultado >= 0 ? 'positivo' : 'negativo');
+            document.getElementById('resultadoValor').textContent = (resultado >= 0 ? '+' : '') + formatCurrency(resultado);
+            document.getElementById('resultadoStatus').textContent = resultado >= 0 ? 'Ganancia en este período' : 'Pérdida en este período';
+            
+            // Cards resumen
+            document.getElementById('totalVentas').textContent = formatCurrency(totalVentas);
+            document.getElementById('totalCostos').textContent = formatCurrency(totalCostos);
+            document.getElementById('totalGastosOp').textContent = formatCurrency(totalGastosOp);
+            document.getElementById('totalGastos').textContent = formatCurrency(totalGastos);
+            
+            // Badges
+            document.getElementById('badgeVentas').textContent = ventas.length;
+            document.getElementById('badgeCostos').textContent = costos.length;
+            document.getElementById('badgeGastosOp').textContent = gastosOp.length;
+            document.getElementById('badgeGastos').textContent = gastos.length;
+            
+            // Listas
+            renderLista('listaVentas', ventas);
+            renderLista('listaCostos', costos);
+            renderLista('listaGastosOp', gastosOp);
+            renderLista('listaGastos', gastos);
+            
+            // Footers
+            document.getElementById('footerVentas').textContent = formatCurrency(totalVentas);
+            document.getElementById('footerCostos').textContent = formatCurrency(totalCostos);
+            document.getElementById('footerGastosOp').textContent = formatCurrency(totalGastosOp);
+            document.getElementById('footerGastos').textContent = formatCurrency(totalGastos);
+            
+            // Fórmula
+            document.getElementById('formulaVentas').textContent = formatCurrency(totalVentas);
+            document.getElementById('formulaCostos').textContent = formatCurrency(totalCostos);
+            document.getElementById('formulaGastos').textContent = formatCurrency(totalGastosOp + totalGastos);
+            const formulaRes = document.getElementById('formulaResultado');
+            formulaRes.textContent = (resultado >= 0 ? '+' : '') + formatCurrency(resultado);
+            formulaRes.className = 'val ' + (resultado >= 0 ? 'positivo' : 'negativo');
         }
         
-        function renderCategorias(items, totales) {
-            const container = document.getElementById('categoriasContainer');
-            const categorias = ['ventas', 'costo_ventas', 'gastos_operativos', 'otros_ingresos', 'otros_gastos'];
+        function renderLista(containerId, items, tipo) {
+            const container = document.getElementById(containerId);
             
-            let html = '';
-            
-            categorias.forEach(cat => {
-                const itemsCategoria = items.filter(i => i.categoria === cat);
-                const total = totales[cat] || 0;
-                const esIngreso = ['ventas', 'otros_ingresos'].includes(cat);
-                
-                html += `
-                    <div class="categoria-section">
-                        <div class="categoria-header">
-                            <span class="categoria-titulo">${categoriasLabels[cat]}</span>
-                            <span class="categoria-total ${esIngreso ? 'ingreso' : 'gasto'}">${formatCurrency(total)}</span>
-                        </div>
-                        ${itemsCategoria.length === 0 ? `
-                            <div style="text-align:center; padding: 1.5rem; color: var(--gray-400); font-size: 0.85rem;">
-                                Sin registros en este período
-                            </div>
-                        ` : ''}
-                        ${itemsCategoria.map(item => `
-                            <div class="item-row">
-                                <div class="item-info">
-                                    <div class="item-descripcion">${escapeHtml(item.descripcion)}</div>
-                                    <div class="item-fecha">${formatDate(item.fecha)}</div>
-                                </div>
-                                <div class="item-monto ${item.tipo}">${formatCurrency(item.monto)}</div>
-                                <div class="item-acciones">
-                                    <button class="btn btn-secondary btn-sm" onclick="editarItem(${item.id})">Editar</button>
-                                    <button class="btn btn-danger btn-sm" onclick="eliminarItem(${item.id})">Eliminar</button>
-                                </div>
-                            </div>
-                        `).join('')}
-                        <button class="btn-add-item" onclick="abrirModal('${cat}')">
-                            <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                            Agregar
-                        </button>
-                    </div>
-                `;
-            });
-            
-            container.innerHTML = html;
-        }
-        
-        function renderResultadoFinal(resultado) {
-            const container = document.getElementById('resultadoFinal');
-            container.innerHTML = `
-                <div class="resultado-label">Resultado Neto</div>
-                <div class="resultado-valor ${resultado >= 0 ? 'positivo' : 'negativo'}">
-                    ${resultado >= 0 ? '+' : ''}${formatCurrency(resultado)}
-                </div>
-                <div style="color: rgba(255,255,255,0.5); margin-top: 0.5rem; font-size: 0.9rem;">
-                    ${resultado >= 0 ? 'Ganancia' : 'Pérdida'}
-                </div>
-            `;
-        }
-        
-        function actualizarCategorias() {
-            const tipo = document.getElementById('itemTipo').value;
-            const select = document.getElementById('itemCategoria');
-            const cats = categoriasConfig[tipo];
-            
-            select.innerHTML = cats.map(c => `<option value="${c.value}">${c.label}</option>`).join('');
-        }
-        
-        function abrirModal(categoria) {
-            editandoId = null;
-            document.getElementById('modalTitulo').textContent = 'Agregar Item';
-            document.getElementById('itemId').value = '';
-            
-            // Determinar tipo según categoría
-            const esIngreso = ['ventas', 'otros_ingresos'].includes(categoria);
-            document.getElementById('itemTipo').value = esIngreso ? 'ingreso' : 'gasto';
-            actualizarCategorias();
-            document.getElementById('itemCategoria').value = categoria;
-            
-            document.getElementById('itemDescripcion').value = '';
-            document.getElementById('itemMonto').value = '';
-            document.getElementById('itemFecha').value = formatDateISO(new Date());
-            document.getElementById('itemNotas').value = '';
-            
-            document.getElementById('modalItem').classList.add('active');
-        }
-        
-        async function editarItem(id) {
-            const item = datosActuales.items.find(i => i.id === id);
-            if (!item) return;
-            
-            editandoId = id;
-            document.getElementById('modalTitulo').textContent = 'Editar Item';
-            document.getElementById('itemId').value = id;
-            
-            document.getElementById('itemTipo').value = item.tipo;
-            actualizarCategorias();
-            document.getElementById('itemCategoria').value = item.categoria;
-            document.getElementById('itemDescripcion').value = item.descripcion;
-            document.getElementById('itemMonto').value = item.monto;
-            document.getElementById('itemFecha').value = item.fecha;
-            document.getElementById('itemNotas').value = item.notas || '';
-            
-            document.getElementById('modalItem').classList.add('active');
-        }
-        
-        function cerrarModal() {
-            document.getElementById('modalItem').classList.remove('active');
-            editandoId = null;
-        }
-        
-        async function guardarItem() {
-            const data = {
-                tipo: document.getElementById('itemTipo').value,
-                categoria: document.getElementById('itemCategoria').value,
-                descripcion: document.getElementById('itemDescripcion').value,
-                monto: parseFloat(document.getElementById('itemMonto').value),
-                fecha: document.getElementById('itemFecha').value,
-                notas: document.getElementById('itemNotas').value || null
-            };
-            
-            if (!data.descripcion || !data.monto || !data.fecha) {
-                showToast('Todos los campos son requeridos', 'error');
+            if (items.length === 0) {
+                container.innerHTML = '<div class="seccion-empty">Sin registros en este período</div>';
                 return;
             }
             
-            try {
-                if (editandoId) {
-                    await apiCall(`/estado-resultado/${editandoId}`, {
-                        method: 'PUT',
-                        body: JSON.stringify(data)
-                    });
-                    showToast('Item actualizado correctamente', 'success');
-                } else {
-                    await apiCall('/estado-resultado', {
-                        method: 'POST',
-                        body: JSON.stringify(data)
-                    });
-                    showToast('Item agregado correctamente', 'success');
-                }
-                
-                cerrarModal();
-                cargarDatos();
-            } catch (error) {
-                showToast(error.message, 'error');
-            }
-        }
-        
-        async function eliminarItem(id) {
-            showModalConfirm('¿Está seguro que desea eliminar este item?', async () => {
-                try {
-                    await apiCall(`/estado-resultado/${id}`, { method: 'DELETE' });
-                    showToast('Item eliminado correctamente', 'success');
-                    cargarDatos();
-                } catch (error) {
-                    showToast(error.message, 'error');
-                }
+            // Agrupar por categoría
+            const grupos = {};
+            items.forEach(item => {
+                const cat = item.categoria || 'otros';
+                if (!grupos[cat]) grupos[cat] = [];
+                grupos[cat].push(item);
             });
+            
+            const catLabels = {
+                ventas: 'Ventas Manuales',
+                venta_pos: 'Ventas Facturadas (POS)',
+                costo_ventas: 'Costo de Ventas',
+                gastos_operativos: 'Gastos Operativos',
+                otros_ingresos: 'Otros Ingresos',
+                otros_gastos: 'Otros Costos/Gastos'
+            };
+            
+            let html = '';
+            Object.keys(grupos).forEach(cat => {
+                const itemsGrupo = grupos[cat];
+                const totalGrupo = itemsGrupo.reduce((s, i) => s + i.monto, 0);
+                
+                html += `<div style="padding:0.4rem 1.25rem; background:var(--gray-50); font-size:0.7rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.5px; display:flex; justify-content:space-between;">
+                    <span>${catLabels[cat] || cat}</span>
+                    <span>${formatCurrency(totalGrupo)}</span>
+                </div>`;
+                
+                itemsGrupo.forEach(item => {
+                    html += `<div class="item-linea">
+                        <span class="desc">${escapeHtml(item.descripcion)}</span>
+                        <span class="fecha">${formatDate(item.fecha)}</span>
+                        <span class="monto">${formatCurrency(item.monto)}</span>
+                    </div>`;
+                });
+            });
+            
+            container.innerHTML = html;
         }
         
         function formatCurrency(amount) {
@@ -592,7 +594,7 @@
             if (!dateStr) return '';
             const [year, month, day] = dateStr.split('-').map(Number);
             const date = new Date(year, month - 1, day);
-            return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' });
+            return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
         }
         
         function escapeHtml(text) {
