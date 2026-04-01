@@ -6,6 +6,7 @@
     <meta name="mobile-web-app-capable" content="yes">
     <title>Nexora - Reportes</title>
     <link rel="stylesheet" href="/css/styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
         .report-header {
             display: flex;
@@ -305,6 +306,16 @@
             #cuadreContent, #cuadreContent * { visibility: visible; }
             #cuadreContent { position: absolute; left: 0; top: 0; width: 100%; }
         }
+        
+        @keyframes shimmer {
+            0% { background-position: -200% 0; }
+            100% { background-position: 200% 0; }
+        }
+        
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
     </style>
 </head>
 <body>
@@ -339,12 +350,20 @@
                     <button class="filtro-btn" id="btnPersonalizado">Personalizado</button>
                 </div>
                 
+                <!-- KPIs principales -->
+                <div id="kpisVentas" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;"></div>
+                
                 <div class="resumen-cards" id="resumenVentas"></div>
                 
                 <div class="grid-2-col">
                     <div class="seccion-reporte">
                         <h3>Ventas por Método de Pago</h3>
-                        <div id="ventasMetodo"></div>
+                        <div style="display: flex; align-items: center; gap: 1.5rem;">
+                            <div style="width: 200px; height: 200px; flex-shrink: 0;">
+                                <canvas id="chartMetodoPago"></canvas>
+                            </div>
+                            <div id="ventasMetodo" style="flex: 1;"></div>
+                        </div>
                     </div>
                     
                     <div class="seccion-reporte">
@@ -572,10 +591,36 @@
             cargarReportes();
         }
         
+        function showSkeleton() {
+            const kpis = document.getElementById('kpisVentas');
+            kpis.innerHTML = Array(4).fill(`
+                <div style="background: white; border-radius: 12px; padding: 1.25rem; text-align: center; border: 1px solid var(--gray-100);">
+                    <div style="height: 28px; background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; margin-bottom: 8px;"></div>
+                    <div style="height: 12px; background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; width: 60%; margin: 0 auto;"></div>
+                </div>
+            `).join('');
+            
+            const container = document.getElementById('resumenVentas');
+            container.innerHTML = Array(3).fill(`
+                <div class="resumen-card">
+                    <div style="height: 32px; background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 6px; margin-bottom: 8px;"></div>
+                    <div style="height: 14px; background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 50%, #f3f4f6 75%); background-size: 200% 100%; animation: shimmer 1.5s infinite; border-radius: 4px; width: 50%; margin: 0 auto;"></div>
+                </div>
+            `).join('');
+        }
+        
         async function cargarReportes() {
             const desde = document.getElementById('fechaDesde').value;
             const hasta = document.getElementById('fechaHasta').value;
             const params = desde || hasta ? '?desde=' + (desde || '') + '&hasta=' + (hasta || '') : '';
+            
+            // Spinner en botón
+            const btn = document.querySelector('.report-header .btn-primary');
+            const btnText = btn.textContent;
+            btn.disabled = true;
+            btn.innerHTML = '<span style="display:inline-block; width:14px; height:14px; border:2px solid white; border-top-color:transparent; border-radius:50%; animation:spin 0.6s linear infinite; vertical-align:middle; margin-right:6px;"></span>Cargando...';
+            
+            showSkeleton();
             
             try {
                 const ventas = await apiCall('/reports/ventas' + params);
@@ -591,7 +636,81 @@
                 renderReporteCitas(citas);
             } catch (error) {
                 console.error('Error cargando reportes:', error);
+            } finally {
+                btn.disabled = false;
+                btn.textContent = btnText;
             }
+        }
+        
+        function renderPieChart(metodos) {
+            const ctx = document.getElementById('chartMetodoPago');
+            if (!ctx) return;
+            
+            if (chartMetodoPago) {
+                chartMetodoPago.destroy();
+            }
+            
+            if (!metodos || metodos.length === 0) {
+                chartMetodoPago = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Sin datos'],
+                        datasets: [{
+                            data: [1],
+                            backgroundColor: ['#f3f4f6'],
+                            borderWidth: 0
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: true,
+                        plugins: { legend: { display: false }, tooltip: { enabled: false } },
+                        cutout: '65%'
+                    }
+                });
+                return;
+            }
+            
+            const colors = {
+                'efectivo': '#10b981',
+                'transferencia': '#3b82f6',
+                'tarjeta': '#f59e0b',
+                'credito': '#8b5cf6'
+            };
+            
+            const labels = metodos.map(m => m.metodo_pago);
+            const values = metodos.map(m => m.monto);
+            const bgColors = metodos.map(m => colors[m.metodo_pago?.toLowerCase()] || '#6b7280');
+            
+            chartMetodoPago = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: values,
+                        backgroundColor: bgColors,
+                        borderWidth: 2,
+                        borderColor: '#ffffff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const pct = ((context.raw / total) * 100).toFixed(1);
+                                    return `${context.label}: $${context.raw.toLocaleString('en-US', {minimumFractionDigits: 2})} (${pct}%)`;
+                                }
+                            }
+                        }
+                    },
+                    cutout: '65%'
+                }
+            });
         }
         
         function mostrarSeccion(seccion) {
@@ -784,10 +903,14 @@
             }
         }
         
+        let chartMetodoPago = null;
+
         function renderReporteVentas(data) {
             const container = document.getElementById('resumenVentas');
+            const kpis = document.getElementById('kpisVentas');
             
             if (data.caja_cerrada) {
+                kpis.innerHTML = '';
                 container.innerHTML = `
                     <div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.75rem; padding: 1.5rem; text-align: center;">
                         <div style="font-size: 2rem; margin-bottom: 0.5rem;">🔒</div>
@@ -804,8 +927,50 @@
                     </div>
                 `;
             } else if (!data || !data.resumen || data.resumen.total_ventas == null || data.resumen.total_ventas === 0) {
+                kpis.innerHTML = `
+                    <div style="background: white; border-radius: 12px; padding: 1.25rem; text-align: center; border: 1px solid var(--gray-100); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--gray-300);">--</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-400); margin-top: 0.25rem;">TOTAL BRUTO</div>
+                    </div>
+                    <div style="background: white; border-radius: 12px; padding: 1.25rem; text-align: center; border: 1px solid var(--gray-100); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--gray-300);">--</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-400); margin-top: 0.25rem;">TOTAL ITBIS</div>
+                    </div>
+                    <div style="background: white; border-radius: 12px; padding: 1.25rem; text-align: center; border: 1px solid var(--gray-100); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--gray-300);">--</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-400); margin-top: 0.25rem;">TOTAL NETO</div>
+                    </div>
+                    <div style="background: white; border-radius: 12px; padding: 1.25rem; text-align: center; border: 1px solid var(--gray-100); box-shadow: 0 1px 3px rgba(0,0,0,0.04);">
+                        <div style="font-size: 1.5rem; font-weight: 700; color: var(--gray-300);">--</div>
+                        <div style="font-size: 0.75rem; color: var(--gray-400); margin-top: 0.25rem;">VOLUMEN</div>
+                    </div>
+                `;
                 container.innerHTML = '<div class="no-data"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><p>No hay ventas en este período</p></div>';
             } else {
+                const totalBruto = data.resumen.monto_total || 0;
+                const totalItbis = Math.round(totalBruto * 18 / 118 * 100) / 100;
+                const totalNeto = totalBruto - totalItbis;
+                const volumen = data.resumen.total_ventas || 0;
+                
+                kpis.innerHTML = `
+                    <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 1.25rem; text-align: center; color: white; box-shadow: 0 4px 12px rgba(102,126,234,0.3);">
+                        <div style="font-size: 1.6rem; font-weight: 700;">${formatCurrency(totalBruto)}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Total Bruto</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 12px; padding: 1.25rem; text-align: center; color: white; box-shadow: 0 4px 12px rgba(245,158,11,0.3);">
+                        <div style="font-size: 1.6rem; font-weight: 700;">${formatCurrency(totalItbis)}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Total ITBIS</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; padding: 1.25rem; text-align: center; color: white; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
+                        <div style="font-size: 1.6rem; font-weight: 700;">${formatCurrency(totalNeto)}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Total Neto</div>
+                    </div>
+                    <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px; padding: 1.25rem; text-align: center; color: white; box-shadow: 0 4px 12px rgba(59,130,246,0.3);">
+                        <div style="font-size: 1.6rem; font-weight: 700;">${volumen}</div>
+                        <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Volumen Ventas</div>
+                    </div>
+                `;
+                
                 container.innerHTML = `
                     <div class="resumen-card">
                         <div class="valor">${data.resumen.total_ventas}</div>
@@ -822,12 +987,14 @@
                 `;
             }
             
+            // Gráfico de pastel - Ventas por Método de Pago
             const metodos = document.getElementById('ventasMetodo');
             if (data.caja_cerrada) {
                 metodos.innerHTML = '<p class="text-muted">Bloqueado - Caja cerrada</p>';
+                renderPieChart([]);
             } else if (data && data.porMetodo && data.porMetodo.length > 0) {
                 metodos.innerHTML = data.porMetodo.map(m => `
-                    <div class="metodo-card" style="opacity: ${data.caja_cerrada ? '0.5' : '1'};">
+                    <div class="metodo-card">
                         <span class="metodo-nombre">${m.metodo_pago}</span>
                         <div class="metodo-detalles">
                             <div>${m.cantidad} ventas</div>
@@ -835,8 +1002,10 @@
                         </div>
                     </div>
                 `).join('');
+                renderPieChart(data.porMetodo);
             } else {
                 metodos.innerHTML = '<p class="text-muted">Sin datos</p>';
+                renderPieChart([]);
             }
             
             const ultimas = document.getElementById('ultimasVentas');

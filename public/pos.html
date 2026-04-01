@@ -32,9 +32,11 @@
         .carrito-panel {
             background: white;
             border-radius: 1rem;
-            padding: 1.5rem;
+            padding: 1.25rem;
             display: flex;
             flex-direction: column;
+            min-width: 380px;
+            max-width: 420px;
         }
         
         .servicio-grid {
@@ -90,11 +92,29 @@
             border-bottom: none;
         }
         
+        .carrito-item button {
+            min-width: 36px;
+            min-height: 36px;
+            font-size: 1rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
         .carrito-total {
             padding: 1rem;
             background: var(--gray-50);
             border-radius: 0.75rem;
             margin-top: auto;
+            border: 1px solid var(--gray-200);
+        }
+        
+        .carrito-pago {
+            padding: 1rem;
+            background: #f0fdf4;
+            border-radius: 0.75rem;
+            margin-top: 0.75rem;
+            border: 2px solid #a7f3d0;
         }
         
         .btn-cobrar {
@@ -144,7 +164,7 @@
             flex: 1;
             padding: 0.75rem;
             border: 2px solid var(--gray-200);
-            border-radius: 0.5rem;
+            border-radius: 0.75rem;
             background: white;
             cursor: pointer;
             text-align: center;
@@ -153,12 +173,14 @@
         
         .metodo-btn:hover {
             border-color: var(--gray-400);
+            background: var(--gray-50);
         }
         
         .metodo-btn.active {
-            border-color: var(--primary);
-            background: #eef2ff;
-            color: var(--primary);
+            border-color: #7c3aed;
+            background: #f5f3ff;
+            color: #7c3aed;
+            box-shadow: 0 0 0 1px #7c3aed;
         }
         
         .metodo-btn svg {
@@ -362,7 +384,11 @@
                     </div>
                     
                     <div id="carritoItems" style="flex: 1; overflow-y: auto;">
-                        <p class="text-muted text-center">Sin servicios agregados</p>
+                        <div style="text-align: center; padding: 2rem 1rem; color: var(--gray-400);">
+                            <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-bottom: 0.75rem; opacity: 0.4;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                            <p style="font-size: 0.85rem; margin: 0;">Carrito vacío</p>
+                            <p style="font-size: 0.75rem; margin-top: 0.25rem;">Agrega servicios para comenzar</p>
+                        </div>
                     </div>
                     
                     <div class="carrito-total">
@@ -400,9 +426,16 @@
                                 <button type="button" class="btn btn-sm btn-danger" onclick="limpiarDescuento()" style="margin-left: 0.5rem; padding: 0.2rem 0.4rem; font-size: 0.7rem;">X</button>
                             </div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span>ITBIS 18%:</span>
-                            <button id="itbisToggle" onclick="toggleITBIS()" style="background: var(--gray-100); border: 1px solid var(--gray-300); padding: 0.2rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">NO</button>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <span style="font-size: 0.9rem;">Impuesto 18%</span>
+                            <label style="position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
+                                <span id="itbisLabel" style="font-size: 0.8rem; font-weight: 600; color: var(--gray-500);">Sin Impuesto</span>
+                                <span style="position: relative; display: inline-block; width: 52px; height: 28px;">
+                                    <input type="checkbox" id="itbisToggleInput" onchange="toggleITBIS()" style="opacity: 0; width: 0; height: 0;">
+                                    <span id="itbisSlider" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--gray-300); border-radius: 28px; transition: 0.3s;"></span>
+                                    <span id="itbisKnob" style="position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; background: white; border-radius: 50%; transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></span>
+                                </span>
+                            </label>
                         </div>
                         <div id="itbisRow" style="display: none; justify-content: space-between; margin-bottom: 0.5rem;">
                             <span>ITBIS 18%:</span>
@@ -412,25 +445,34 @@
                             <span>Descuento:</span>
                             <strong class="text-danger" id="descuentoMonto">-$0.00</strong>
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 1.25rem;">
-                            <span>Total:</span>
-                            <strong id="total">$0.00</strong>
+                        <div style="display: flex; justify-content: space-between; font-size: 2rem; padding-top: 0.75rem; border-top: 2px solid var(--gray-200); margin-top: 0.5rem;">
+                            <span style="font-weight: 700;">Total:</span>
+                            <strong id="total" style="font-weight: 800; font-size: 2rem; color: var(--gray-900);">$0.00</strong>
                         </div>
                     </div>
                     
-                    <div id="vueltoSection" style="display: none; margin-top: 0.75rem; padding: 0.75rem; background: #e8f5e9; border-radius: 8px;">
-                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span style="font-size: 0.9rem;">Paga con:</span>
+                    <div class="carrito-pago" id="vueltoSection" style="display: none;">
+                        <div style="font-size: 0.75rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.75rem;">💵 Pago en Efectivo</div>
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
+                            <span style="font-size: 0.95rem; font-weight: 600;">Paga con:</span>
                             <div style="display: flex; align-items: center; gap: 0.5rem;">
-                                <span style="font-weight: 600;">RD$</span>
+                                <span style="font-weight: 700; color: var(--gray-700);">RD$</span>
                                 <input type="number" id="montoRecibido" placeholder="0.00" min="0" step="0.01"
                                        oninput="calcularVuelto()"
-                                       style="width: 120px; padding: 0.3rem; border: 2px solid #4caf50; border-radius: 6px; font-size: 0.9rem; font-weight: 600; text-align: right;">
+                                       style="width: 140px; padding: 0.5rem; border: 2px solid #10b981; border-radius: 8px; font-size: 1.1rem; font-weight: 700; text-align: right;">
                             </div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; font-size: 1.1rem;">
-                            <span style="font-weight: 700; color: #2e7d32;">Vuelto:</span>
-                            <strong id="vueltoMonto" style="color: #2e7d32; font-size: 1.2rem;">RD$0.00</strong>
+                        <div style="display: flex; gap: 0.4rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                            <button type="button" onclick="setMontoRapido(100)" style="flex:1; min-width:55px; padding:0.5rem 0.25rem; background:#f0fdf4; border:1px solid #a7f3d0; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; color:#166534;">$100</button>
+                            <button type="button" onclick="setMontoRapido(200)" style="flex:1; min-width:55px; padding:0.5rem 0.25rem; background:#f0fdf4; border:1px solid #a7f3d0; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; color:#166534;">$200</button>
+                            <button type="button" onclick="setMontoRapido(500)" style="flex:1; min-width:55px; padding:0.5rem 0.25rem; background:#f0fdf4; border:1px solid #a7f3d0; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; color:#166534;">$500</button>
+                            <button type="button" onclick="setMontoRapido(1000)" style="flex:1; min-width:55px; padding:0.5rem 0.25rem; background:#f0fdf4; border:1px solid #a7f3d0; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; color:#166534;">$1,000</button>
+                            <button type="button" onclick="setMontoRapido(2000)" style="flex:1; min-width:55px; padding:0.5rem 0.25rem; background:#f0fdf4; border:1px solid #a7f3d0; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; color:#166534;">$2,000</button>
+                            <button type="button" onclick="setMontoRapido(5000)" style="flex:1; min-width:55px; padding:0.5rem 0.25rem; background:#f0fdf4; border:1px solid #a7f3d0; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; color:#166534;">$5,000</button>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 1.3rem; padding-top: 0.5rem; border-top: 1px solid #a7f3d0;">
+                            <span style="font-weight: 700; color: #166534;">Vuelto:</span>
+                            <strong id="vueltoMonto" style="font-size: 1.4rem;">RD$0.00</strong>
                         </div>
                     </div>
                     <div class="metodos-pago" id="metodosPago">
@@ -681,6 +723,9 @@
             const cita = citasDelDia.find(c => c.id === citaId);
             if (!cita) return;
 
+            carrito = [];
+            descuentoAplicado = 0;
+            
             seleccionarCliente(cita.cliente_id, cita.cliente, '');
 
             const servicio = servicios.find(s => s.nombre === cita.servicio);
@@ -688,6 +733,7 @@
                 agregarAlCarrito(servicio.id);
             }
 
+            showToast(`${cita.cliente} → ${cita.servicio} agregado`, 'success');
             await cargarCitasHoy();
         }
         
@@ -778,7 +824,13 @@
             const container = document.getElementById('carritoItems');
             
             if (carrito.length === 0) {
-                container.innerHTML = '<p class="text-muted text-center">Sin servicios agregados</p>';
+                container.innerHTML = `
+                    <div style="text-align: center; padding: 2rem 1rem; color: var(--gray-400);">
+                        <svg width="48" height="48" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-bottom: 0.75rem; opacity: 0.4;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M16 11V7a4 4 0 00-8 0v4M5 9h14l1 12H4L5 9z"></path></svg>
+                        <p style="font-size: 0.85rem; margin: 0;">Carrito vacío</p>
+                        <p style="font-size: 0.75rem; margin-top: 0.25rem;">Agrega servicios para comenzar</p>
+                    </div>
+                `;
                 document.getElementById('subtotal').textContent = '$0.00';
                 document.getElementById('total').textContent = '$0.00';
                 document.getElementById('descuentoRow').style.display = 'none';
@@ -811,6 +863,13 @@
             document.getElementById('itbisMonto').textContent = '+' + formatCurrency(itbis);
             document.getElementById('total').textContent = formatCurrency(total);
             actualizarVueltoDisplay();
+            
+            // Actualizar estado del botón cobrar
+            const btnCobrar = document.getElementById('btnCobrar');
+            const puedeCobrar = carrito.length > 0 && clienteSeleccionado && !configPOS.caja_cerrada;
+            btnCobrar.disabled = !puedeCobrar;
+            btnCobrar.style.opacity = puedeCobrar ? '1' : '0.5';
+            btnCobrar.style.cursor = puedeCobrar ? 'pointer' : 'not-allowed';
         }
         
         function modificarCantidad(index, cambio) {
@@ -961,12 +1020,21 @@
         }
         
         function toggleITBIS() {
-            itbisActivo = !itbisActivo;
-            const btn = document.getElementById('itbisToggle');
-            btn.textContent = itbisActivo ? 'SÍ' : 'NO';
-            btn.style.background = itbisActivo ? '#4caf50' : 'var(--gray-100)';
-            btn.style.color = itbisActivo ? 'white' : 'inherit';
-            btn.style.borderColor = itbisActivo ? '#4caf50' : 'var(--gray-300)';
+            itbisActivo = document.getElementById('itbisToggleInput').checked;
+            const slider = document.getElementById('itbisSlider');
+            const knob = document.getElementById('itbisKnob');
+            const label = document.getElementById('itbisLabel');
+            if (itbisActivo) {
+                slider.style.background = '#10b981';
+                knob.style.left = '27px';
+                label.textContent = 'Con Impuesto';
+                label.style.color = '#10b981';
+            } else {
+                slider.style.background = 'var(--gray-300)';
+                knob.style.left = '3px';
+                label.textContent = 'Sin Impuesto';
+                label.style.color = 'var(--gray-500)';
+            }
             renderCarrito();
         }
         
@@ -975,8 +1043,23 @@
             const total = parseFloat(totalElement.replace(/[^0-9.-]/g, '')) || 0;
             montoRecibido = parseFloat(document.getElementById('montoRecibido').value) || 0;
             const vuelto = montoRecibido - total;
-            document.getElementById('vueltoMonto').textContent = formatCurrency(Math.max(0, vuelto));
-            document.getElementById('vueltoMonto').style.color = vuelto < 0 ? '#f44336' : '#2e7d32';
+            const vueltoEl = document.getElementById('vueltoMonto');
+            vueltoEl.textContent = formatCurrency(Math.max(0, vuelto));
+            vueltoEl.style.color = vuelto < 0 ? '#ef4444' : '#166534';
+            
+            // Actualizar estado del botón cobrar
+            const btnCobrar = document.getElementById('btnCobrar');
+            if (metodoPago === 'efectivo') {
+                const puedeCobrar = montoRecibido >= total && carrito.length > 0 && clienteSeleccionado;
+                btnCobrar.disabled = !puedeCobrar;
+                btnCobrar.style.opacity = puedeCobrar ? '1' : '0.5';
+                btnCobrar.style.cursor = puedeCobrar ? 'pointer' : 'not-allowed';
+            }
+        }
+        
+        function setMontoRapido(monto) {
+            document.getElementById('montoRecibido').value = monto;
+            calcularVuelto();
         }
         
         function actualizarVueltoDisplay() {
@@ -1015,6 +1098,68 @@
                 showModalError('El monto recibido es insuficiente. Se necesitan ' + formatCurrency(totalPagar));
                 return;
             }
+            
+            // Mostrar modal de confirmación Premium
+            showConfirmarPagoModal(subtotal, descuentoAplicado, itbis, totalPagar);
+        }
+        
+        function showConfirmarPagoModal(subtotal, descuento, itbis, total) {
+            const existing = document.getElementById('pagoOverlay');
+            if (existing) existing.remove();
+            
+            const metodoIcon = metodoPago === 'efectivo' ? '💵' : metodoPago === 'transferencia' ? '🏦' : '💳';
+            const metodoLabel = metodoPago === 'efectivo' ? 'Efectivo' : metodoPago === 'transferencia' ? 'Transferencia' : 'Tarjeta';
+            const vuelto = metodoPago === 'efectivo' ? montoRecibido - total : 0;
+            
+            const overlay = document.createElement('div');
+            overlay.id = 'pagoOverlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.6);z-index:2147483647;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+            overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+            
+            const animStyle = document.createElement('style');
+            animStyle.textContent = '@keyframes pagoIn{from{opacity:0;transform:scale(0.92) translateY(20px);}to{opacity:1;transform:scale(1) translateY(0);}}';
+            document.head.appendChild(animStyle);
+            
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:24px;width:min(92vw,420px);box-shadow:0 20px 40px rgba(0,0,0,0.25);animation:pagoIn 0.25s ease-out;overflow:hidden;">
+                    <div style="background:linear-gradient(135deg,#10b981,#059669);padding:24px;color:#fff;text-align:center;">
+                        <div style="font-size:48px;margin-bottom:8px;">💳</div>
+                        <h2 style="margin:0;font-size:22px;font-weight:700;">Confirmar Pago</h2>
+                        <p style="margin:6px 0 0;font-size:13px;opacity:0.85;">${escapeHtml(clienteSeleccionado.nombre)}</p>
+                    </div>
+                    <div style="padding:24px;">
+                        <div style="background:var(--gray-50);border-radius:12px;padding:16px;margin-bottom:16px;">
+                            <div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:0.9rem;">
+                                <span style="color:var(--gray-500);">Subtotal</span>
+                                <span>${formatCurrency(subtotal)}</span>
+                            </div>
+                            ${descuento > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:0.9rem;"><span style="color:var(--gray-500);">Descuento</span><span style="color:#ef4444;">-${formatCurrency(descuento)}</span></div>` : ''}
+                            ${itbis > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:0.9rem;"><span style="color:var(--gray-500);">ITBIS 18%</span><span>+${formatCurrency(itbis)}</span></div>` : ''}
+                            <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:2px solid var(--gray-200);font-size:1.3rem;font-weight:800;">
+                                <span>Total</span>
+                                <span style="color:#10b981;">${formatCurrency(total)}</span>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:12px;padding:12px;background:#f0fdf4;border-radius:12px;margin-bottom:16px;">
+                            <span style="font-size:24px;">${metodoIcon}</span>
+                            <div>
+                                <div style="font-weight:600;font-size:0.9rem;">${metodoLabel}</div>
+                                ${metodoPago === 'efectivo' ? `<div style="font-size:0.8rem;color:var(--gray-500);">Recibido: ${formatCurrency(montoRecibido)} · Vuelto: <strong style="color:${vuelto >= 0 ? '#10b981' : '#ef4444'};">${formatCurrency(Math.max(0, vuelto))}</strong></div>` : ''}
+                            </div>
+                        </div>
+                        <button onclick="procesarPago()" style="width:100%;padding:14px;background:#10b981;color:#fff;border:none;border-radius:12px;font-size:16px;font-weight:700;cursor:pointer;margin-bottom:8px;">✓ Confirmar y Cobrar</button>
+                        <button onclick="document.getElementById('pagoOverlay').remove()" style="width:100%;padding:10px;background:var(--gray-100);color:var(--gray-600);border:none;border-radius:12px;font-size:14px;font-weight:500;cursor:pointer;">Cancelar</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(overlay);
+        }
+        
+        async function procesarPago() {
+            document.getElementById('pagoOverlay').remove();
+            
+            const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
             
             try {
                 const data = {
