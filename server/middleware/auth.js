@@ -35,27 +35,21 @@ function requireNegocio(req, res, next) {
 }
 
 function requireActiveLicense(req, res, next) {
-    // Rutas exentas de verificación de licencia
-    const exemptPaths = [
-        '/actualizar',
-        '/api/auth',
-        '/api/license',
-        '/api/superadmin',
-        '/superadmin',
-        '/booking',
-        '/',
-        '/css/',
-        '/js/',
-        '/api/booking'
-    ];
+    const url = req.originalUrl || req.url;
     
-    const isExempt = exemptPaths.some(p => req.path === p || req.path.startsWith(p));
-    if (isExempt) {
+    // Rutas exentas de verificación de licencia
+    if (url === '/' || url === '/actualizar' || url.startsWith('/actualizar?') ||
+        url.startsWith('/api/auth') || url.startsWith('/api/license') || 
+        url.startsWith('/api/superadmin') || url.startsWith('/api/public') ||
+        url.startsWith('/superadmin') || url.startsWith('/booking') || 
+        url.startsWith('/api/booking') || url.startsWith('/registro') ||
+        url.startsWith('/css/') || url.startsWith('/js/') || 
+        url.startsWith('/api/debug')) {
         return next();
     }
     
-    // Solo verificar si está autenticado y tiene negocio
-    if (!req.session.userId || !req.session.negocioId) {
+    // Solo verificar si tiene negocio
+    if (!req.session.negocioId) {
         return next();
     }
     
@@ -63,22 +57,22 @@ function requireActiveLicense(req, res, next) {
         const license = require('../license');
         const status = license.isLicenseValid(req.session.negocioId);
         
-        // Licencia válida → continuar
+        // Licencia válida con días restantes → continuar
         if (status.valid && status.daysRemaining > 0) {
             return next();
         }
         
         // Licencia expirada → bloquear
-        if (req.accepts('html') && !req.path.startsWith('/api/')) {
-            return res.redirect('/actualizar');
+        if (url.startsWith('/api/')) {
+            return res.status(403).json({ 
+                error: 'Licencia expirada', 
+                redirect: '/actualizar',
+                daysRemaining: status.daysRemaining || 0,
+                type: status.type
+            });
         }
         
-        return res.status(403).json({ 
-            error: 'Licencia expirada', 
-            redirect: '/actualizar',
-            daysRemaining: status.daysRemaining,
-            type: status.type
-        });
+        return res.redirect('/actualizar');
     } catch (error) {
         console.error('Error verificando licencia:', error);
         return next();
