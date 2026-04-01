@@ -11,10 +11,17 @@ function requireAuth(req, res, next) {
 }
 
 function requireAdmin(req, res, next) {
+    // Permitir superadmin (tiene acceso total)
+    if (req.session.superAdminId) {
+        return next();
+    }
+    
     if (!req.session.userId) {
         return res.status(401).json({ error: 'No autenticado' });
     }
-    if (req.session.rol !== 'admin') {
+    const role = req.session.rol;
+    const isAdmin = role === 'admin' || role === 'superadmin';
+    if (!isAdmin) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     next();

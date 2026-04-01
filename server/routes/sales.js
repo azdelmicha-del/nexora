@@ -24,7 +24,7 @@ router.get('/config', requireAuth, (req, res) => {
 
 router.post('/', requireAuth, (req, res) => {
     try {
-        const { cliente_id, items, metodo_pago, descuento } = req.body;
+        const { cliente_id, items, metodo_pago, descuento, banco } = req.body;
 
         if (!items || items.length === 0) {
             return res.status(400).json({ error: 'Debe agregar al menos un servicio' });
@@ -54,8 +54,8 @@ router.post('/', requireAuth, (req, res) => {
             total += servicio.precio * (item.cantidad || 1);
         }
 
-        if (descuento && descuento > total) {
-            return res.status(400).json({ error: 'El descuento no puede ser mayor al total' });
+        if (descuento && (descuento < 0 || descuento > total)) {
+            return res.status(400).json({ error: 'El descuento debe estar entre 0 y el total' });
         }
 
         const totalFinal = total - (descuento || 0);
@@ -68,16 +68,21 @@ router.post('/', requireAuth, (req, res) => {
             }
         }
 
+        const ahora = new Date();
+        const fechaLocal = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')} ${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}:${String(ahora.getSeconds()).padStart(2, '0')}`;
+        
         const ventaResult = db.prepare(`
-            INSERT INTO ventas (negocio_id, cliente_id, user_id, total, descuento, metodo_pago, fuera_cuadre)
-            VALUES (?, ?, ?, ?, ?, ?, 0)
+            INSERT INTO ventas (negocio_id, cliente_id, user_id, total, descuento, metodo_pago, banco, fuera_cuadre, fecha)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?)
         `).run(
             req.session.negocioId,
             cliente_id || null,
             req.session.userId,
             totalFinal,
             descuento || 0,
-            metodo_pago
+            metodo_pago,
+            banco || null,
+            fechaLocal
         );
 
         const ventaId = ventaResult.lastInsertRowid;
@@ -86,10 +91,10 @@ router.post('/', requireAuth, (req, res) => {
             const servicio = db.prepare('SELECT precio FROM servicios WHERE id = ? AND negocio_id = ?')
                 .get(item.servicio_id, req.session.negocioId);
             if (!servicio) {
-                return res.status(400).json({ error: `Servicio no válido` });
+                return res.status(400).json({ error: 'Servicio no válido' });
             }
             const cantidad = item.cantidad || 1;
-            const subtotal = servicio.precio * cantidad;
+            const subtotal = Math.round(servicio.precio * cantidad * 100) / 100;
 
             db.prepare(`
                 INSERT INTO venta_detalles (venta_id, servicio_id, cantidad, precio, subtotal)
@@ -103,7 +108,7 @@ router.post('/', requireAuth, (req, res) => {
         `).run(req.session.negocioId, `Nueva venta registrada`, ventaId);
 
         const venta = db.prepare(`
-            SELECT v.id, v.total, v.descuento, v.metodo_pago, v.fecha, v.fuera_cuadre,
+            SELECT v.id, v.total, v.descuento, v.metodo_pago, v.banco, v.fecha, v.fuera_cuadre,
                    c.nombre as cliente
             FROM ventas v
             LEFT JOIN clientes c ON v.cliente_id = c.id
@@ -123,7 +128,7 @@ router.get('/', requireAuth, (req, res) => {
         const { fecha, cliente, metodo } = req.query;
 
         let query = `
-            SELECT v.id, v.total, v.descuento, v.metodo_pago, v.fecha,
+            SELECT v.id, v.total, v.descuento, v.metodo_pago, v.banco, v.fecha,
                    c.nombre as cliente, u.nombre as usuario
             FROM ventas v
             LEFT JOIN clientes c ON v.cliente_id = c.id
@@ -162,7 +167,7 @@ router.get('/:id', requireAuth, (req, res) => {
         const db = getDb();
         
         const venta = db.prepare(`
-            SELECT v.id, v.total, v.descuento, v.metodo_pago, v.fecha,
+            SELECT v.id, v.total, v.descuento, v.metodo_pago, v.banco, v.fecha,
                    c.id as cliente_id, c.nombre as cliente, u.nombre as usuario
             FROM ventas v
             LEFT JOIN clientes c ON v.cliente_id = c.id

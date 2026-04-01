@@ -306,13 +306,13 @@
                     banner.style.display = 'block';
                     banner.style.background = 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)';
                     banner.style.color = 'white';
-                    banner.innerHTML = '🔒 Tu período de prueba ha finalizado. <a href="/licencias" style="color: white; text-decoration: underline;">Activa una licencia</a> para continuar.';
+                    banner.innerHTML = '🔒 Tu período de prueba ha finalizado. <a href="/actualizar" style="color: white; text-decoration: underline;">Activa una licencia</a> para continuar.';
                 } else if (data.daysRemaining <= 3) {
                     // Quedan pocos días
                     banner.style.display = 'block';
                     banner.style.background = 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)';
                     banner.style.color = 'white';
-                    banner.innerHTML = '⚠️ Te quedan <strong>' + data.daysRemaining + ' días</strong> de prueba. <a href="/licencias" style="color: white; text-decoration: underline;">Activa una licencia</a>';
+                    banner.innerHTML = '⚠️ Te quedan <strong>' + data.daysRemaining + ' días</strong> de prueba. <a href="/actualizar" style="color: white; text-decoration: underline;">Activa una licencia</a>';
                 } else if (data.daysRemaining <= 5) {
                     // Quedan días moderados
                     banner.style.display = 'block';
@@ -419,5 +419,6 @@
         cargarMiniCalendario();
     </script>
     <script src="/js/sidebar.js"></script>
+    <script src="/js/license-banner.js"></script>
 </body>
 </html>

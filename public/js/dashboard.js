@@ -25,17 +25,28 @@ async function verificarLicencia() {
         const res = await fetch('/api/license/status');
         const data = await res.json();
         
-        console.log('License status:', data);
-        
         if (data.isOwner) return;
         
-        if (!data.valid) {
-            window.location.href = '/actualizar';
-            return;
+        const isTrial = data.type === 'trial';
+        const isPaid = ['monthly', 'semiannual', 'annual'].includes(data.type);
+        
+        // Plan pagado activo → no hacer nada
+        if (isPaid && data.valid) return;
+        
+        // Plan pagado expirado → no redirigir, el banner de license-banner.js lo maneja
+        if (isPaid && !data.valid) return;
+        
+        // Trial con más de 5 días → no mostrar banner
+        if (isTrial && data.valid && data.daysRemaining > 5) return;
+        
+        // Trial con ≤5 días → mostrar banner
+        if (isTrial && data.valid && data.daysRemaining <= 5) {
+            mostrarBannerPrueba(data.daysRemaining);
         }
         
-        if (data.type === 'trial' && data.daysRemaining !== undefined) {
-            mostrarBannerPrueba(data.daysRemaining);
+        // Trial expirado → mostrar banner
+        if (isTrial && !data.valid) {
+            mostrarBannerPrueba(0);
         }
     } catch (e) {
         console.error('Error verificando licencia:', e);
@@ -45,9 +56,14 @@ async function verificarLicencia() {
 function mostrarBannerPrueba(dias) {
     let banner = document.getElementById('bannerPrueba');
     
-    const bgColor = dias <= 2 ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 
+    const bgColor = dias <= 0 ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' :
+                    dias <= 2 ? 'linear-gradient(135deg, #ef4444 0%, #dc2626 100%)' : 
                     dias <= 4 ? 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' : 
                     'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)';
+    
+    const msg = dias <= 0 
+        ? 'Tu período de prueba ha finalizado. <a href="/actualizar" style="color: white; text-decoration: underline; font-weight:700;">Activa una licencia</a>'
+        : `Te quedan <strong>${dias} día${dias !== 1 ? 's' : ''}</strong> de prueba. <a href="/actualizar" style="color: white; text-decoration: underline;">${dias <= 2 ? 'Activa una licencia' : 'Ver planes'}</a>`;
     
     if (!banner) {
         banner = document.createElement('div');
@@ -73,7 +89,7 @@ function mostrarBannerPrueba(dias) {
     banner.style.background = bgColor;
     banner.innerHTML = `
         <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-        <span>Te quedan <strong>${dias} día${dias !== 1 ? 's' : ''}</strong> de prueba. <a href="/actualizar" style="color: white; text-decoration: underline;">Actualizar ahora</a></span>
+        <span>${msg}</span>
     `;
 }
 

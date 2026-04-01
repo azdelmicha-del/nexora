@@ -40,7 +40,7 @@ router.post('/debug/backup', requireDebugAuth, (req, res) => {
     try {
         const backupPath = autoBackup();
         if (backupPath) {
-            res.json({ success: true, message: 'Backup creado', path: backupPath });
+            res.json({ success: true, message: 'Backup creado exitosamente' });
         } else {
             res.status(500).json({ error: 'Error al crear backup' });
         }

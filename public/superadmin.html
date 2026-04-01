@@ -4,372 +4,395 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Super Admin - Nexora</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <style>
+        :root {
+            --primary: #4f46e5;
+            --primary-hover: #4338ca;
+            --secondary: #6366f1;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --background: #f8fafc;
+            --surface: #ffffff;
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --radius-md: 8px;
+            --radius-lg: 12px;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+        }
+
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #f5f5f5; }
+        body { font-family: 'Inter', sans-serif; background: var(--background); color: var(--text-main); }
         
-        .login-container {
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        }
+        /* Layout Principal */
+        .dashboard { display: none; min-height: 100vh; flex-direction: column; }
+        .dashboard.active { display: flex; }
         
-        .login-card {
-            background: white;
-            border-radius: 16px;
-            padding: 40px;
-            width: 100%;
-            max-width: 400px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
-        }
-        
-        .login-title {
-            font-size: 24px;
-            font-weight: 700;
-            text-align: center;
-            margin-bottom: 8px;
-            color: #1a1a2e;
-        }
-        
-        .login-subtitle {
-            font-size: 14px;
-            color: #666;
-            text-align: center;
-            margin-bottom: 24px;
-        }
-        
-        .form-group {
-            margin-bottom: 16px;
-        }
-        
-        .form-label {
-            display: block;
-            font-size: 14px;
-            font-weight: 500;
-            margin-bottom: 6px;
-            color: #333;
-        }
-        
-        .form-input {
-            width: 100%;
-            padding: 12px 14px;
-            border: 2px solid #e5e7eb;
-            border-radius: 8px;
-            font-size: 15px;
-        }
-        
-        .form-input:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-        
-        .btn {
-            width: 100%;
-            padding: 14px;
-            border: none;
-            border-radius: 8px;
-            font-size: 15px;
-            font-weight: 600;
-            cursor: pointer;
-        }
-        
-        .btn-primary {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-        }
-        
-        .btn-primary:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
-        }
-        
-        .error-msg {
-            background: #fee2e2;
-            color: #dc2626;
-            padding: 10px;
-            border-radius: 8px;
-            margin-bottom: 16px;
-            font-size: 14px;
-            display: none;
-        }
-        
-        .error-msg.show {
-            display: block;
-        }
-        
-        /* Dashboard */
-        .dashboard {
-            display: none;
-        }
-        
-        .dashboard.active {
-            display: block;
-        }
-        
+        /* Header Moderno */
         .header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            background: var(--primary);
             color: white;
-            padding: 20px;
+            padding: 0 24px;
+            height: 64px;
             display: flex;
             justify-content: space-between;
             align-items: center;
+            box-shadow: var(--shadow-md);
+            position: sticky;
+            top: 0;
+            z-index: 50;
         }
         
-        .header-title {
-            font-size: 20px;
-            font-weight: 700;
-        }
+        .header-title { font-size: 20px; font-weight: 700; letter-spacing: -0.5px; display: flex; align-items: center; gap: 8px; }
         
-        .header-user {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-        
-        .logout-btn {
-            background: rgba(255,255,255,0.2);
+        .nav-tabs { display: flex; gap: 8px; margin-left: 32px; }
+        .nav-tab {
+            background: transparent;
+            color: rgba(255,255,255,0.7);
             border: none;
-            color: white;
             padding: 8px 16px;
-            border-radius: 6px;
-            cursor: pointer;
-        }
-        
-        .container {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 20px;
-        }
-        
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 16px;
-            margin-bottom: 24px;
-        }
-        
-        .stat-card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-        }
-        
-        .stat-value {
-            font-size: 32px;
-            font-weight: 700;
-            color: #667eea;
-        }
-        
-        .stat-label {
-            font-size: 14px;
-            color: #666;
-            margin-top: 4px;
-        }
-        
-        .card {
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.08);
-            margin-bottom: 20px;
-        }
-        
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 16px;
-        }
-        
-        .card-title {
-            font-size: 18px;
-            font-weight: 600;
-        }
-        
-        .table {
-            width: 100%;
-            border-collapse: collapse;
-        }
-        
-        .table th,
-        .table td {
-            padding: 12px;
-            text-align: left;
-            border-bottom: 1px solid #e5e7eb;
-        }
-        
-        .table th {
-            background: #f8f9fa;
+            border-radius: var(--radius-md);
             font-weight: 600;
             font-size: 14px;
-        }
-        
-        .badge {
-            display: inline-block;
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
-            font-weight: 600;
-        }
-        
-        .badge-activo {
-            background: #d1fae5;
-            color: #059669;
-        }
-        
-        .badge-suspendido {
-            background: #fee2e2;
-            color: #dc2626;
-        }
-        
-        .badge-trial {
-            background: #fef3c7;
-            color: #d97706;
-        }
-        
-        .badge-premium {
-            background: #dbeafe;
-            color: #2563eb;
-        }
-        
-        .btn-sm {
-            padding: 6px 12px;
-            font-size: 13px;
-            border-radius: 6px;
-            border: none;
             cursor: pointer;
-            margin: 2px;
+            transition: all 0.2s;
         }
+        .nav-tab:hover { color: white; background: rgba(255,255,255,0.1); }
+        .nav-tab.active { background: rgba(255,255,255,0.2); color: white; }
+
+        .header-user { display: flex; align-items: center; gap: 16px; font-size: 14px; }
+        .logout-btn { background: rgba(0,0,0,0.2); color: white; border: none; padding: 6px 12px; border-radius: 6px; cursor: pointer; font-weight: 500; transition: background 0.2s; }
+        .logout-btn:hover { background: rgba(0,0,0,0.4); }
+
+        .container { max-width: 1280px; margin: 0 auto; padding: 32px 24px; width: 100%; flex: 1; }
+
+        /* Tarjetas (Cards) Generales */
+        .card { background: var(--surface); border-radius: var(--radius-lg); padding: 24px; box-shadow: var(--shadow-sm); border: 1px solid var(--border); margin-bottom: 24px; }
+        .card-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+        .card-title { font-size: 18px; font-weight: 600; color: var(--text-main); }
+
+        /* Grid de Métricas (Stats) */
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-bottom: 24px; }
+        .stat-card { background: var(--surface); border-radius: var(--radius-lg); padding: 20px; border: 1px solid var(--border); box-shadow: var(--shadow-sm); display: flex; flex-direction: column; justify-content: center; position: relative; overflow: hidden; }
+        .stat-card::before { content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; border-radius: 4px 0 0 4px; }
+        .stat-value { font-size: 32px; font-weight: 700; color: var(--primary); line-height: 1.2; }
+        .stat-label { font-size: 13px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px; }
+
+        /* Componente de Negocio (El nuevo diseño de tarjeta) */
+        .business-card { background: var(--surface); border-radius: var(--radius-lg); border: 1px solid var(--border); margin-bottom: 16px; padding: 24px; box-shadow: var(--shadow-sm); transition: transform 0.2s, box-shadow 0.2s; }
+        .business-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); border-color: #cbd5e1; }
         
-        .btn-success {
-            background: #10b981;
-            color: white;
-        }
+        .bc-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border); }
+        .bc-info { flex: 1; }
+        .bc-name { font-size: 18px; font-weight: 700; color: var(--text-main); margin-bottom: 4px; display: flex; align-items: center; gap: 8px; }
+        .bc-contact { font-size: 14px; color: var(--text-muted); }
+        .bc-status-badge { display: flex; flex-direction: column; align-items: flex-end; }
         
-        .btn-warning {
-            background: #f59e0b;
-            color: white;
-        }
+        .bc-metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; margin-bottom: 20px; text-align: center; }
+        .bc-metric { padding: 8px; }
+        .bc-metric-value { font-size: 20px; font-weight: 700; color: var(--primary); }
+        .bc-metric-label { font-size: 12px; font-weight: 500; color: var(--text-muted); margin-top: 4px; }
         
-        .btn-danger {
-            background: #ef4444;
-            color: white;
-        }
+        .bc-footer { display: flex; justify-content: space-between; align-items: center; }
+        .bc-meta { font-size: 12px; color: var(--text-muted); }
+        .bc-actions { display: flex; gap: 8px; flex-wrap: wrap; justify-content: flex-end; }
+
+        /* Botones y Badges */
+        .btn { padding: 8px 16px; border-radius: var(--radius-md); font-size: 14px; font-weight: 600; cursor: pointer; border: none; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover { background: var(--primary-hover); }
+        .btn-secondary { background: #f1f5f9; color: #475569; border: 1px solid #cbd5e1; }
+        .btn-secondary:hover { background: #e2e8f0; }
+        .btn-danger { background: #fee2e2; color: var(--danger); }
+        .btn-danger:hover { background: #fca5a5; color: #b91c1c; }
+        .btn-warning { background: #fef3c7; color: #d97706; }
+        .btn-warning:hover { background: #fde68a; }
         
-        .btn-info {
-            background: #3b82f6;
-            color: white;
-        }
+        .badge { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+        .badge-trial { background: #fef3c7; color: #d97706; }
+        .badge-monthly { background: #e0e7ff; color: #4338ca; }
+        .badge-semiannual { background: #dbeafe; color: #2563eb; }
+        .badge-annual { background: #d1fae5; color: #059669; }
+        .badge-suspendido { background: #fee2e2; color: #dc2626; }
+        .badge-eliminado { background: #f1f5f9; color: #64748b; text-decoration: line-through; }
+
+        /* Sub-Navegación Interna (Tabs tipo Linear) */
+        .sub-nav { display: flex; border-bottom: 1px solid var(--border); margin-bottom: 24px; gap: 24px; }
+        .sub-nav-item { padding: 12px 0; font-size: 14px; font-weight: 600; color: var(--text-muted); cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; margin-bottom: -1px; }
+        .sub-nav-item:hover { color: var(--text-main); }
+        .sub-nav-item.active { color: var(--primary); border-bottom-color: var(--primary); }
+
+        /* Tablas */
+        .table-container { overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; text-align: left; }
+        th { padding: 12px 16px; background: #f8fafc; font-size: 13px; font-weight: 600; color: var(--text-muted); border-bottom: 1px solid var(--border); text-transform: uppercase; letter-spacing: 0.5px; }
+        td { padding: 16px; font-size: 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+        tr:last-child td { border-bottom: none; }
+        tr:hover td { background: #f1f5f9; }
+
+        /* Formularios Integrados */
+        .form-control { padding: 10px 14px; border: 1px solid var(--border); border-radius: var(--radius-md); font-size: 14px; font-family: inherit; width: 100%; outline: none; transition: border-color 0.2s; }
+        .form-control:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        .form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-main); margin-bottom: 6px; }
+
+        /* Buscador */
+        .search-bar { display: flex; gap: 12px; margin-bottom: 24px; }
+        .search-input-wrapper { flex: 1; position: relative; }
+        .search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); color: var(--text-muted); }
+        .search-input { width: 100%; padding: 12px 16px 12px 40px; border: 1px solid var(--border); border-radius: var(--radius-lg); font-size: 15px; outline: none; transition: all 0.2s; box-shadow: var(--shadow-sm); }
+        .search-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+
+        /* Login Screen */
+        .login-container { display: flex; justify-content: center; align-items: center; min-height: 100vh; background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%); }
+        .login-card { background: white; border-radius: var(--radius-lg); padding: 40px; width: 100%; max-width: 400px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+        .login-title { font-size: 24px; font-weight: 700; text-align: center; margin-bottom: 8px; color: var(--text-main); }
+        .login-subtitle { font-size: 14px; color: var(--text-muted); text-align: center; margin-bottom: 24px; }
+        .error-msg { background: #fee2e2; color: #dc2626; padding: 12px; border-radius: var(--radius-md); margin-bottom: 16px; font-size: 14px; display: none; font-weight: 500; text-align: center; }
+        .error-msg.show { display: block; }
         
-        .actions {
-            display: flex;
-            gap: 4px;
-        }
+        .storage-progress { background: #e2e8f0; border-radius: 999px; height: 12px; overflow: hidden; margin: 12px 0 8px; }
+        .storage-bar { height: 100%; transition: width 0.5s ease; border-radius: 999px; }
     </style>
+    <link rel="stylesheet" href="/css/admin.css">
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
-    <!-- Login -->
+    <script src="/js/common.js"></script>
+    <script src="/js/api.js"></script>
+
+    <!-- Pantalla de Login -->
     <div class="login-container" id="login-container">
         <div class="login-card">
             <h1 class="login-title">Super Admin</h1>
-            <p class="login-subtitle">Panel de administración de Nexora</p>
+            <p class="login-subtitle">Panel de control maestro de Nexora</p>
             <div class="error-msg" id="login-error"></div>
             <form id="login-form">
-                <div class="form-group">
+                <div style="margin-bottom: 16px;">
                     <label class="form-label">Email</label>
-                    <input type="email" class="form-input" id="login-email" required placeholder="Email">
+                    <input type="email" class="form-control" id="login-email" required placeholder="admin@nexora.com" autocomplete="username">
                 </div>
-                <div class="form-group">
+                <div style="margin-bottom: 24px;">
                     <label class="form-label">Contraseña</label>
-                    <input type="password" class="form-input" id="login-password" required placeholder="Contraseña">
+                    <input type="password" class="form-control" id="login-password" required placeholder="••••••••" autocomplete="current-password">
                 </div>
-                <button type="submit" class="btn btn-primary">Iniciar Sesión</button>
+                <button type="submit" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 16px;">Ingresar</button>
             </form>
         </div>
     </div>
-    
-    <!-- Dashboard -->
+
+    <!-- Dashboard Principal -->
     <div class="dashboard" id="dashboard">
-        <div class="header">
-            <div class="header-title">Super Admin - Nexora</div>
+        <!-- Header Superior -->
+        <header class="header">
+            <div style="display: flex; align-items: center;">
+                <div class="header-title">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    Nexora Admin
+                </div>
+                <nav class="nav-tabs">
+                    <button class="nav-tab active" onclick="switchMainTab('negocios')" id="tab-negocios">Negocios</button>
+                    <button class="nav-tab" onclick="switchMainTab('licencias')" id="tab-licencias">Cuentas/Licencias</button>
+                </nav>
+            </div>
             <div class="header-user">
-                <span id="admin-name">Admin</span>
+                <button class="logout-btn" style="background: rgba(255,255,255,0.15);" onclick="showChangePasswordModal()">🔑 Cambiar Contraseña</button>
+                <span id="admin-name" style="font-weight: 600;">Cargando...</span>
                 <button class="logout-btn" onclick="logout()">Salir</button>
             </div>
-        </div>
-        
+        </header>
+
         <div class="container">
-            <!-- Stats -->
-            <div class="stats-grid" id="stats-grid"></div>
             
-            <!-- Negocios -->
-            <div class="card">
-                <div class="card-header">
-                    <h2 class="card-title">Negocios</h2>
+            <!-- VISTA: NEGOCIOS -->
+            <div id="view-negocios">
+                <!-- Métricas Globales (Imagen 4) -->
+                <div class="stats-grid" id="global-stats-grid">
+                    <div class="stat-card" style="border-left-color: var(--primary);"><div class="stat-value" id="st-total">0</div><div class="stat-label">Total Negocios</div></div>
+                    <div class="stat-card" style="border-left-color: var(--success);"><div class="stat-value" id="st-activos">0</div><div class="stat-label">Negocios Activos</div></div>
+                    <div class="stat-card" style="border-left-color: var(--danger);"><div class="stat-value" id="st-susp">0</div><div class="stat-label">Suspendidos</div></div>
+                    <div class="stat-card" style="border-left-color: var(--secondary);"><div class="stat-value" id="st-users">0</div><div class="stat-label">Total Usuarios</div></div>
+                    <div class="stat-card" style="border-left-color: var(--warning);"><div class="stat-value" id="st-citas">0</div><div class="stat-label">Total Citas</div></div>
+                    <div class="stat-card" style="border-left-color: #8b5cf6;"><div class="stat-value" id="st-ventas">0</div><div class="stat-label">Total Ventas</div></div>
                 </div>
-                <div class="table-responsive">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>ID</th>
-                                <th>Nombre</th>
-                                <th>Email</th>
-                                <th>Estado</th>
-                                <th>Licencia</th>
-                                <th>Usuarios</th>
-                                <th>Acciones</th>
-                            </tr>
-                        </thead>
-                        <tbody id="negocios-table"></tbody>
-                    </table>
+
+                <!-- Almacenamiento -->
+                <div class="card" id="storage-container" style="display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <h3 style="font-size: 16px; font-weight: 600;">Almacenamiento de Base de Datos</h3>
+                            <p style="font-size: 13px; color: var(--text-muted);" id="storage-text">Calculando...</p>
+                        </div>
+                        <div style="text-align: right;">
+                            <div style="font-size: 24px; font-weight: 700;" id="storage-pct">0%</div>
+                            <div style="font-size: 12px; font-weight: 600;" id="storage-status">Analizando</div>
+                        </div>
+                    </div>
+                    <div class="storage-progress">
+                        <div class="storage-bar" id="storage-bar" style="width: 0%; background: var(--success);"></div>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; font-size: 12px; color: var(--text-muted);">
+                        <span id="storage-img">📷 Imágenes: 0 MB</span>
+                        <span id="storage-data">📊 Datos: 0 MB</span>
+                    </div>
                 </div>
+
+                <!-- Buscador de negocios -->
+                <div class="search-bar">
+                    <div class="search-input-wrapper">
+                        <svg class="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                        <input type="text" id="search-negocios" class="search-input" placeholder="Buscar por nombre, email, teléfono o ID..." onkeyup="if(event.key === 'Enter') filterNegociosList()">
+                    </div>
+                    <button class="btn btn-primary" style="padding: 0 24px;" onclick="filterNegociosList()">Buscar</button>
+                </div>
+
+                <!-- Listado de Negocios (Estilo Tarjetas - Imagen 2) -->
+                <div id="negocios-list-container">
+                    <!-- Se llenará dinámicamente -->
+                    <div style="text-align: center; padding: 40px; color: var(--text-muted);">Cargando negocios...</div>
+                </div>
+            </div>
+
+            <!-- VISTA: LICENCIAS Y CRECIMIENTO -->
+            <div id="view-licencias" style="display: none;">
+                
+                <!-- Sub Navegación -->
+                <div class="sub-nav">
+                    <div class="sub-nav-item active" onclick="switchSubTab('claves')" id="subtab-claves">Claves Generadas</div>
+                    <div class="sub-nav-item" onclick="switchSubTab('crecimiento')" id="subtab-crecimiento">Crecimiento</div>
+                </div>
+
+                <!-- SUB VISTA: CLAVES -->
+                <div id="subview-claves">
+                    <!-- Generador -->
+                    <div class="card" style="background: white;">
+                        <div class="card-header" style="margin-bottom: 16px;">
+                            <h2 class="card-title">Generar Nuevas Claves</h2>
+                        </div>
+                        <div style="display: flex; gap: 16px; align-items: flex-end; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 200px;">
+                                <label class="form-label">Plan de Suscripción</label>
+                                <select id="gen-plan" class="form-control">
+                                    <option value="monthly">Mensual (30 días)</option>
+                                    <option value="semiannual" selected>6 Meses (180 días)</option>
+                                    <option value="annual">Anual (365 días)</option>
+                                </select>
+                            </div>
+                            <div style="width: 120px;">
+                                <label class="form-label">Cantidad</label>
+                                <input type="number" id="gen-qty" class="form-control" value="1" min="1" max="50" style="text-align: center;">
+                            </div>
+                            <button class="btn btn-primary" style="height: 42px; padding: 0 24px;" onclick="generarClaves()">+ Generar Claves</button>
+                        </div>
+                    </div>
+
+                    <!-- Resumen de claves disponibles -->
+                    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="stat-card" style="border-left-color: var(--primary); align-items: center;">
+                            <div class="stat-value" id="k-monthly">0</div>
+                            <div class="stat-label" style="margin-top: 8px;">CLAVES MENSUALES</div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: #8b5cf6; align-items: center;">
+                            <div class="stat-value" id="k-semiannual">0</div>
+                            <div class="stat-label" style="margin-top: 8px;">CLAVES 6 MESES</div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: var(--success); align-items: center;">
+                            <div class="stat-value" id="k-annual">0</div>
+                            <div class="stat-label" style="margin-top: 8px;">CLAVES ANUALES</div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de Claves -->
+                    <div class="card">
+                        <div class="card-header">
+                            <h2 class="card-title">Claves de Licencia Disponibles</h2>
+                            <div style="display: flex; gap: 8px;">
+                                <button class="btn btn-primary" style="padding: 4px 12px; font-size: 12px;" onclick="filtrarTablaClaves('all')">Todas</button>
+                                <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="filtrarTablaClaves('monthly')">Mensual</button>
+                                <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="filtrarTablaClaves('semiannual')">6 Meses</button>
+                                <button class="btn btn-secondary" style="padding: 4px 12px; font-size: 12px;" onclick="filtrarTablaClaves('annual')">Anual</button>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                            <table>
+                                <thead>
+                                    <tr>
+                                        <th>Plan</th>
+                                        <th>Clave Generada</th>
+                                        <th>Duración</th>
+                                        <th>Fecha Creación</th>
+                                        <th style="text-align: right;">Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="claves-tbody">
+                                    <!-- Llenado por JS -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- SUB VISTA: CRECIMIENTO -->
+                <div id="subview-crecimiento" style="display: none;">
+                    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="stat-card" style="border-left-color: var(--primary); align-items: center;">
+                            <div class="stat-value" id="g-total">0</div>
+                            <div class="stat-label">TOTAL REGISTRADOS</div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: var(--secondary); align-items: center;">
+                            <div class="stat-value" id="g-activos">0</div>
+                            <div class="stat-label">CON LICENCIA ACTIVA</div>
+                        </div>
+                        <div class="stat-card" style="border-left-color: var(--success); align-items: center;">
+                            <div class="stat-value" id="g-prueba">0</div>
+                            <div class="stat-label">EN PRUEBA (TRIAL)</div>
+                        </div>
+                    </div>
+                    
+                    <div class="card">
+                        <h2 class="card-title" style="margin-bottom: 20px;">Registro de Negocios por Mes</h2>
+                        <div style="height: 400px; width: 100%;">
+                            <canvas id="growthChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
             </div>
         </div>
     </div>
-    
+
     <script>
-        let sessionChecked = false;
-        
+        // MASTER_KEY removida por seguridad - se usa sesión del backend
+        let chartInstance = null;
+        let negociosData = [];
+        let keysData = [];
+
         document.addEventListener('DOMContentLoaded', () => {
             checkSession();
             document.getElementById('login-form').addEventListener('submit', handleLogin);
         });
-        
+
+        // ================= SESSION & UI =================
         async function checkSession() {
             try {
-                const res = await fetch('/api/superadmin/session');
+                const res = await fetch('/api/superadmin/session', { credentials: 'same-origin' });
                 const data = await res.json();
-                
                 if (data.authenticated) {
                     showDashboard(data.admin);
                 } else {
-                    showLogin();
+                    document.getElementById('login-container').style.display = 'flex';
                 }
             } catch (error) {
-                showLogin();
+                document.getElementById('login-container').style.display = 'flex';
             }
-            sessionChecked = true;
         }
-        
-        function showLogin() {
-            document.getElementById('login-container').style.display = 'flex';
-            document.getElementById('dashboard').classList.remove('active');
-        }
-        
-        function showDashboard(admin) {
-            document.getElementById('login-container').style.display = 'none';
-            document.getElementById('dashboard').classList.add('active');
-            document.getElementById('admin-name').textContent = admin.nombre;
-            loadStats();
-            loadNegocios();
-        }
-        
+
         async function handleLogin(e) {
             e.preventDefault();
-            
             const email = document.getElementById('login-email').value;
             const password = document.getElementById('login-password').value;
             const errorEl = document.getElementById('login-error');
@@ -380,25 +403,14 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, password })
                 });
-                
                 const data = await res.json();
                 
                 if (!res.ok) {
-                    errorEl.classList.remove('show');
-                    
-                    if (data.error === 'account_locked') {
-                        showModalError(
-                            `Demasiados intentos fallidos. Intenta de nuevo en <strong>${data.minutesRemaining} minutos</strong>.`,
-                            'Cuenta bloqueada'
-                        );
+                    if (data.locked) {
+                        showUnlockForm(email, data.message);
                         return;
                     }
-                    
-                    if (data.attemptsRemaining) {
-                        errorEl.textContent = `${data.error}. Te quedan ${data.attemptsRemaining} intento${data.attemptsRemaining > 1 ? 's' : ''}.`;
-                    } else {
-                        errorEl.textContent = data.error;
-                    }
+                    errorEl.textContent = data.error || 'Error de autenticación';
                     errorEl.classList.add('show');
                     return;
                 }
@@ -411,278 +423,796 @@
             }
         }
         
-        async function loadStats() {
+        function showUnlockForm(email, message) {
+            const card = document.querySelector('.login-card');
+            card.innerHTML = `
+                <div style="text-align: center; margin-bottom: 24px;">
+                    <div style="width: 60px; height: 60px; background: #fef2f2; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 28px;">🔒</div>
+                    <h1 class="login-title" style="margin-bottom: 8px;">Cuenta Bloqueada</h1>
+                    <p class="login-subtitle">${message || 'Demasiados intentos fallidos'}</p>
+                </div>
+                <div class="error-msg" id="unlock-error"></div>
+                <div class="error-msg" id="unlock-success" style="background: #ecfdf5; color: #065f46; border: 1px solid #a7f3d0;"></div>
+                <div style="margin-bottom: 16px;">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" id="unlock-email" value="${email}" readonly style="background: #f1f5f9;">
+                </div>
+                <div style="margin-bottom: 24px;">
+                    <label class="form-label">Código de Seguridad</label>
+                    <input type="password" class="form-control" id="unlock-code" required placeholder="Código maestro" autocomplete="off">
+                </div>
+                <button type="button" class="btn btn-primary" style="width: 100%; padding: 12px; font-size: 16px;" onclick="handleUnlock()">Desbloquear</button>
+                <button type="button" class="btn" style="width: 100%; padding: 10px; font-size: 14px; margin-top: 8px; background: #f1f5f9; color: #64748b; border: none;" onclick="location.reload()">Volver al Login</button>
+            `;
+        }
+        
+        async function handleUnlock() {
+            const email = document.getElementById('unlock-email').value;
+            const code = document.getElementById('unlock-code').value;
+            const errorEl = document.getElementById('unlock-error');
+            const successEl = document.getElementById('unlock-success');
+            
+            if (!code) {
+                errorEl.textContent = 'Ingrese el código de seguridad';
+                errorEl.classList.add('show');
+                return;
+            }
+            
             try {
-                const res = await fetch('/api/superadmin/stats');
-                const stats = await res.json();
+                const res = await fetch('/api/superadmin/unlock', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, security_code: code })
+                });
+                const data = await res.json();
                 
-                document.getElementById('stats-grid').innerHTML = `
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.totalNegocios}</div>
-                        <div class="stat-label">Total Negocios</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.negociosActivos}</div>
-                        <div class="stat-label">Negocios Activos</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.negociosSuspendidos}</div>
-                        <div class="stat-label">Suspendidos</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.totalUsuarios}</div>
-                        <div class="stat-label">Total Usuarios</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.totalCitas}</div>
-                        <div class="stat-label">Total Citas</div>
-                    </div>
-                    <div class="stat-card">
-                        <div class="stat-value">${stats.totalVentas}</div>
-                        <div class="stat-label">Total Ventas</div>
-                    </div>
-                `;
-                
-                // Barra de almacenamiento
-                const alm = stats.almacenamiento;
-                const barColor = alm.porcentaje < 50 ? '#10b981' : alm.porcentaje < 80 ? '#f59e0b' : '#ef4444';
-                const barLabel = alm.porcentaje < 50 ? 'Nivel seguro' : alm.porcentaje < 80 ? 'Nivel moderado' : 'Nivel alto - revisar';
-                
-                let storageBar = document.getElementById('storage-bar-container');
-                if (!storageBar) {
-                    storageBar = document.createElement('div');
-                    storageBar.id = 'storage-bar-container';
-                    storageBar.style.cssText = 'background:white; border-radius:12px; padding:20px; margin-top:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.06);';
-                    document.getElementById('stats-grid').parentNode.insertBefore(storageBar, document.getElementById('stats-grid').nextSibling);
+                if (!res.ok) {
+                    errorEl.textContent = data.error || 'Código incorrecto';
+                    errorEl.classList.add('show');
+                    successEl.classList.remove('show');
+                    return;
                 }
                 
-                storageBar.innerHTML = `
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                        <div>
-                            <div style="font-size:0.85rem; font-weight:600; color:#1a1a2e;">Almacenamiento de Base de Datos</div>
-                            <div style="font-size:0.75rem; color:#999;">${alm.totalMB} MB de ${alm.limiteGB} GB usados</div>
-                        </div>
-                        <div style="text-align:right;">
-                            <div style="font-size:1.25rem; font-weight:700; color:${barColor};">${alm.porcentaje}%</div>
-                            <div style="font-size:0.7rem; color:#999;">${barLabel}</div>
-                        </div>
-                    </div>
-                    <div style="background:#e5e7eb; border-radius:10px; height:20px; overflow:hidden;">
-                        <div style="background:linear-gradient(90deg, ${barColor}, ${barColor}dd); height:100%; width:${Math.max(alm.porcentaje, 1)}%; border-radius:10px; transition:width 0.5s ease;"></div>
-                    </div>
-                    <div style="display:flex; justify-content:space-between; margin-top:8px; font-size:0.7rem; color:#999;">
-                        <span>📷 Imágenes: ${alm.imagenesMB} MB</span>
-                        <span>📊 Datos: ${(alm.totalMB - alm.imagenesMB).toFixed(2)} MB</span>
-                    </div>
-                `;
+                errorEl.classList.remove('show');
+                successEl.textContent = '✅ Cuenta desbloqueada. Redirigiendo...';
+                successEl.classList.add('show');
+                
+                setTimeout(() => location.reload(), 1500);
             } catch (error) {
-                console.error('Error loading stats:', error);
+                errorEl.textContent = 'Error de conexión';
+                errorEl.classList.add('show');
             }
         }
-        
+
+        function showDashboard(admin) {
+            document.getElementById('login-container').style.display = 'none';
+            document.getElementById('dashboard').classList.add('active');
+            document.getElementById('admin-name').textContent = admin.nombre || 'Super Admin';
+            
+            // Cargar datos iniciales
+            loadGlobalStats();
+            loadNegocios();
+        }
+
+        function showChangePasswordModal() {
+            const existing = document.getElementById('cp-overlay');
+            if (existing) existing.remove();
+
+            const overlay = document.createElement('div');
+            overlay.id = 'cp-overlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.6);z-index:2147483647;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+            overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+
+            overlay.innerHTML = `
+                <div style="background:#fff;border-radius:24px;width:min(92vw,420px);box-shadow:0 20px 40px rgba(0,0,0,0.25);animation:saModalIn 0.25s ease-out;overflow:hidden;">
+                    <div style="background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:24px;color:#fff;text-align:center;">
+                        <div style="font-size:40px;margin-bottom:8px;">🔑</div>
+                        <h2 style="margin:0;font-size:20px;font-weight:700;">Cambiar Contraseña</h2>
+                        <p style="margin:6px 0 0;font-size:13px;opacity:0.85;">Super Admin</p>
+                    </div>
+                    <div style="padding:24px;">
+                        <div class="error-msg" id="cp-error" style="background:#fee2e2;color:#dc2626;padding:12px;border-radius:8px;margin-bottom:16px;font-size:14px;display:none;text-align:center;font-weight:500;"></div>
+                        <div class="error-msg" id="cp-success" style="background:#ecfdf5;color:#065f46;padding:12px;border-radius:8px;margin-bottom:16px;font-size:14px;display:none;text-align:center;font-weight:500;border:1px solid #a7f3d0;"></div>
+                        <div style="margin-bottom:16px;">
+                            <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Contraseña Actual</label>
+                            <input type="password" id="cp-current" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;" placeholder="••••••••" autocomplete="current-password">
+                        </div>
+                        <div style="margin-bottom:16px;">
+                            <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Nueva Contraseña</label>
+                            <input type="password" id="cp-new" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;" placeholder="Mínimo 6 caracteres" autocomplete="new-password">
+                        </div>
+                        <div style="margin-bottom:24px;">
+                            <label style="display:block;font-size:13px;font-weight:600;color:#374151;margin-bottom:6px;">Confirmar Nueva Contraseña</label>
+                            <input type="password" id="cp-confirm" style="width:100%;padding:10px 12px;border:1px solid #d1d5db;border-radius:8px;font-size:14px;box-sizing:border-box;" placeholder="Repetir contraseña" autocomplete="new-password">
+                        </div>
+                        <button onclick="handleChangePassword()" style="width:100%;padding:12px;background:#4f46e5;color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:600;cursor:pointer;">Guardar Contraseña</button>
+                        <button onclick="document.getElementById('cp-overlay').remove()" style="width:100%;padding:10px;background:#f1f5f9;color:#64748b;border:none;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;margin-top:8px;">Cancelar</button>
+                    </div>
+                </div>
+            `;
+
+            const animStyle = document.createElement('style');
+            animStyle.textContent = '@keyframes saModalIn{from{opacity:0;transform:scale(0.92) translateY(20px);}to{opacity:1;transform:scale(1) translateY(0);}}';
+            document.head.appendChild(animStyle);
+
+            document.body.appendChild(overlay);
+            document.getElementById('cp-current').focus();
+        }
+
+        async function handleChangePassword() {
+            const current = document.getElementById('cp-current').value;
+            const newPass = document.getElementById('cp-new').value;
+            const confirm = document.getElementById('cp-confirm').value;
+            const errorEl = document.getElementById('cp-error');
+            const successEl = document.getElementById('cp-success');
+
+            errorEl.style.display = 'none';
+            successEl.style.display = 'none';
+
+            if (!current || !newPass || !confirm) {
+                errorEl.textContent = 'Todos los campos son requeridos';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (newPass.length < 6) {
+                errorEl.textContent = 'La nueva contraseña debe tener al menos 6 caracteres';
+                errorEl.style.display = 'block';
+                return;
+            }
+            if (newPass !== confirm) {
+                errorEl.textContent = 'Las contraseñas no coinciden';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/superadmin/change-password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ current_password: current, new_password: newPass })
+                });
+                const data = await res.json();
+
+                if (!res.ok) {
+                    errorEl.textContent = data.error || 'Error al cambiar contraseña';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+
+                successEl.textContent = '✅ Contraseña actualizada correctamente';
+                successEl.style.display = 'block';
+                errorEl.style.display = 'none';
+
+                document.getElementById('cp-current').value = '';
+                document.getElementById('cp-new').value = '';
+                document.getElementById('cp-confirm').value = '';
+
+                setTimeout(() => {
+                    document.getElementById('cp-overlay').remove();
+                }, 2000);
+            } catch (error) {
+                errorEl.textContent = 'Error de conexión';
+                errorEl.style.display = 'block';
+            }
+        }
+
+        async function logout() {
+            await fetch('/api/superadmin/logout', { method: 'POST', credentials: 'same-origin' });
+            location.reload();
+        }
+
+        function switchMainTab(tab) {
+            document.getElementById('tab-negocios').classList.remove('active');
+            document.getElementById('tab-licencias').classList.remove('active');
+            document.getElementById('view-negocios').style.display = 'none';
+            document.getElementById('view-licencias').style.display = 'none';
+            
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            document.getElementById(`view-${tab}`).style.display = 'block';
+
+            if (tab === 'negocios') {
+                loadGlobalStats();
+                loadNegocios();
+            } else if (tab === 'licencias') {
+                loadKeysData();
+                if(document.getElementById('subtab-crecimiento').classList.contains('active')) {
+                    loadGrowthData();
+                }
+            }
+        }
+
+        function switchSubTab(tab) {
+            document.getElementById('subtab-claves').classList.remove('active');
+            document.getElementById('subtab-crecimiento').classList.remove('active');
+            document.getElementById('subview-claves').style.display = 'none';
+            document.getElementById('subview-crecimiento').style.display = 'none';
+            
+            document.getElementById(`subtab-${tab}`).classList.add('active');
+            document.getElementById(`subview-${tab}`).style.display = 'block';
+
+            if (tab === 'claves') loadKeysData();
+            if (tab === 'crecimiento') loadGrowthData();
+        }
+
+        // ================= TAB 1: NEGOCIOS =================
+        async function loadGlobalStats() {
+            try {
+                const res = await fetch('/api/superadmin/stats', { 
+                    headers: {  },
+                    credentials: 'same-origin'
+                });
+                if (res.status === 401) {
+                    showToast('Sesión expirada. Por favor inicia sesión de nuevo.', 'error');
+                    document.getElementById('login-container').style.display = 'flex';
+                    return;
+                }
+                const stats = await res.json();
+                
+                document.getElementById('st-total').textContent = stats.totalNegocios;
+                document.getElementById('st-activos').textContent = stats.negociosActivos;
+                document.getElementById('st-susp').textContent = stats.negociosSuspendidos;
+                document.getElementById('st-users').textContent = stats.totalUsuarios;
+                document.getElementById('st-citas').textContent = stats.totalCitas;
+                document.getElementById('st-ventas').textContent = stats.totalVentas;
+
+                // Storage
+                if(stats.almacenamiento) {
+                    const alm = stats.almacenamiento;
+                    document.getElementById('storage-container').style.display = 'block';
+                    document.getElementById('storage-text').textContent = `${alm.totalMB} MB de ${alm.limiteGB} GB usados`;
+                    document.getElementById('storage-pct').textContent = `${alm.porcentaje}%`;
+                    
+                    const bar = document.getElementById('storage-bar');
+                    bar.style.width = `${Math.max(alm.porcentaje, 1)}%`;
+                    
+                    let color = 'var(--success)';
+                    let status = 'Nivel Seguro';
+                    if(alm.porcentaje > 50) { color = 'var(--warning)'; status = 'Nivel Moderado'; }
+                    if(alm.porcentaje > 80) { color = 'var(--danger)'; status = 'Crítico'; }
+                    
+                    bar.style.background = color;
+                    document.getElementById('storage-status').textContent = status;
+                    document.getElementById('storage-status').style.color = color;
+                    
+                    document.getElementById('storage-img').textContent = `📷 Imágenes: ${alm.imagenesMB} MB`;
+                    document.getElementById('storage-data').textContent = `📊 Datos: ${(alm.totalMB - alm.imagenesMB).toFixed(2)} MB`;
+                }
+            } catch (error) {
+                console.error("Error stats:", error);
+            }
+        }
+
         async function loadNegocios() {
             try {
-                const res = await fetch('/api/superadmin/negocios');
-                const negocios = await res.json();
-                
-                const tbody = document.getElementById('negocios-table');
-                tbody.innerHTML = negocios.map(n => `
-                    <tr>
-                        <td>${n.id}</td>
-                        <td>${n.nombre}</td>
-                        <td>${n.email || '-'}</td>
-                        <td><span class="badge badge-${n.estado}">${n.estado}</span></td>
-                        <td><span class="badge badge-${n.licencia_plan}">${n.licencia_plan || 'trial'}</span></td>
-                        <td>${n.total_usuarios}</td>
-                        <td class="actions">
-                            ${n.estado === 'activo' ? 
-                                `<button class="btn-sm btn-warning" onclick="cambiarEstado(${n.id}, 'suspendido')">Suspender</button>` :
-                                `<button class="btn-sm btn-success" onclick="cambiarEstado(${n.id}, 'activo')">Activar</button>`
-                            }
-                            <button class="btn-sm btn-info" onclick="verDetalle(${n.id})">Ver</button>
-                            <button class="btn-sm btn-warning" onclick="resetPassword(${n.id})">🔑 Reset Pass</button>
-                            <button class="btn-sm btn-danger" onclick="eliminarNegocio(${n.id})">Eliminar</button>
-                        </td>
-                    </tr>
-                `).join('');
+                // Usamos la ruta de licencias que trae métricas enriquecidas por negocio
+                const res = await fetch('/api/license/businesses', { credentials: 'same-origin', 
+                    headers: {  }
+                });
+                if (res.status === 403) {
+                    showToast('Acceso denegado.', 'error');
+                    return;
+                }
+                negociosData = await res.json();
+                renderNegociosList(negociosData);
             } catch (error) {
-                console.error('Error loading negocios:', error);
+                document.getElementById('negocios-list-container').innerHTML = '<div style="padding:40px; text-align:center; color:red;">Error cargando negocios</div>';
             }
         }
-        
-        async function cambiarEstado(id, estado) {
-            const accion = estado === 'activo' ? 'activar' : 'suspender';
-            showModalConfirm(
-                `¿Estás seguro de ${accion} este negocio?`,
-                async () => {
-                    try {
-                        await fetch(`/api/superadmin/negocios/${id}/estado`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ estado })
-                        });
-                        loadNegocios();
-                        loadStats();
-                        showModalSuccess(`Negocio ${estado === 'activo' ? 'activado' : 'suspendido'} correctamente.`);
-                    } catch (error) {
-                        showModalError('Error al cambiar estado');
-                    }
-                },
-                null,
-                estado === 'activo' ? 'Suspender negocio' : 'Activar negocio'
+
+        function filterNegociosList() {
+            const term = document.getElementById('search-negocios').value.toLowerCase();
+            const filtered = negociosData.filter(n => 
+                (n.nombre && n.nombre.toLowerCase().includes(term)) || 
+                (n.email && n.email.toLowerCase().includes(term)) ||
+                (n.telefono && n.telefono.toLowerCase().includes(term)) ||
+                (n.id.toString() === term)
             );
+            renderNegociosList(filtered);
         }
-        
-        async function eliminarNegocio(id) {
-            showModalConfirm(
-                'Esta acción desactivará el negocio y todos sus usuarios. No se puede deshacer.',
-                async () => {
-                    try {
-                        await fetch(`/api/superadmin/negocios/${id}`, { method: 'DELETE' });
-                        loadNegocios();
-                        loadStats();
-                        showModalSuccess('Negocio eliminado correctamente.');
-                    } catch (error) {
-                        showModalError('Error al eliminar negocio');
-                    }
-                },
-                null,
-                '¿Eliminar negocio?'
-            );
-        }
-        
-        function verDetalle(id) {
-            window.open(`/api/superadmin/negocios/${id}`, '_blank');
-        }
-        
-        async function resetPassword(id) {
-            showModalConfirm(
-                'Se generará una nueva contraseña temporal para el administrador de este negocio.',
-                async () => {
-                    try {
-                        const res = await fetch(`/api/superadmin/negocios/${id}/reset-password`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' }
-                        });
-                        
-                        const data = await res.json();
-                        
-                        if (!res.ok) {
-                            showModalError(data.error);
-                            return;
-                        }
-                        
-                        showModalSuccess(
-                            `<div style="text-align:left; background:#f8f9fa; border-radius:12px; padding:20px; margin-top:16px;">
-                                <div style="margin-bottom:12px;">
-                                    <span style="font-size:12px; color:#999; text-transform:uppercase; letter-spacing:0.5px;">Negocio</span>
-                                    <p style="margin:4px 0 0; font-weight:600; color:#1a1a2e;">${data.negocio}</p>
-                                </div>
-                                <div style="margin-bottom:12px;">
-                                    <span style="font-size:12px; color:#999; text-transform:uppercase; letter-spacing:0.5px;">Usuario</span>
-                                    <p style="margin:4px 0 0; font-weight:600; color:#1a1a2e;">${data.usuario.nombre}</p>
-                                </div>
-                                <div style="margin-bottom:12px;">
-                                    <span style="font-size:12px; color:#999; text-transform:uppercase; letter-spacing:0.5px;">Email</span>
-                                    <p style="margin:4px 0 0; font-weight:600; color:#1a1a2e;">${data.usuario.email}</p>
-                                </div>
-                                <div style="margin-bottom:0;">
-                                    <span style="font-size:12px; color:#999; text-transform:uppercase; letter-spacing:0.5px;">Contraseña temporal</span>
-                                    <p style="margin:4px 0 0; font-weight:700; color:#10b981; font-size:18px; font-family:monospace; background:#d1fae5; padding:10px 14px; border-radius:8px; letter-spacing:1px;">${data.usuario.contrasenaTemporal}</p>
-                                </div>
+
+        function renderNegociosList(lista) {
+            const container = document.getElementById('negocios-list-container');
+            if (!lista || lista.length === 0) {
+                container.innerHTML = '<div class="card" style="text-align:center; padding: 40px; color: var(--text-muted);">No se encontraron negocios</div>';
+                return;
+            }
+
+            const getPlanBadge = (plan, exp) => {
+                if (!plan || plan === 'trial') return '<span class="badge badge-trial">Prueba</span>';
+                return `<span class="badge badge-${plan}">${plan.toUpperCase()}</span>`;
+            };
+
+            const getDiasText = (plan, startDate, expDate) => {
+                // Trial: calcular desde fecha de inicio (7 días)
+                if (!plan || plan === 'trial') {
+                    if (!startDate) return '<span style="color:var(--danger); font-weight:bold;">Sin fecha inicio</span>';
+                    const daysUsed = Math.floor((new Date() - new Date(startDate)) / (1000 * 60 * 60 * 24));
+                    const dias = 7 - daysUsed;
+                    if (dias <= 0) return '<span style="color:var(--danger); font-weight:bold;">Trial expirado</span>';
+                    if (dias <= 3) return `<span style="color:var(--warning); font-weight:bold;">${dias} día${dias !== 1 ? 's' : ''} rest.</span>`;
+                    return `<span style="color:var(--success);">${dias} días rest.</span>`;
+                }
+                // Planes pagados: usar fecha de expiración
+                if (!expDate) return 'Sin fecha';
+                const dias = Math.ceil((new Date(expDate) - new Date()) / (1000 * 60 * 60 * 24));
+                if (dias < 0) return '<span style="color:var(--danger); font-weight:bold;">Expirada</span>';
+                if (dias <= 7) return `<span style="color:var(--warning); font-weight:bold;">${dias} días rest.</span>`;
+                return `${dias} días rest.`;
+            };
+
+            container.innerHTML = lista.map(n => `
+                <div class="business-card">
+                    <div class="bc-header">
+                        <div class="bc-info">
+                            <div class="bc-name">
+                                ${n.nombre || 'Sin Nombre'} 
+                                <span style="font-size:12px; font-weight:500; color:var(--text-muted); background:#f1f5f9; padding:2px 6px; border-radius:4px;">ID: ${n.id}</span>
                             </div>
-                            <p style="margin-top:16px; font-size:13px; color:#999;">Comparte esta contraseña con el usuario por WhatsApp o email.</p>`,
-                            'Contraseña Reseteada'
-                        );
-                    } catch (error) {
-                        showModalError('Error al resetear contraseña');
-                    }
-                },
-                null,
-                '¿Resetear contraseña?'
-            );
-        }
-        
-        async function logout() {
-            try {
-                await fetch('/api/superadmin/logout', { method: 'POST' });
-                showLogin();
-            } catch (error) {
-                console.error('Error logout:', error);
-            }
-        }
-    </script>
-    
-    <!-- Sistema de modales premium -->
-    <script>
-        let modalContainer = null;
-
-        function initModalContainer() {
-            if (!modalContainer) {
-                modalContainer = document.createElement('div');
-                modalContainer.id = 'global-modal-container';
-                document.body.appendChild(modalContainer);
-            }
-        }
-
-        function showModalSuccess(message, title = '¡Éxito!') {
-            initModalContainer();
-            modalContainer.innerHTML = `
-                <div class="modal-overlay active" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:10000;" onclick="if(event.target===this)closeGlobalModal()">
-                    <div style="background:white; border-radius:24px; padding:32px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-                        <div style="width:80px; height:80px; background:linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:40px; color:white; box-shadow:0 8px 25px rgba(16,185,129,0.4);">✓</div>
-                        <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">${title}</h2>
-                        <div style="color:#666; margin-bottom:28px; font-size:15px; line-height:1.5;">${message}</div>
-                        <button onclick="closeGlobalModal()" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; padding:16px 32px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; width:100%; box-shadow:0 4px 15px rgba(16,185,129,0.4);">Aceptar</button>
+                            <div class="bc-contact">${n.email || 'Sin email'} • ${n.telefono || 'Sin teléfono'}</div>
+                        </div>
+                        <div class="bc-status-badge">
+                            <div style="margin-bottom: 4px;">${getPlanBadge(n.licencia_plan, n.licencia_fecha_expiracion)}</div>
+                            <div style="font-size: 12px;">${getDiasText(n.licencia_plan, n.licencia_fecha_inicio, n.licencia_fecha_expiracion)}</div>
+                        </div>
                     </div>
-                </div>
-            `;
-        }
-
-        function showModalError(message, title = 'Error') {
-            initModalContainer();
-            modalContainer.innerHTML = `
-                <div class="modal-overlay active" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:10000;" onclick="if(event.target===this)closeGlobalModal()">
-                    <div style="background:white; border-radius:24px; padding:32px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-                        <div style="width:80px; height:80px; background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:40px; color:white; box-shadow:0 8px 25px rgba(239,68,68,0.4);">✕</div>
-                        <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">${title}</h2>
-                        <p style="color:#666; margin-bottom:28px; font-size:15px; line-height:1.5;">${message}</p>
-                        <button onclick="closeGlobalModal()" style="background:linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color:white; padding:16px 32px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; width:100%; box-shadow:0 4px 15px rgba(239,68,68,0.4);">Aceptar</button>
+                    
+                    <div class="bc-metrics">
+                        <div class="bc-metric">
+                            <div class="bc-metric-value">${n.total_usuarios || 0}</div>
+                            <div class="bc-metric-label">Usuarios</div>
+                        </div>
+                        <div class="bc-metric">
+                            <div class="bc-metric-value">${n.total_clientes || 0}</div>
+                            <div class="bc-metric-label">Clientes</div>
+                        </div>
+                        <div class="bc-metric">
+                            <div class="bc-metric-value" style="color:var(--success);">$${n.total_ventas ? parseFloat(n.total_ventas).toFixed(2) : '0.00'}</div>
+                            <div class="bc-metric-label">Ventas Totales</div>
+                        </div>
+                        <div class="bc-metric">
+                            <div class="bc-metric-value">${n.ventas_hoy || 0}</div>
+                            <div class="bc-metric-label">Ventas Hoy</div>
+                        </div>
                     </div>
-                </div>
-            `;
-        }
-
-        function showModalConfirm(message, onConfirm, onCancel, title = '¿Estás seguro?') {
-            initModalContainer();
-            modalContainer.innerHTML = `
-                <div class="modal-overlay active" style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:10000;">
-                    <div style="background:white; border-radius:24px; padding:32px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
-                        <div style="width:80px; height:80px; background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:40px; color:white; box-shadow:0 8px 25px rgba(245,158,11,0.4);">⚠️</div>
-                        <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">${title}</h2>
-                        <p style="color:#666; margin-bottom:28px; font-size:15px; line-height:1.5;">${message}</p>
-                        <div style="display:flex; gap:12px;">
-                            <button id="modalCancelBtn" style="flex:1; background:#f3f4f6; color:#666; padding:16px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; transition:all 0.2s;">Cancelar</button>
-                            <button id="modalConfirmBtn" style="flex:1; background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:white; padding:16px; border-radius:14px; border:none; font-weight:600; font-size:15px; cursor:pointer; font-family:inherit; box-shadow:0 4px 15px rgba(245,158,11,0.4); transition:all 0.2s;">Confirmar</button>
+                    
+                    <div class="bc-footer">
+                        <div class="bc-meta">
+                            Estado: <strong style="color: ${n.estado==='activo'?'var(--success)':'var(--danger)'}; text-transform:capitalize;">${n.estado}</strong> • 
+                            Última act: ${n.ultima_actividad ? new Date(n.ultima_actividad).toLocaleDateString() : 'N/A'}
+                        </div>
+                        <div class="bc-actions">
+                            <button class="btn btn-secondary" onclick="verDetalle(${n.id})">Ver Info</button>
+                            <button class="btn btn-primary" onclick="abrirRenovarModal(${n.id}, '${n.nombre}')">Renovar</button>
+                            ${n.estado === 'activo' 
+                                ? `<button class="btn btn-warning" onclick="cambiarEstadoNegocio(${n.id}, 'suspendido')">Suspender</button>`
+                                : `<button class="btn btn-success" style="background:var(--success); color:white;" onclick="cambiarEstadoNegocio(${n.id}, 'activo')">Activar</button>`
+                            }
+                            <button class="btn btn-secondary" onclick="resetPassAdmin(${n.id})">🔑 Reset Pass</button>
+                            <button class="btn btn-secondary" style="background:#fef3c7; color:#b45309; border:1px solid #fde68a;" onclick="setTrialDays(${n.id}, '${n.nombre}')">📅 Set Trial</button>
+                            <button class="btn btn-danger" onclick="eliminarNegocioFisico(${n.id})">Eliminar</button>
                         </div>
                     </div>
                 </div>
-            `;
-            document.getElementById('modalConfirmBtn').addEventListener('click', () => {
-                closeGlobalModal();
-                if (onConfirm) onConfirm();
-            });
-            document.getElementById('modalCancelBtn').addEventListener('click', () => {
-                closeGlobalModal();
-                if (onCancel) onCancel();
+            `).join('');
+        }
+
+        // ================= TAB 2: LICENCIAS Y CLAVES =================
+        async function loadKeysData() {
+            try {
+                const res = await fetch('/api/license/keys', { 
+                    headers: {  },
+                    credentials: 'same-origin'
+                });
+                const data = await res.json();
+                keysData = Array.isArray(data) ? data : (data.keys || []);
+                
+                const monthly = keysData.filter(k => k.plan === 'monthly').length;
+                const semiannual = keysData.filter(k => k.plan === 'semiannual').length;
+                const annual = keysData.filter(k => k.plan === 'annual').length;
+                
+                document.getElementById('k-monthly').textContent = monthly;
+                document.getElementById('k-semiannual').textContent = semiannual;
+                document.getElementById('k-annual').textContent = annual;
+
+                filtrarTablaClaves('all');
+            } catch (error) {
+                console.error("Error keys:", error);
+            }
+        }
+
+        async function generarClaves() {
+            const plan = document.getElementById('gen-plan').value;
+            const count = parseInt(document.getElementById('gen-qty').value) || 1;
+            
+            try {
+                const res = await fetch('/api/license/keys/generate', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json',  },
+                    body: JSON.stringify({ plan, count , credentials: 'same-origin' }),
+                    credentials: 'same-origin'
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(`✅ ${count} clave(s) generada(s) con éxito.`, 'success');
+                    loadKeysData();
+                } else {
+                    showToast(data.error || 'Error al generar', 'error');
+                }
+            } catch (error) {
+                showToast('Error de conexión', 'error');
+            }
+        }
+
+        function filtrarTablaClaves(filtro) {
+            const tbody = document.getElementById('claves-tbody');
+            let filtradas = keysData;
+            if(filtro !== 'all') filtradas = keysData.filter(k => k.plan === filtro);
+
+            if(filtradas.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:30px; color:var(--text-muted);">No hay claves para este filtro. Genera nuevas arriba.</td></tr>';
+                return;
+            }
+
+            const planNames = { monthly: 'Mensual', semiannual: '6 Meses', annual: 'Anual' };
+            
+            tbody.innerHTML = filtradas.map(k => `
+                <tr>
+                    <td><span class="badge badge-${k.plan}">${planNames[k.plan] || k.plan}</span></td>
+                    <td style="font-family: monospace; font-size: 15px; font-weight: 600; color: var(--primary); letter-spacing: 1px;">${k.key}</td>
+                    <td>${k.planDays} días</td>
+                    <td style="color: var(--text-muted);">${new Date(k.created).toLocaleDateString()}</td>
+                    <td style="text-align: right;">
+                        <button class="btn btn-secondary" style="padding: 4px 10px; font-size: 12px; margin-right: 4px;" onclick="copiarAlPortapapeles('${k.key}')">Copiar</button>
+                        <button class="btn btn-danger" style="padding: 4px 10px; font-size: 12px;" onclick="eliminarClave('${k.key}')">X</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        function copiarAlPortapapeles(texto) {
+            navigator.clipboard.writeText(texto);
+            showToast('Clave copiada al portapapeles', 'success');
+        }
+
+        async function eliminarClave(key) {
+            if(!await showConfirm('Eliminar clave', '¿Eliminar esta clave definitivamente?')) return;
+            try {
+                await fetch(`/api/license/keys/${key}`, { method: 'DELETE', credentials: 'same-origin' });
+                loadKeysData();
+            } catch(e) { showToast('Error eliminando clave', 'error'); }
+        }
+
+        // ================= TAB 3: CRECIMIENTO =================
+        async function loadGrowthData() {
+            try {
+                const res = await fetch('/api/license/businesses/stats/growth', { credentials: 'same-origin' });
+                const data = await res.json();
+                
+                if (data.resumen) {
+                    document.getElementById('g-total').textContent = data.resumen.total || 0;
+                    document.getElementById('g-activos').textContent = data.resumen.activos || 0;
+                    document.getElementById('g-prueba').textContent = data.resumen.en_trial || 0;
+                }
+
+                if (data.mensual && data.mensual.length > 0) {
+                    renderChart(data.mensual);
+                }
+            } catch (error) {
+                console.error("Error growth:", error);
+            }
+        }
+
+        function renderChart(datos) {
+            const ctx = document.getElementById('growthChart').getContext('2d');
+            if (chartInstance) chartInstance.destroy();
+
+            const labels = datos.map(d => d.mes);
+            const valores = datos.map(d => d.cantidad);
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'Nuevos Negocios',
+                        data: valores,
+                        borderColor: '#4f46e5',
+                        backgroundColor: 'rgba(79, 70, 229, 0.1)',
+                        borderWidth: 3,
+                        pointBackgroundColor: '#ffffff',
+                        pointBorderColor: '#4f46e5',
+                        pointBorderWidth: 2,
+                        pointRadius: 5,
+                        fill: true,
+                        tension: 0.4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: { legend: { display: false } },
+                    scales: {
+                        y: { beginAtZero: true, grid: { borderDash: [4, 4], color: '#e2e8f0' } },
+                        x: { grid: { display: false } }
+                    }
+                }
             });
         }
 
-        function closeGlobalModal() {
-            if (modalContainer) {
-                modalContainer.innerHTML = '';
+        // ================= ACCIONES DE NEGOCIO =================
+        async function cambiarEstadoNegocio(id, estado) {
+            const esActivo = estado === 'activo';
+            if(!await showConfirm('Cambiar estado', `¿Seguro que deseas ${esActivo ? 'ACTIVAR' : 'SUSPENDER'} este negocio?`)) return;
+            
+            try {
+                const res = await fetch(`/api/license/businesses/${id}/suspend`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json',  },
+                    body: JSON.stringify({ suspendido: !esActivo })
+                });
+                if(res.ok) {
+                    showToast('Estado actualizado', 'success');
+                    loadNegocios();
+                    loadGlobalStats();
+                }
+            } catch(e) { showToast('Error al cambiar estado', 'error'); }
+        }
+
+        async function eliminarNegocioFisico(id) {
+            if(!await showConfirm('Eliminar negocio', 'El negocio será desactivado y marcado como eliminado. Los datos se conservarán. ¿Continuar?')) return;
+
+            try {
+                const res = await fetch(`/api/superadmin/negocios/${id}`, {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                if(res.ok) {
+                    showToast('Negocio eliminado correctamente', 'success');
+                    loadNegocios();
+                    loadGlobalStats();
+                }
+            } catch(e) { showToast('Error al eliminar', 'error'); }
+        }
+
+        async function setTrialDays(id, nombre) {
+            const dias = await showPrompt(`Días restantes de trial para "${nombre}":`, '1');
+            if (dias === null || dias === '') return;
+            
+            const diasNum = parseInt(dias);
+            if (isNaN(diasNum) || diasNum < 0 || diasNum > 365) {
+                showToast('Ingrese un número válido (0-365)', 'error');
+                return;
+            }
+            
+            try {
+                const res = await fetch(`/api/superadmin/negocios/${id}/trial-days`, {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ dias_restantes: diasNum })
+                });
+                const data = await res.json();
+                if (data.success) {
+                    showToast(data.message, 'success');
+                    loadNegocios();
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch(e) { showToast('Error al setear trial', 'error'); }
+        }
+
+        async function resetPassAdmin(id) {
+            if(!await showConfirm('Resetear contraseña', '¿Generar nueva contraseña para el administrador de este negocio?')) return;
+            try {
+                const res = await fetch(`/api/superadmin/negocios/${id}/reset-password`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                const data = await res.json();
+                if (data.success) {
+                    await showPrompt('Copia la contraseña:', data.usuario.contrasenaTemporal);
+                } else {
+                    showToast(data.error, 'error');
+                }
+            } catch(e) { showToast('Error al resetear', 'error'); }
+        }
+
+        async function abrirRenovarModal(id, nombre) {
+            const clave = await showPrompt('Ingrese la clave de licencia (ej: XXXX-XXXX-XXXX):', `Clave para ${nombre}`);
+            if(!clave) return;
+
+            fetch(`/api/license/businesses/${id}/renew`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json',  },
+                body: JSON.stringify({ key: clave }) // Ojo: La ruta actual en license.js pide plan y dias, no key directo en la ruta genérica. Ajustaremos si falla.
+            })
+            .then(res => res.json())
+            .then(data => {
+                if(data.success) {
+                    showToast('Licencia aplicada correctamente', 'success');
+                    loadNegocios();
+                } else {
+                    showToast(data.error || 'Clave inválida o error en el proceso', 'error');
+                }
+            }).catch(e => showToast('Error de conexión', 'error'));
+        }
+
+        // ================= VER DETALLE NEGOCIO =================
+        async function verDetalle(id) {
+            try {
+                const res = await fetch(`/api/license/businesses/${id}`, { credentials: 'same-origin' });
+                if (!res.ok) {
+                    showToast('Error al obtener datos del negocio', 'error');
+                    return;
+                }
+                const data = await res.json();
+                showNegocioDetalleModal(data);
+            } catch (e) {
+                showToast('Error de conexión', 'error');
             }
         }
+
+        function showNegocioDetalleModal(n) {
+            // Remover modal existente
+            const existingOv = document.getElementById('sa-detail-overlay');
+            if (existingOv) existingOv.remove();
+
+            // Overlay con modal hijo adentro
+            const overlay = document.createElement('div');
+            overlay.id = 'sa-detail-overlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(15,23,42,0.6);z-index:2147483647;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px);';
+
+            // Modal (hijo del overlay)
+            const modal = document.createElement('div');
+            modal.style.cssText = 'background:#fff;border-radius:24px;width:min(92vw,600px);max-height:85vh;overflow:hidden;box-shadow:0 20px 40px rgba(0,0,0,0.2);animation:saModalIn 0.25s ease-out;position:relative;z-index:1;';
+
+            // Cerrar al hacer click en overlay
+            overlay.addEventListener('click', (e) => { if(e.target === overlay) overlay.remove(); });
+
+            const animStyle = document.createElement('style');
+            animStyle.textContent = '@keyframes saModalIn{from{opacity:0;transform:scale(0.92) translateY(20px);}to{opacity:1;transform:scale(1) translateY(0);}}';
+            document.head.appendChild(animStyle);
+
+            // Header
+            const header = document.createElement('div');
+            header.style.cssText = 'background:linear-gradient(135deg,#4f46e5,#7c3aed);padding:24px;color:#fff;position:relative;';
+            header.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div>
+                        <h2 style="margin:0;font-size:20px;font-weight:700;">${n.nombre || 'Sin Nombre'}</h2>
+                        <p style="margin:6px 0 0;font-size:13px;opacity:0.85;">ID: ${n.id} • ${n.email || 'Sin email'}</p>
+                    </div>
+                    <button id="sa-detail-close" style="border:none;background:rgba(255,255,255,0.2);color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;transition:background 0.2s;">✕</button>
+                </div>
+                <div style="display:flex;gap:12px;margin-top:16px;">
+                    <span style="padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600;background:${n.estado === 'activo' ? 'rgba(16,185,129,0.2);color:#6ee7b7' : 'rgba(239,68,68,0.2);color:#fca5a5'};">${n.estado?.toUpperCase() || 'N/A'}</span>
+                    <span style="padding:4px 12px;border-radius:999px;font-size:12px;font-weight:600;background:rgba(255,255,255,0.2);color:#fff;">${(n.licencia_plan || 'trial').toUpperCase()}</span>
+                </div>
+            `;
+            modal.appendChild(header);
+
+            // Body
+            const body = document.createElement('div');
+            body.style.cssText = 'padding:24px;max-height:55vh;overflow-y:auto;';
+
+            // Sección: Información General
+            const sections = [
+                {
+                    title: 'Información General',
+                    icon: '📋',
+                    rows: [
+                        ['Teléfono', n.telefono || '-'],
+                        ['Dirección', n.direccion || '-'],
+                        ['Moneda', n.moneda || 'RD$'],
+                        ['Fecha Registro', n.fecha_registro ? new Date(n.fecha_registro).toLocaleDateString() : '-'],
+                        ['Zona Horaria', `UTC${n.zona_horaria >= 0 ? '+' : ''}${n.zona_horaria || -4}`]
+                    ]
+                },
+                {
+                    title: 'Licencia',
+                    icon: '🔑',
+                    rows: [
+                        ['Plan', (n.licencia_plan || 'trial').toUpperCase()],
+                        ['Inicio', n.licencia_fecha_inicio ? new Date(n.licencia_fecha_inicio).toLocaleDateString() : '-'],
+                        ['Expiración', n.licencia_fecha_expiracion ? new Date(n.licencia_fecha_expiracion).toLocaleDateString() : 'Sin fecha'],
+                        ['Hardware ID', n.licencia_hardware_id || '-']
+                    ]
+                },
+                {
+                    title: 'Configuración',
+                    icon: '⚙️',
+                    rows: [
+                        ['Horario', `${n.hora_apertura || '09:00'} - ${n.hora_cierre || '18:00'}`],
+                        ['Duración mín. cita', `${n.duracion_minima_cita || 30} min`],
+                        ['Efectivo', n.metodo_efectivo ? 'Sí' : 'No'],
+                        ['Transferencia', n.metodo_transferencia ? 'Sí' : 'No'],
+                        ['Tarjeta', n.metodo_tarjeta ? 'Sí' : 'No'],
+                        ['Booking activo', n.booking_activo ? 'Sí' : 'No'],
+                        ['Slug', n.slug || '-']
+                    ]
+                }
+            ];
+
+            sections.forEach(sec => {
+                const secDiv = document.createElement('div');
+                secDiv.style.marginBottom = '20px';
+                secDiv.innerHTML = `<h4 style="font-size:14px;font-weight:700;color:#4f46e5;margin-bottom:12px;display:flex;align-items:center;gap:8px;">${sec.icon} ${sec.title}</h4>`;
+                
+                sec.rows.forEach(([label, value]) => {
+                    const row = document.createElement('div');
+                    row.style.cssText = 'display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;';
+                    row.innerHTML = `<span style="color:#64748b;font-size:13px;">${label}</span><span style="color:#0f172a;font-size:13px;font-weight:600;">${value}</span>`;
+                    secDiv.appendChild(row);
+                });
+                body.appendChild(secDiv);
+            });
+
+            // Sección: Usuarios
+            if (n.usuarios && n.usuarios.length > 0) {
+                const usersDiv = document.createElement('div');
+                usersDiv.style.marginBottom = '20px';
+                usersDiv.innerHTML = `<h4 style="font-size:14px;font-weight:700;color:#4f46e5;margin-bottom:12px;display:flex;align-items:center;gap:8px;">👥 Usuarios (${n.usuarios.length})</h4>`;
+                
+                n.usuarios.forEach(u => {
+                    const uRow = document.createElement('div');
+                    uRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px;';
+                    uRow.innerHTML = `
+                        <div>
+                            <div style="font-size:13px;font-weight:600;color:#0f172a;">${u.nombre || 'Sin nombre'}</div>
+                            <div style="font-size:12px;color:#64748b;">${u.email || '-'}</div>
+                        </div>
+                        <div style="display:flex;gap:6px;">
+                            <span style="padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${u.rol === 'admin' ? '#e0e7ff;color:#4338ca' : '#f1f5f9;color:#64748b'};">${u.rol || 'user'}</span>
+                            <span style="padding:2px 8px;border-radius:999px;font-size:11px;font-weight:600;background:${u.estado === 'activo' ? '#d1fae5;color:#059669' : '#fee2e2;color:#dc2626'};">${u.estado || 'N/A'}</span>
+                        </div>
+                    `;
+                    usersDiv.appendChild(uRow);
+                });
+                body.appendChild(usersDiv);
+            }
+
+            // Sección: Ventas Recientes
+            if (n.ventasRecientes && n.ventasRecientes.length > 0) {
+                const ventasDiv = document.createElement('div');
+                ventasDiv.style.marginBottom = '20px';
+                ventasDiv.innerHTML = `<h4 style="font-size:14px;font-weight:700;color:#4f46e5;margin-bottom:12px;display:flex;align-items:center;gap:8px;">💰 Ventas Recientes (${n.ventasRecientes.length})</h4>`;
+                
+                n.ventasRecientes.forEach(v => {
+                    const vRow = document.createElement('div');
+                    vRow.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#f8fafc;border-radius:8px;margin-bottom:6px;';
+                    vRow.innerHTML = `
+                        <div>
+                            <div style="font-size:13px;font-weight:600;color:#0f172a;">$${parseFloat(v.total || 0).toFixed(2)}</div>
+                            <div style="font-size:12px;color:#64748b;">${v.cliente || 'Sin cliente'} • ${v.metodo_pago || '-'}</div>
+                        </div>
+                        <div style="font-size:12px;color:#64748b;">${v.fecha ? new Date(v.fecha).toLocaleDateString() : '-'}</div>
+                    `;
+                    ventasDiv.appendChild(vRow);
+                });
+                body.appendChild(ventasDiv);
+            }
+
+            modal.appendChild(body);
+
+            // Footer
+            const footer = document.createElement('div');
+            footer.style.cssText = 'padding:16px 24px;border-top:1px solid #e2e8f0;display:flex;justify-content:flex-end;';
+            const closeBtn = document.createElement('button');
+            closeBtn.textContent = 'Cerrar';
+            closeBtn.style.cssText = 'padding:10px 28px;border:none;border-radius:50px;background:#4f46e5;color:#fff;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s;';
+            closeBtn.onmouseover = () => closeBtn.style.background = '#4338ca';
+            closeBtn.onmouseout = () => closeBtn.style.background = '#4f46e5';
+            closeBtn.addEventListener('click', () => { overlay.remove(); });
+            footer.appendChild(closeBtn);
+            modal.appendChild(footer);
+
+            // Modal va DENTRO del overlay
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            document.getElementById('sa-detail-close').addEventListener('click', () => { overlay.remove(); });
+        }
+
     </script>
-</body>
-</html>
+  <script src="/js/common.js"></script>
+  </body>
+  </html>

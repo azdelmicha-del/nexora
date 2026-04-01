@@ -287,34 +287,7 @@
 </head>
 <body>
     <div class="layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2>Nexora</h2>
-                <p>Panel de gestión</p>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <a href="/dashboard" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                    Dashboard
-                </a>
-                <a href="/configuracion" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    Configuración
-                </a>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar" id="userAvatar">U</div>
-                    <div class="user-details">
-                        <h4 id="userName">Usuario</h4>
-                        <span>Propietario</span>
-                    </div>
-                </div>
-                <button onclick="logout()" class="btn btn-secondary btn-sm mt-2" style="width: 100%;">Cerrar Sesión</button>
-            </div>
-        </aside>
+        <!-- Sidebar dinámico -->
         
         <main class="main-content">
             <div class="licencia-header">
@@ -555,37 +528,33 @@
         
         async function checkAccess() {
             try {
-                const session = await checkSession();
-                console.log('Session:', session);
+                // Verificar si es superadmin
+                const saRes = await fetch('/api/superadmin/session');
+                const saData = await saRes.json();
+                if (saData.authenticated) return true;
                 
-                if (!session || !session.authenticated) {
-                    window.location.href = '/';
-                    return false;
-                }
+                // Verificar si es propietario por email
+                const sessionRes = await fetch('/api/auth/session');
+                const sessionData = await sessionRes.json();
+                const userEmail = sessionData.user?.email;
                 
-                const userEmail = session.user?.email;
                 console.log('User email:', userEmail);
                 console.log('Owner email:', OWNER_EMAIL);
-                console.log('Match:', userEmail === OWNER_EMAIL);
                 
-                if (userEmail !== OWNER_EMAIL) {
-                    document.body.innerHTML = `
-                        <div style="display: flex; justify-content: center; align-items: center; height: 100vh; text-align: center;">
-                            <div>
-                                <h2 style="color: #ef4444;">Acceso Denegado</h2>
-                                <p>Solo el propietario puede acceder a esta página.</p>
-                                <p><small>Tu email: ${userEmail || 'no disponible'}</small></p>
-                                <a href="/dashboard" style="color: var(--primary);">Volver al Dashboard</a>
-                            </div>
+                if (userEmail === OWNER_EMAIL) return true;
+                
+                // No tiene acceso
+                document.body.innerHTML = `
+                    <div style="display: flex; justify-content: center; align-items: center; height: 100vh; text-align: center;">
+                        <div>
+                            <h2 style="color: #ef4444;">Acceso Denegado</h2>
+                            <p>Solo el propietario puede acceder a esta página.</p>
+                            <p><small>Tu email: ${userEmail || 'no disponible'}</small></p>
+                            <a href="/dashboard" style="color: var(--primary);">Volver al Dashboard</a>
                         </div>
-                    `;
-                    return false;
-                }
-                
-                document.getElementById('userName').textContent = session.user.nombre;
-                document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
-                
-                return true;
+                    </div>
+                `;
+                return false;
             } catch (error) {
                 console.error('Error en checkAccess:', error);
                 document.body.innerHTML = `
@@ -607,11 +576,6 @@
             
             loadKeys();
         });
-        
-        async function logout() {
-            await apiCall('/auth/logout', { method: 'POST' });
-            window.location.href = '/';
-        }
         
         async function loadKeys() {
             try {
@@ -1221,5 +1185,7 @@
             `;
         }
     </script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/license-banner.js"></script>
 </body>
 </html>

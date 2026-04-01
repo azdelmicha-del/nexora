@@ -323,11 +323,20 @@
             
             <!-- Toolbar -->
             <div class="toolbar">
-                <div class="filtros-fecha">
+                <div class="filtros-fecha" style="display:flex; align-items:center; gap:0.75rem; flex-wrap:wrap;">
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <label style="font-size:0.8rem; color:var(--gray-500); font-weight:500;">Desde</label>
+                        <input type="date" id="fechaDesde" style="padding:0.5rem 0.75rem; border:1px solid var(--gray-200); border-radius:8px; font-size:0.8rem; font-family:inherit; color:var(--gray-700);">
+                    </div>
+                    <div style="display:flex; align-items:center; gap:0.5rem;">
+                        <label style="font-size:0.8rem; color:var(--gray-500); font-weight:500;">Hasta</label>
+                        <input type="date" id="fechaHasta" style="padding:0.5rem 0.75rem; border:1px solid var(--gray-200); border-radius:8px; font-size:0.8rem; font-family:inherit; color:var(--gray-700);">
+                    </div>
+                    <button onclick="cargarDatos()" style="padding:0.5rem 1rem; background:var(--primary); color:white; border:none; border-radius:8px; font-size:0.8rem; font-weight:600; cursor:pointer; font-family:inherit;">Filtrar</button>
+                    <span style="color:var(--gray-300);">|</span>
                     <button class="btn-filtro" onclick="setFiltro('hoy', this)">Hoy</button>
                     <button class="btn-filtro activo" onclick="setFiltro('mes', this)">Este mes</button>
                     <button class="btn-filtro" onclick="setFiltro('mesAnterior', this)">Mes anterior</button>
-                    <span class="periodo-label" id="periodoLabel"></span>
                 </div>
             </div>
             
@@ -347,12 +356,12 @@
                 </div>
                 <div class="resumen-card costos">
                     <div class="icono">📦</div>
-                    <div class="titulo">Costo de Ventas</div>
+                    <div class="titulo">Costo de Ventas y otros</div>
                     <div class="monto" id="totalCostos">RD$0.00</div>
                 </div>
                 <div class="resumen-card" style="--accent:#8b5cf6;">
                     <div class="icono" style="background:#ede9fe;">🏢</div>
-                    <div class="titulo">Gastos Operativos</div>
+                    <div class="titulo">Gastos Fijos</div>
                     <div class="monto" id="totalGastosOp" style="color:#8b5cf6;">RD$0.00</div>
                 </div>
                 <div class="resumen-card gastos">
@@ -371,36 +380,24 @@
                         <span class="badge" id="badgeVentas">0</span>
                     </div>
                     <div class="seccion-body" id="listaVentas"></div>
-                    <div class="seccion-footer">
-                        <span class="label">Total Ventas</span>
-                        <span class="total" id="footerVentas">RD$0.00</span>
-                    </div>
                 </div>
                 
                 <!-- COSTOS -->
                 <div class="seccion costos">
                     <div class="seccion-header">
-                        <span class="titulo">📦 Costo de Ventas</span>
+                        <span class="titulo">📦 Costo de Ventas y otros</span>
                         <span class="badge" id="badgeCostos">0</span>
                     </div>
                     <div class="seccion-body" id="listaCostos"></div>
-                    <div class="seccion-footer">
-                        <span class="label">Total Costos</span>
-                        <span class="total" id="footerCostos">RD$0.00</span>
-                    </div>
                 </div>
                 
                 <!-- GASTOS OPERATIVOS -->
                 <div class="seccion" style="border-top: 4px solid #8b5cf6;">
                     <div class="seccion-header">
-                        <span class="titulo">🏢 Gastos Operativos</span>
+                        <span class="titulo">🏢 Gastos Fijos</span>
                         <span class="badge" style="background:#ede9fe; color:#5b21b6;" id="badgeGastosOp">0</span>
                     </div>
                     <div class="seccion-body" id="listaGastosOp"></div>
-                    <div class="seccion-footer">
-                        <span class="label">Total Gastos Op.</span>
-                        <span class="total" style="color:#8b5cf6;" id="footerGastosOp">RD$0.00</span>
-                    </div>
                 </div>
                 
                 <!-- GASTOS -->
@@ -410,10 +407,6 @@
                         <span class="badge" id="badgeGastos">0</span>
                     </div>
                     <div class="seccion-body" id="listaGastos"></div>
-                    <div class="seccion-footer">
-                        <span class="label">Total Gastos</span>
-                        <span class="total" id="footerGastos">RD$0.00</span>
-                    </div>
                 </div>
             </div>
             
@@ -461,23 +454,24 @@
                 hasta = new Date(hoy.getFullYear(), hoy.getMonth(), 0);
             }
             
-            document.getElementById('periodoLabel').textContent = 
-                `${formatDateShort(desde)} — ${formatDateShort(hasta)}`;
+            document.getElementById('fechaDesde').value = formatDateISO(desde);
+            document.getElementById('fechaHasta').value = formatDateISO(hasta);
             
-            cargarDatos(desde, hasta);
+            cargarDatos();
         }
         
         function formatDateISO(date) {
             return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`;
         }
         
-        function formatDateShort(date) {
-            return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
-        }
-        
-        async function cargarDatos(desde, hasta) {
+        async function cargarDatos() {
+            const desde = document.getElementById('fechaDesde').value;
+            const hasta = document.getElementById('fechaHasta').value;
+            
+            if (!desde || !hasta) return;
+            
             try {
-                const data = await apiCall(`/estado-resultado?desde=${formatDateISO(desde)}&hasta=${formatDateISO(hasta)}`);
+                const data = await apiCall(`/estado-resultado?desde=${desde}&hasta=${hasta}`);
                 renderTodo(data);
             } catch (error) {
                 console.error('Error:', error);
@@ -524,12 +518,6 @@
             renderLista('listaGastosOp', gastosOp);
             renderLista('listaGastos', gastos);
             
-            // Footers
-            document.getElementById('footerVentas').textContent = formatCurrency(totalVentas);
-            document.getElementById('footerCostos').textContent = formatCurrency(totalCostos);
-            document.getElementById('footerGastosOp').textContent = formatCurrency(totalGastosOp);
-            document.getElementById('footerGastos').textContent = formatCurrency(totalGastos);
-            
             // Fórmula
             document.getElementById('formulaVentas').textContent = formatCurrency(totalVentas);
             document.getElementById('formulaCostos').textContent = formatCurrency(totalCostos);
@@ -559,20 +547,31 @@
                 ventas: 'Ventas Manuales',
                 venta_pos: 'Ventas Facturadas (POS)',
                 costo_ventas: 'Costo de Ventas',
-                gastos_operativos: 'Gastos Operativos',
+                gastos_operativos: 'Gastos Fijos',
                 otros_ingresos: 'Otros Ingresos',
                 otros_gastos: 'Otros Costos/Gastos'
+            };
+            
+            const catColors = {
+                ventas: '#10b981',
+                venta_pos: '#10b981',
+                costo_ventas: '#3b82f6',
+                gastos_operativos: '#8b5cf6',
+                otros_ingresos: '#14b8a6',
+                otros_gastos: '#f59e0b'
             };
             
             let html = '';
             Object.keys(grupos).forEach(cat => {
                 const itemsGrupo = grupos[cat];
                 const totalGrupo = itemsGrupo.reduce((s, i) => s + i.monto, 0);
+                const color = catColors[cat] || '#6b7280';
                 
-                html += `<div style="padding:0.4rem 1.25rem; background:var(--gray-50); font-size:0.7rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; letter-spacing:0.5px; display:flex; justify-content:space-between;">
-                    <span>${catLabels[cat] || cat}</span>
-                    <span>${formatCurrency(totalGrupo)}</span>
-                </div>`;
+                html += `<div style="border-left:3px solid ${color}; margin:0.4rem 0.75rem; border-radius:0 6px 6px 0; overflow:hidden;">
+                    <div style="padding:0.4rem 0.75rem; background:${color}15; font-size:0.7rem; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:0.5px; display:flex; justify-content:space-between;">
+                        <span>${catLabels[cat] || cat}</span>
+                        <span>${formatCurrency(totalGrupo)}</span>
+                    </div>`;
                 
                 itemsGrupo.forEach(item => {
                     html += `<div class="item-linea">
@@ -581,6 +580,8 @@
                         <span class="monto">${formatCurrency(item.monto)}</span>
                     </div>`;
                 });
+                
+                html += '</div>';
             });
             
             container.innerHTML = html;
@@ -592,9 +593,14 @@
         
         function formatDate(dateStr) {
             if (!dateStr) return '';
-            const [year, month, day] = dateStr.split('-').map(Number);
-            const date = new Date(year, month - 1, day);
-            return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
+            try {
+                const parts = dateStr.replace('T', ' ').split(/[- :]/);
+                const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                if (isNaN(date.getTime())) return '';
+                return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
+            } catch (e) {
+                return '';
+            }
         }
         
         function escapeHtml(text) {
@@ -603,5 +609,6 @@
             return div.innerHTML;
         }
     </script>
+    <script src="/js/license-banner.js"></script>
 </body>
 </html>

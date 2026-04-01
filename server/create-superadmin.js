@@ -8,7 +8,7 @@ const db = new Database(dbPath);
 // Configuración del super administrador
 const SUPER_ADMIN_CONFIG = {
     email: 'azdelmicha@gmail.com',
-    password: 'SuperAdmin2026!',  // Cambiar esta contraseña
+    password: 'Admin20261',  // Cambiar esta contraseña
     nombre: 'Arsedo Zabala - Super Admin'
 };
 

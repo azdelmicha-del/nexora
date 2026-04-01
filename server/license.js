@@ -90,13 +90,13 @@ function saveLicense(license) {
 }
 
 function getDaysRemaining(negocioId = null) {
-    if (isLocalInstallation()) {
-        return getDaysRemainingLocal();
-    }
-    
     if (negocioId) {
         const { getDiasLicenciaNegocio } = require('./database');
         return getDiasLicenciaNegocio(negocioId);
+    }
+    
+    if (isLocalInstallation()) {
+        return getDaysRemainingLocal();
     }
     
     return { valid: true, type: 'trial', daysRemaining: 7 };

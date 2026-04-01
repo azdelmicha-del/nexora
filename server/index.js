@@ -1,10 +1,12 @@
 const express = require('express');
 const session = require('express-session');
+const SQLiteStore = require('connect-sqlite3')(session);
 const path = require('path');
 const { initDatabase } = require('./database');
 const { sanitizeInput } = require('./middleware/sanitize');
 const { initLicense, isLicenseValid } = require('./license');
 const { requireAuth, requireAdmin } = require('./middleware/auth');
+const config = require('./config');
 
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
@@ -22,14 +24,15 @@ const testDbRoutes = require('./routes/test-db');
 const superAdminRoutes = require('./routes/superadmin');
 const debugRoutes = require('./routes/debug');
 const estadoResultadoRoutes = require('./routes/estado-resultado');
+const detailsRoutes = require('./routes/details');
 
 const crypto = require('crypto');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = config.PORT;
 
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
-if (!process.env.SESSION_SECRET) {
+const SESSION_SECRET = config.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
+if (!config.SESSION_SECRET) {
     console.log('⚠️  SESSION_SECRET no configurado. Se generó uno aleatorio.');
 } else {
     console.log('✅ SESSION_SECRET configurado correctamente.');
@@ -47,13 +50,9 @@ autoBackup();
 const { initFullDatabase } = require('./init-full-db');
 initFullDatabase();
 
-// Inicializar datos de producción (crea negocio y usuario admin si no existen)
-const { initProductionData } = require('./init-production');
-initProductionData();
+// init-production eliminado - se usa superadmin
 
-// Resetear contraseña del usuario principal si es necesario
-const { resetMainUserPassword } = require('./reset-password');
-resetMainUserPassword();
+// Reset-password eliminado - se usa superadmin
 
 // Crear super administrador si no existe
 const { createSuperAdmin } = require('./create-superadmin');
@@ -64,12 +63,16 @@ app.use(express.urlencoded({ extended: true }));
 app.use(sanitizeInput);
 
 app.use(session({
+    store: new SQLiteStore({
+        db: 'sessions.db',
+        dir: path.join(__dirname, 'db')
+    }),
     secret: SESSION_SECRET,
-    resave: true,
-    saveUninitialized: true,
+    resave: false,
+    saveUninitialized: false,
     cookie: {
         httpOnly: true,
-        secure: false, // Render maneja SSL en el proxy
+        secure: false,
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000
     }
@@ -90,6 +93,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/license', licenseRoutes);
 app.use('/api/public', publicRoutes);
 app.use('/api', testDbRoutes);
+app.use('/api', detailsRoutes);
 app.use('/api/superadmin', superAdminRoutes);
 app.use('/api/estado-resultado', estadoResultadoRoutes);
 app.use('/api', debugRoutes);
@@ -158,7 +162,12 @@ app.get('/actualizar', requireAuth, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'actualizar.html'));
 });
 
-app.get('/licencias', requireAuth, (req, res) => {
+app.get('/licencias', (req, res, next) => {
+    if (req.session.userId || req.session.superAdminId) {
+        return next();
+    }
+    res.redirect('/');
+}, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'licencias.html'));
 });
 

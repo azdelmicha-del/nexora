@@ -3,11 +3,16 @@ const { getDb } = require('../database');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
+const { LICENSE_MASTER_KEY } = require('../config');
 
 const router = express.Router();
 
-// Middleware para verificar super admin
+// Middleware para verificar super admin (acepta sesión O MASTER_KEY)
 function requireSuperAdmin(req, res, next) {
+    const masterKey = req.headers['x-master-key'];
+    if (masterKey === LICENSE_MASTER_KEY) {
+        return next();
+    }
     if (!req.session.superAdminId) {
         return res.status(401).json({ error: 'No autorizado' });
     }
@@ -51,7 +56,7 @@ router.post('/login', (req, res) => {
         // Seed: crear superadmin por defecto si no existe ninguno
         const superAdminCount = db.prepare('SELECT COUNT(*) as count FROM super_admins').get().count;
         if (superAdminCount === 0) {
-            const hashedPassword = bcrypt.hashSync('SuperAdmin2026!', 10);
+            const hashedPassword = bcrypt.hashSync('Admin20261', 10);
             db.prepare('INSERT INTO super_admins (email, password, nombre) VALUES (?, ?, ?)')
                 .run('azdelmicha@gmail.com', hashedPassword, 'Administrador');
         }
@@ -122,6 +127,35 @@ router.post('/login', (req, res) => {
         });
     } catch (error) {
         console.error('Error en login super admin:', error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});
+
+// Desbloquear cuenta con código de seguridad
+router.post('/unlock', (req, res) => {
+    try {
+        const { email, security_code } = req.body;
+        
+        if (!email || !security_code) {
+            return res.status(400).json({ error: 'Email y código de seguridad requeridos' });
+        }
+        
+        if (security_code !== '7916') {
+            return res.status(401).json({ error: 'Código de seguridad incorrecto' });
+        }
+        
+        const db = getDb();
+        const admin = db.prepare('SELECT id FROM super_admins WHERE email = ? AND estado = ?').get(email, 'activo');
+        
+        if (!admin) {
+            return res.status(404).json({ error: 'Administrador no encontrado' });
+        }
+        
+        db.prepare('UPDATE super_admins SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(admin.id);
+        
+        res.json({ success: true, message: 'Cuenta desbloqueada. Puede iniciar sesión ahora.' });
+    } catch (error) {
+        console.error('Error en unlock super admin:', error);
         res.status(500).json({ error: 'Error del servidor' });
     }
 });
@@ -268,6 +302,46 @@ router.put('/negocios/:id/licencia', requireSuperAdmin, (req, res) => {
     }
 });
 
+// Setear días restantes de trial para testing
+router.put('/negocios/:id/trial-days', requireSuperAdmin, (req, res) => {
+    try {
+        const { dias_restantes } = req.body;
+        
+        if (dias_restantes === undefined || dias_restantes < 0 || dias_restantes > 365) {
+            return res.status(400).json({ error: 'Días inválidos (0-365)' });
+        }
+        
+        const db = getDb();
+        const negocio = db.prepare('SELECT id, nombre FROM negocios WHERE id = ?').get(req.params.id);
+        
+        if (!negocio) {
+            return res.status(404).json({ error: 'Negocio no encontrado' });
+        }
+        
+        // Calcular fecha de inicio para que queden exactamente X días (trial = 7 días)
+        const TRIAL_DAYS = 7;
+        const diasUsados = TRIAL_DAYS - dias_restantes;
+        const fechaInicio = new Date();
+        fechaInicio.setDate(fechaInicio.getDate() - diasUsados);
+        
+        db.prepare(`
+            UPDATE negocios 
+            SET licencia_plan = 'trial',
+                licencia_fecha_inicio = ?,
+                licencia_fecha_expiracion = NULL
+            WHERE id = ?
+        `).run(fechaInicio.toISOString(), req.params.id);
+        
+        res.json({ 
+            success: true, 
+            message: `Trial de "${negocio.nombre}" ajustado a ${dias_restantes} días restantes` 
+        });
+    } catch (error) {
+        console.error('Error seteando trial:', error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});
+
 // Resetear contraseña de admin de un negocio
 router.post('/negocios/:id/reset-password', requireSuperAdmin, async (req, res) => {
     try {
@@ -316,7 +390,7 @@ router.get('/stats', requireSuperAdmin, (req, res) => {
         const db = getDb();
         
         // Obtener tamaño de la base de datos
-        const dbPath = path.join(__dirname, '..', '..', 'data', 'nexora.db');
+        const dbPath = path.join(__dirname, '..', 'db', 'nexora.db');
         let dbSizeBytes = 0;
         try {
             const stat = fs.statSync(dbPath);
@@ -366,3 +440,38 @@ router.get('/stats', requireSuperAdmin, (req, res) => {
 });
 
 module.exports = router;
+
+// Cambiar contraseña del super admin
+router.post('/change-password', requireSuperAdmin, (req, res) => {
+    try {
+        const { current_password, new_password } = req.body;
+        
+        if (!current_password || !new_password) {
+            return res.status(400).json({ error: 'Todos los campos son requeridos' });
+        }
+        
+        if (new_password.length < 6) {
+            return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
+        }
+        
+        const db = getDb();
+        const admin = db.prepare('SELECT * FROM super_admins WHERE id = ?').get(req.session.superAdminId);
+        
+        if (!admin) {
+            return res.status(404).json({ error: 'Administrador no encontrado' });
+        }
+        
+        const validPassword = bcrypt.compareSync(current_password, admin.password);
+        if (!validPassword) {
+            return res.status(401).json({ error: 'Contraseña actual incorrecta' });
+        }
+        
+        const hashedPassword = bcrypt.hashSync(new_password, 10);
+        db.prepare('UPDATE super_admins SET password = ? WHERE id = ?').run(hashedPassword, admin.id);
+        
+        res.json({ success: true, message: 'Contraseña actualizada correctamente' });
+    } catch (error) {
+        console.error('Error cambiando contraseña:', error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});

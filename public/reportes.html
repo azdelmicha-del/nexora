@@ -190,10 +190,11 @@
             display: flex;
             justify-content: center;
             align-items: center;
-            z-index: 1000;
+            z-index: 999999;
             opacity: 0;
             visibility: hidden;
             transition: all 0.3s ease;
+            backdrop-filter: blur(4px);
         }
         
         .modal-overlay.active {
@@ -308,50 +309,7 @@
 </head>
 <body>
     <div class="layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2>Nexora</h2>
-                <p>Panel de gestión</p>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <a href="/dashboard" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                    Dashboard
-                </a>
-                <a href="/pos" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                    Facturar
-                </a>
-                <a href="/citas" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    Citas
-                </a>
-                <a href="/reportes" class="nav-item active">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                    Reportes
-                </a>
-                <a href="/clientes" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                    Clientes
-                </a>
-                <a href="/servicios" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    Servicios
-                </a>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar" id="userAvatar">U</div>
-                    <div class="user-details">
-                        <h4 id="userName">Usuario</h4>
-                        <span id="userRole">Rol</span>
-                    </div>
-                </div>
-                <button onclick="logout()" class="btn btn-secondary btn-sm mt-2" style="width: 100%;">Cerrar Sesión</button>
-            </div>
-        </aside>
+        <!-- Sidebar dinámico -->
         
         <main class="main-content">
             <div class="report-header">
@@ -446,7 +404,7 @@
             
             <div id="seccion-cuadre" style="display: none;">
                 <div class="header-actions">
-                    <button class="btn btn-secondary" onclick="imprimirCuadre()">🖨️ Imprimir Cuadre</button>
+                    <button class="btn btn-secondary" onclick="imprimirCuadreResumen()">🖨️ Imprimir Cuadre</button>
                     <button class="btn btn-secondary" onclick="imprimirDetalleVentas()">📄 Imprimir Detalle Ventas</button>
                     <button class="btn btn-secondary" onclick="mostrarHistorialCuadre()">📋 Historial</button>
                     <button class="btn btn-success" id="btnAccionCaja" onclick="cerrarCaja()">🔒 Cuadrar y Cerrar Caja</button>
@@ -484,8 +442,12 @@
                 </button>
             </div>
             <div class="modal-body">
-                <p>¿Está seguro que desea cerrar la caja del día?</p>
-                <p class="text-muted">Esta acción guardará un registro histórico y no podrá deshacerse.</p>
+                <p id="textoCierre">¿Está seguro que desea cerrar la caja del día?</p>
+                <p class="text-muted" id="textoAdvertencia">Esta acción guardará un registro histórico y no podrá deshacerse.</p>
+                <div class="form-group" id="campoFechaCierre" style="display:none;">
+                    <label>Desde fecha:</label>
+                    <input type="date" id="fechaCierrePersonalizado" class="form-input">
+                </div>
                 <div class="form-group">
                     <label>Notas (opcional)</label>
                     <textarea id="notasCierre" rows="2" placeholder="Observaciones..."></textarea>
@@ -498,12 +460,43 @@
         </div>
     </div>
     
-    <script src="/js/api.js"></script>
     <script>
         let datosReportes = {};
         let filtroActual = 'mes';
         let isAdmin = false;
         let datosCuadreActual = null;
+        
+        async function apiCall(endpoint, options = {}) {
+            const config = {
+                headers: { 'Content-Type': 'application/json' },
+                ...options
+            };
+            try {
+                const response = await fetch(`${API_BASE}${endpoint}`, config);
+                const data = await response.json();
+                if (!response.ok) throw new Error(data.error || 'Error');
+                return data;
+            } catch (error) {
+                console.error('API Error:', error);
+                throw error;
+            }
+        }
+        
+        async function checkSession() {
+            try {
+                const res = await fetch('/api/auth/session');
+                return await res.json();
+            } catch (e) { return null; }
+        }
+        
+        function showToast(msg, type = 'error') {
+            const colors = { error: '#ef4444', success: '#10b981', warning: '#f59e0b', info: '#3b82f6' };
+            const toast = document.createElement('div');
+            toast.style.cssText = `position:fixed;top:20px;right:20px;background:${colors[type] || colors.error};color:white;padding:12px 20px;border-radius:8px;z-index:9999999;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:14px;`;
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 4000);
+        }
         
         document.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -523,10 +516,6 @@
                     document.getElementById('tabCuadre').style.display = '';
                 }
                 
-                document.getElementById('userName').textContent = session.user.nombre;
-                document.getElementById('userRole').textContent = session.user.rol === 'admin' ? 'Administrador' : 'Empleado';
-                document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
-                
                 document.getElementById('btnHoy').addEventListener('click', () => setFiltro('hoy'));
                 document.getElementById('btnSemana').addEventListener('click', () => setFiltro('semana'));
                 document.getElementById('btnMes').addEventListener('click', () => setFiltro('mes'));
@@ -536,7 +525,7 @@
                 console.log('Reportes cargado correctamente');
             } catch (error) {
                 console.error('Error al cargar reportes:', error);
-                alert('Error al cargar reportes. Por favor, recarga la página o inicia sesión nuevamente.');
+                showToast('Error al cargar reportes. Por favor, recarga la página.', 'error');
             }
         });
         
@@ -575,7 +564,6 @@
             
             document.getElementById('fechaDesde').value = desde;
             document.getElementById('fechaHasta').value = hasta;
-            filtroActual = 'personalizado';
             cargarReportes();
         }
         
@@ -641,7 +629,7 @@
             const content = document.getElementById('cuadreContent');
             const ventas = document.getElementById('cuadreVentas');
             
-            // Unificar botón según estado de caja
+            // Botón según estado
             const btnAccion = document.getElementById('btnAccionCaja');
             if (data.caja_cerrada) {
                 btnAccion.textContent = '🔓 Abrir Caja';
@@ -653,47 +641,117 @@
                 btnAccion.onclick = () => { cerrarCaja(); };
             }
             
-            const fueraCuadreInfo = data.resumenFueraCuadre && data.resumenFueraCuadre.cantidad > 0
-                ? `<div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.5rem; padding: 0.75rem; margin-top: 1rem; color: #92400e;">
-                       <strong>⚠️ Ventas fuera de cuadre:</strong> ${data.resumenFueraCuadre.cantidad} ventas por ${formatCurrency(data.resumenFueraCuadre.total)}
-                   </div>`
-                : '';
+            // Bancos transferencia
+            let bancoTransHtml = '';
+            if (data.porBancoTransferencia && data.porBancoTransferencia.length > 0) {
+                bancoTransHtml = data.porBancoTransferencia.map(b => `
+                    <div style="display:flex; justify-content:space-between; padding:0.3rem 0; font-size:0.82rem;">
+                        <span style="color:var(--gray-600);">🏦 ${b.banco}</span>
+                        <span style="font-weight:600; color:#3b82f6;">${formatCurrency(b.total)}</span>
+                    </div>
+                `).join('');
+            }
             
-            const cajaCerradaBanner = data.caja_cerrada
-                ? `<div style="background: #fef3c7; border: 1px solid #f59e0b; border-radius: 0.5rem; padding: 0.75rem; margin-bottom: 1rem; color: #92400e; display: flex; align-items: center; gap: 0.5rem;">
-                       <span style="font-size: 1.25rem;">🔒</span>
-                       <span><strong>Caja Cerrada</strong> - Haga clic en "Abrir Caja" para continuar vendiendo.</span>
-                   </div>`
-                : '';
+            // Bancos tarjeta
+            let bancoTarjHtml = '';
+            if (data.porBancoTarjeta && data.porBancoTarjeta.length > 0) {
+                bancoTarjHtml = data.porBancoTarjeta.map(b => `
+                    <div style="display:flex; justify-content:space-between; padding:0.3rem 0; font-size:0.82rem;">
+                        <span style="color:var(--gray-600);">💳 ${b.banco}</span>
+                        <span style="font-weight:600; color:#8b5cf6;">${formatCurrency(b.total)}</span>
+                    </div>
+                `).join('');
+            }
+            
+            const eg = data.egresos || {};
+            const totalEntregar = data.totalEntregar || 0;
             
             content.innerHTML = `
-                ${cajaCerradaBanner}
-                <h2>📊 Cuadre de Caja - ${formatDateFull(data.fecha)}</h2>
-                ${fueraCuadreInfo}
-                <div class="cuadre-grid">
-                    <div class="cuadre-item">
-                        <div class="valor">${formatCurrency(data.resumen.total)}</div>
-                        <div class="etiqueta">Total Vendido</div>
+                <!-- BLOQUE 1: INGRESOS -->
+                <div style="background:white; border-radius:16px; padding:1.5rem; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:1rem;">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                        <h3 style="margin:0; font-size:1rem; font-weight:700; color:var(--gray-800);">📈 Ingresos por Método de Pago</h3>
+                        <span style="font-size:0.75rem; color:var(--gray-400);">${formatDateFull(data.fecha)}</span>
                     </div>
-                    <div class="cuadre-item">
-                        <div class="valor">${data.resumen.cantidad}</div>
-                        <div class="etiqueta">Ventas</div>
+                    
+                    <div style="display:grid; grid-template-columns:repeat(3, 1fr); gap:1rem; margin-bottom:1rem;">
+                        <div style="background:#f0fdf4; border-radius:12px; padding:1rem; text-align:center;">
+                            <div style="font-size:1.5rem; margin-bottom:0.25rem;">💵</div>
+                            <div style="font-size:1.25rem; font-weight:700; color:#10b981;">${formatCurrency(data.resumen.efectivo)}</div>
+                            <div style="font-size:0.7rem; color:#065f46; text-transform:uppercase; letter-spacing:0.5px; margin-top:0.25rem;">Efectivo</div>
+                        </div>
+                        <div style="background:#eff6ff; border-radius:12px; padding:1rem; text-align:center;">
+                            <div style="font-size:1.5rem; margin-bottom:0.25rem;">🔄</div>
+                            <div style="font-size:1.25rem; font-weight:700; color:#3b82f6;">${formatCurrency(data.resumen.transferencia)}</div>
+                            <div style="font-size:0.7rem; color:#1e40af; text-transform:uppercase; letter-spacing:0.5px; margin-top:0.25rem;">Transferencia</div>
+                        </div>
+                        <div style="background:#f5f3ff; border-radius:12px; padding:1rem; text-align:center;">
+                            <div style="font-size:1.5rem; margin-bottom:0.25rem;">💳</div>
+                            <div style="font-size:1.25rem; font-weight:700; color:#8b5cf6;">${formatCurrency(data.resumen.tarjeta)}</div>
+                            <div style="font-size:0.7rem; color:#5b21b6; text-transform:uppercase; letter-spacing:0.5px; margin-top:0.25rem;">Tarjeta</div>
+                        </div>
                     </div>
-                    <div class="cuadre-item">
-                        <div class="valor">${formatCurrency(data.resumen.efectivo)}</div>
-                        <div class="etiqueta">Efectivo</div>
+                    
+                    ${bancoTransHtml || bancoTarjHtml ? `
+                    <div style="display:grid; grid-template-columns:${bancoTransHtml ? '1fr' : ''} ${bancoTarjHtml ? '1fr' : ''}; gap:1rem; padding-top:0.75rem; border-top:1px solid var(--gray-100);">
+                        ${bancoTransHtml ? `<div><div style="font-size:0.7rem; font-weight:600; color:var(--gray-400); text-transform:uppercase; margin-bottom:0.4rem;">Transferencias por banco</div>${bancoTransHtml}</div>` : ''}
+                        ${bancoTarjHtml ? `<div><div style="font-size:0.7rem; font-weight:600; color:var(--gray-400); text-transform:uppercase; margin-bottom:0.4rem;">Tarjetas por banco</div>${bancoTarjHtml}</div>` : ''}
                     </div>
-                    <div class="cuadre-item">
-                        <div class="valor">${formatCurrency(data.resumen.transferencia)}</div>
-                        <div class="etiqueta">Transferencia</div>
-                    </div>
-                    <div class="cuadre-item">
-                        <div class="valor">${formatCurrency(data.resumen.tarjeta)}</div>
-                        <div class="etiqueta">Tarjeta</div>
+                    ` : ''}
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem 0 0; margin-top:0.75rem; border-top:2px solid var(--gray-200);">
+                        <span style="font-weight:700; color:var(--gray-800);">Total Ventas</span>
+                        <span style="font-size:1.25rem; font-weight:800; color:#10b981;">${formatCurrency(data.resumen.total)}</span>
                     </div>
                 </div>
+                
+                ${data.egresos && data.tipo === 'mes' ? `
+                <!-- BLOQUE 2: EGRESOS (Solo cierre mensual) -->
+                <div style="background:white; border-radius:16px; padding:1.5rem; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:1rem;">
+                    <h3 style="margin:0 0 1rem; font-size:1rem; font-weight:700; color:var(--gray-800);">📉 Egresos del Mes</h3>
+                    
+                    <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid var(--gray-50);">
+                        <span style="font-size:0.85rem; color:var(--gray-600);">📦 Costo de Ventas</span>
+                        <span style="font-size:0.85rem; font-weight:600; color:#f59e0b;">${formatCurrency(eg.costo_ventas)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid var(--gray-50);">
+                        <span style="font-size:0.85rem; color:var(--gray-600);">🏢 Gastos Fijos</span>
+                        <span style="font-size:0.85rem; font-weight:600; color:#8b5cf6;">${formatCurrency(eg.gastos_fijos)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; padding:0.5rem 0;">
+                        <span style="font-size:0.85rem; color:var(--gray-600);">💸 Gastos Personales</span>
+                        <span style="font-size:0.85rem; font-weight:600; color:#ef4444;">${formatCurrency(eg.gastos_personales)}</span>
+                    </div>
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:0.75rem 0 0; margin-top:0.5rem; border-top:2px solid var(--gray-200);">
+                        <span style="font-weight:700; color:var(--gray-800);">Total Egresos</span>
+                        <span style="font-size:1.1rem; font-weight:800; color:#ef4444;">-${formatCurrency(eg.total_egresos)}</span>
+                    </div>
+                </div>
+                
+                <!-- BLOQUE 3: RESULTADO FINAL (Solo cierre mensual) -->
+                <div style="background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius:16px; padding:2rem; box-shadow:0 4px 20px rgba(0,0,0,0.15); margin-bottom:1rem;">
+                    <h3 style="margin:0 0 1.25rem; font-size:1rem; font-weight:700; color:rgba(255,255,255,0.7); text-transform:uppercase; letter-spacing:1px;">Resultado del Cierre Mensual</h3>
+                    
+                    <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid rgba(255,255,255,0.1);">
+                        <span style="font-size:0.9rem; color:rgba(255,255,255,0.6);">Total Facturado</span>
+                        <span style="font-size:0.9rem; font-weight:600; color:white;">${formatCurrency(data.resumen.total)}</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between; padding:0.5rem 0; border-bottom:1px solid rgba(255,255,255,0.1);">
+                        <span style="font-size:0.9rem; color:rgba(255,255,255,0.6);">(-) Total Egresos</span>
+                        <span style="font-size:0.9rem; font-weight:600; color:#ef4444;">-${formatCurrency(eg.total_egresos)}</span>
+                    </div>
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; padding:1rem 0 0; margin-top:0.75rem; border-top:2px solid rgba(255,255,255,0.2);">
+                        <span style="font-size:1rem; font-weight:700; color:white;">TOTAL A ENTREGAR</span>
+                        <span style="font-size:2rem; font-weight:800; color:#10b981;">${formatCurrency(totalEntregar)}</span>
+                    </div>
+                    <p style="margin:0.5rem 0 0; font-size:0.75rem; color:rgba(255,255,255,0.4);">Efectivo esperado en caja: ${formatCurrency(data.resumen.efectivo)}</p>
+                </div>
+                ` : ''}
             `;
             
+            // Tabla de ventas
             if (data.ventas && data.ventas.length > 0) {
                 ventas.innerHTML = `
                     <table class="tabla-simple">
@@ -713,7 +771,7 @@
                                     <td>${formatTime(v.fecha)}</td>
                                     <td>${escapeHtml(v.cliente || 'Venta rápida')}${v.fuera_cuadre ? ' ⚠️' : ''}</td>
                                     <td style="font-size: 0.8rem;">${escapeHtml(v.detalles)}</td>
-                                    <td>${v.metodo_pago}</td>
+                                    <td>${v.metodo_pago}${v.banco ? ' - ' + v.banco : ''}</td>
                                     <td><strong>${formatCurrency(v.total)}</strong></td>
                                     <td>${v.fuera_cuadre ? '<span style="color: #f59e0b; font-size: 0.75rem;">Fuera cuadre</span>' : '<span style="color: #10b981; font-size: 0.75rem;">Normal</span>'}</td>
                                 </tr>
@@ -800,7 +858,7 @@
                                 <tr>
                                     <td>${formatDate(v.fecha)}</td>
                                     <td>${escapeHtml(v.cliente || 'Sin cliente')}</td>
-                                    <td>${v.metodo_pago}</td>
+                                    <td>${v.metodo_pago}${v.banco ? ' - ' + v.banco : ''}</td>
                                     <td><strong>${formatCurrency(v.total)}</strong></td>
                                 </tr>
                             `).join('')}
@@ -1010,22 +1068,38 @@
             `;
         }
         
+        function capitalizeFirst(str) {
+            if (!str || !str.trim()) return '';
+            const s = str.trim();
+            return s.charAt(0).toUpperCase() + s.slice(1);
+        }
+        
         function formatCurrency(amount) {
             return '$' + parseFloat(amount || 0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
         }
         
         function formatDate(dateStr) {
             if (!dateStr) return '';
-            const [year, month, day] = dateStr.split('-').map(Number);
-            const date = new Date(year, month - 1, day);
-            return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
+            try {
+                const parts = dateStr.replace('T', ' ').split(/[- :]/);
+                const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                if (isNaN(date.getTime())) return '';
+                return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short' });
+            } catch (e) {
+                return '';
+            }
         }
         
         function formatDateFull(dateStr) {
             if (!dateStr) return '';
-            const [year, month, day] = dateStr.split('-').map(Number);
-            const date = new Date(year, month - 1, day);
-            return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'long', year: 'numeric' });
+            try {
+                const parts = dateStr.replace('T', ' ').split(/[- :]/);
+                const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                if (isNaN(date.getTime())) return '';
+                return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'long', year: 'numeric' });
+            } catch (e) {
+                return '';
+            }
         }
         
         function formatTime(datetimeStr) {
@@ -1039,12 +1113,6 @@
             const div = document.createElement('div');
             div.textContent = text;
             return div.innerHTML;
-        }
-        
-        async function logout() {
-            await apiCall('/auth/logout', { method: 'POST' });
-            clearSessionStorage();
-            window.location.href = '/';
         }
         
         function imprimirCuadre() {
@@ -1119,7 +1187,7 @@
                     <div style="margin-bottom: 8px; border-bottom: 1px dashed #ccc; padding-bottom: 5px;">
                         <p><span class="negrita">${escapeHtml(v.cliente || 'Venta rápida')}</span></p>
                         <p style="font-size: 10px;">${escapeHtml(v.detalles)}</p>
-                        <p>${v.metodo_pago} | <span class="negrita">${formatCurrency(v.total)}</span></p>
+                        <p>${v.metodo_pago}${v.banco ? ' - ' + v.banco : ''} | <span class="negrita">${formatCurrency(v.total)}</span></p>
                         <p style="font-size: 9px; color: #666;">${formatTime(v.fecha)}</p>
                     </div>
                 `;
@@ -1178,11 +1246,90 @@
             win.print();
         }
         
+        // Modal helper para opciones de cierre
+        let cierreModalContainer = null;
+        
+        function initCierreModal() {
+            if (!cierreModalContainer) {
+                cierreModalContainer = document.createElement('div');
+                cierreModalContainer.id = 'cierre-modal-container';
+                document.body.appendChild(cierreModalContainer);
+            }
+        }
+        
+        function closeGlobalModal() {
+            const cierreModal = document.getElementById('cierre-modal-container');
+            if (cierreModal) cierreModal.innerHTML = '';
+            if (cierreModalContainer) cierreModalContainer.innerHTML = '';
+            if (modalContainer) modalContainer.innerHTML = '';
+        }
+        
         function cerrarCaja() {
             if (datosCuadreActual && datosCuadreActual.caja_cerrada) {
                 showModalError('La caja ya fue cerrada hoy');
                 return;
             }
+            
+            initCierreModal();
+            cierreModalContainer.innerHTML = `
+                <div style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:10000; backdrop-filter:blur(4px);">
+                    <div style="background:white; border-radius:20px; padding:2rem; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative;">
+                        <button onclick="closeGlobalModal()" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:24px; cursor:pointer; color:#999;">&times;</button>
+                        <h3 style="margin:0 0 0.5rem; font-size:1.1rem; color:var(--gray-800);">¿Qué tipo de cierre?</h3>
+                        <p style="color:var(--gray-500); font-size:0.85rem; margin-bottom:1.5rem;">Selecciona el período que deseas cuadrar.</p>
+                        
+                        <button onclick="abrirCierreConTipo('dia')" style="width:100%; padding:1rem; margin-bottom:0.75rem; background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; border:none; border-radius:12px; font-weight:600; font-size:0.9rem; cursor:pointer; font-family:inherit; text-align:left; display:flex; align-items:center; gap:0.75rem; box-shadow:0 4px 12px rgba(16,185,129,0.3);">
+                            <span style="font-size:1.5rem;">📅</span>
+                            <div>
+                                <div>Cierre del Día</div>
+                                <div style="font-size:0.75rem; opacity:0.8; font-weight:400;">Solo ventas de hoy</div>
+                            </div>
+                        </button>
+                        
+                        <button onclick="abrirCierreConTipo('mes')" style="width:100%; padding:1rem; background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:white; border:none; border-radius:12px; font-weight:600; font-size:0.9rem; cursor:pointer; font-family:inherit; text-align:left; display:flex; align-items:center; gap:0.75rem; box-shadow:0 4px 12px rgba(245,158,11,0.3);">
+                            <span style="font-size:1.5rem;">📆</span>
+                            <div>
+                                <div>Cierre del Mes</div>
+                                <div style="font-size:0.75rem; opacity:0.8; font-weight:400;">Todas las ventas del mes actual</div>
+                            </div>
+                        </button>
+                        
+                        <button onclick="closeGlobalModal()" style="width:100%; margin-top:0.75rem; padding:0.75rem; background:var(--gray-100); color:var(--gray-600); border:none; border-radius:10px; font-weight:600; cursor:pointer; font-family:inherit;">Cancelar</button>
+                    </div>
+                </div>
+            `;
+        }
+        
+        function abrirCierreConTipo(tipo) {
+            closeGlobalModal();
+            window.tipoCierre = tipo;
+            
+            const titulo = document.querySelector('#modalCerrarCaja h3');
+            if (titulo) {
+                titulo.textContent = tipo === 'dia' 
+                    ? '📅 Cuadre y Cierre del Día' 
+                    : '📆 Cuadre y Cierre del Mes';
+            }
+            
+            const textoCierre = document.getElementById('textoCierre');
+            const textoAdvertencia = document.getElementById('textoAdvertencia');
+            const campoFecha = document.getElementById('campoFechaCierre');
+            const fechaInput = document.getElementById('fechaCierrePersonalizado');
+            
+            if (tipo === 'dia') {
+                textoCierre.textContent = '¿Está seguro que desea cerrar la caja del día?';
+                textoAdvertencia.textContent = 'Esta acción cerrará la caja y deshabilitará el POS hasta que se abra nuevamente.';
+                campoFecha.style.display = 'none';
+            } else {
+                textoCierre.textContent = '¿Está seguro que desea hacer cierre del mes?';
+                textoAdvertencia.textContent = 'Seleccione la fecha desde la cual desea cerrar las ventas.';
+                campoFecha.style.display = 'block';
+                
+                const hoy = new Date().toISOString().split('T')[0];
+                fechaInput.max = hoy;
+                fechaInput.value = hoy;
+            }
+            
             document.getElementById('notasCierre').value = '';
             document.getElementById('modalCerrarCaja').classList.add('active');
         }
@@ -1193,25 +1340,49 @@
         
         async function confirmarCerrarCaja() {
             try {
-                const notas = document.getElementById('notasCierre').value;
+                const notas = capitalizeFirst(document.getElementById('notasCierre').value);
+                const tipo = window.tipoCierre || 'dia';
+                let fechaPersonalizada = null;
+                
+                if (tipo === 'mes') {
+                    fechaPersonalizada = document.getElementById('fechaCierrePersonalizado').value;
+                    if (!fechaPersonalizada) {
+                        showModalError('Por favor seleccione una fecha');
+                        return;
+                    }
+                }
+                
                 const result = await apiCall('/reports/cuadre/cerrar', {
                     method: 'POST',
-                    body: JSON.stringify({ notas })
+                    body: JSON.stringify({ notas, tipo, fecha: fechaPersonalizada })
                 });
                 
                 cerrarModalCerrarCaja();
-                showModalSuccess(`Caja cerrada correctamente. Total: RD$${Number(result.resumen.total).toFixed(2)}`, '¡Caja Cerrada!');
-                await cargarCuadre();
                 
-                // Preguntar si desea ver historial después de 2 segundos
-                setTimeout(() => {
-                    showModalConfirm('¿Desea ver el historial de cierres?', () => {
-                        mostrarHistorialCuadre();
-                    });
-                }, 2000);
+                // Guardar datos del cierre para impresión
+                window.ultimoCierre = result;
+                
+                // Modal con opciones de impresión
+                initModalContainer();
+                modalContainer.innerHTML = `
+                    <div class="modal-overlay active" onclick="if(event.target===this)closeGlobalModal()">
+                        <div style="background:white; border-radius:24px; padding:32px; max-width:420px; width:90%; text-align:center; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative;">
+                        <button type="button" onclick="closeGlobalModal()" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:28px; cursor:pointer; color:#999; z-index:10;">&times;</button>
+                            <div style="width:80px; height:80px; background:linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius:50%; display:flex; align-items:center; justify-content:center; margin:0 auto 24px; font-size:40px; color:white; box-shadow:0 8px 25px rgba(16,185,129,0.4);">✓</div>
+                            <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">¡Caja Cerrada!</h2>
+                            <p style="color:#666; margin-bottom:20px; font-size:15px; line-height:1.5;">Caja cerrada correctamente.</p>
+                            <div style="display:flex; gap:0.5rem; flex-direction:column;">
+                                <button onclick="closeGlobalModal(); imprimirCuadreResumen();" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-family:inherit; font-size:0.85rem;">🖨️ Imprimir Cuadre (Resumen)</button>
+                                <button onclick="closeGlobalModal(); imprimirDetalleVentas();" style="background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:white; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-family:inherit; font-size:0.85rem;">📄 Imprimir Detalle de Ventas</button>
+                                <button onclick="closeGlobalModal()" style="background:var(--gray-100); color:var(--gray-600); padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-family:inherit; font-size:0.85rem;">Cerrar</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+                
+                await cargarCuadre();
             } catch (error) {
                 cerrarModalCerrarCaja();
-                // Mensaje amigable cuando no hay ventas
                 if (error.message && error.message.includes('No hay ventas')) {
                     showModalError('Favor realice una venta antes de cuadrar la caja.', 'Sin Ventas');
                 } else {
@@ -1231,6 +1402,118 @@
                     showModalError(error.message || 'Error al abrir caja');
                 }
             });
+        }
+        
+        // IMPRIMIR CUADRE - Ticket resumen
+        function imprimirCuadreResumen() {
+            const d = window.ultimoCierre || datosCuadreActual;
+            if (!d) return;
+            
+            const r = d.resumen;
+            const eg = d.egresos || {};
+            const esCierreMensual = d.tipo === 'mes';
+            const bancoTrans = d.porBancoTransferencia || [];
+            const bancoTarj = d.porBancoTarjeta || [];
+            const ahora = new Date();
+            const horaCierre = ahora.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+            
+            let bancoTransText = bancoTrans.map(b => `    ${b.banco}: ${formatCurrency(b.total)}`).join('\n');
+            let bancoTarjText = bancoTarj.map(b => `    ${b.banco}: ${formatCurrency(b.total)}`).join('\n');
+            
+            const egresosText = esCierreMensual && eg.total_costos ? `
+ EGRESOS - COSTOS DEL NEGOCIO
+   Costo de Ventas:   ${formatCurrency(eg.costo_ventas || 0)}
+   Gastos Fijos:      ${formatCurrency(eg.gastos_fijos || 0)}
+   Otros Costos:      ${formatCurrency(eg.otros_costos || 0)}
+  --------------------------------
+   Total Costos:   -${formatCurrency(eg.total_costos || 0)}
+
+ EGRESOS - GASTOS PERSONALES
+   Gastos Personales: ${formatCurrency(eg.gastos_personales || 0)}
+  --------------------------------
+   Total Gastos:    -${formatCurrency(eg.total_gastos || 0)}
+
+ ================================
+   TOTAL A ENTREGAR
+   ${formatCurrency(d.totalEntregar || 0)}
+ ================================
+ ` : '';
+            
+            const nombreNegocio = d.negocio?.nombre || d.negocio || 'MI NEGOCIO';
+            const dirNegocio = d.negocio?.direccion || '';
+            const telNegocio = d.negocio?.telefono || '';
+            const tipoCierre = esCierreMensual ? ' [CIERRE MENSUAL]' : ' [CIERRE DEL DÍA]';
+            
+            const ticket = `
+===============================
+  ${nombreNegocio.toUpperCase()}
+  ${dirNegocio}
+  ${telNegocio}
+===============================
+  DETALLE DE VENTAS
+  ${formatDateFull(d.fecha)} - ${horaCierre}
+===============================
+  CUADRE DE CAJA${tipoCierre}
+  ${formatDateFull(d.fecha)} - ${horaCierre}
+===============================
+
+INGRESOS
+  Efectivo:        ${formatCurrency(r.efectivo)}
+  Transferencia:   ${formatCurrency(r.transferencia)}
+${bancoTransText ? bancoTransText + '\n' : ''}  Tarjeta:         ${formatCurrency(r.tarjeta)}
+${bancoTarjText ? bancoTarjText + '\n' : ''}--------------------------------
+  Total Ventas:    ${formatCurrency(r.total)}
+${egresosText}
+  Efectivo en caja: ${formatCurrency(r.efectivo)}
+
+  Cajero: ________________
+  Firma:  ________________
+================================
+            `.trim();
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`<html><head><title>Cuadre</title><style>
+                body { font-family: monospace; font-size: 12px; white-space: pre; padding: 10px; }
+                @page { margin: 0; size: 80mm auto; }
+            </style></head><body>${ticket}</body></html>`);
+            printWindow.document.close();
+            printWindow.print();
+        }
+        
+        // IMPRIMIR DETALLE VENTAS - Reporte extenso
+        function imprimirDetalleVentas() {
+            const d = window.ultimoCierre || datosCuadreActual;
+            if (!d || !d.ventas) return;
+            
+            const ahora = new Date();
+            const horaCierre = ahora.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
+            
+
+            
+            const ticket = `
+================================
+  (d.negocio?.nombre || d.negocio || 'MI NEGOCIO')
+  DETALLE DE VENTAS
+  ${formatDateFull(d.fecha)} - ${horaCierre}
+================================
+
+Hora   Cliente              Metodo               Total
+-----  -------------------  -------------------  ---------
+${ventasText}
+
+================================
+  Total transacciones: ${d.ventas.length}
+  Monto total: ${formatCurrency(d.resumen.total)}
+================================
+            `.trim();
+            
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`<html><head><title>Detalle Ventas</title><style>
+                body { font-family: monospace; font-size: 11px; white-space: pre; padding: 10px; }
+                @page { margin: 0; }
+            </style></head><body>${ticket}</body></html>`);
+            printWindow.document.close();
+            printWindow.print();
         }
         
         async function mostrarHistorialCuadre() {
@@ -1266,97 +1549,226 @@
                 return;
             }
             
+            const cierresMes = historial.filter(c => c.notas && c.notas.includes('[CIERRE MENSUAL]'));
+            const cierresDia = historial.filter(c => !c.notas || !c.notas.includes('[CIERRE MENSUAL]'));
+            
+            const renderTabla = (items, titulo, esMes) => {
+                if (items.length === 0) return '';
+                const colorHex = esMes ? '#f59e0b' : '#10b981';
+                return `
+                    <div style="margin-top:1.5rem;">
+                        <div style="display:flex; align-items:center; gap:0.5rem; margin-bottom:1rem;">
+                            <div style="width:4px; height:24px; background:${colorHex}; border-radius:2px;"></div>
+                            <h3 style="margin:0; color:var(--gray-700); font-size:1rem; font-weight:600;">${titulo}</h3>
+                            <span style="background:${colorHex}; color:white; padding:2px 8px; border-radius:12px; font-size:0.7rem; font-weight:600;">${items.length}</span>
+                        </div>
+                        <div style="background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                            <table style="width:100%; border-collapse:collapse;">
+                                <thead>
+                                    <tr style="background:#f9fafb;">
+                                        <th style="padding:12px 16px; text-align:left; font-size:0.75rem; font-weight:600; color:#6b7280; text-transform:uppercase;">${esMes ? 'Período' : 'Fecha'}</th>
+                                        <th style="padding:12px 16px; text-align:center; font-size:0.75rem; font-weight:600; color:#6b7280; text-transform:uppercase;">Ventas</th>
+                                        <th style="padding:12px 16px; text-align:right; font-size:0.75rem; font-weight:600; color:#6b7280; text-transform:uppercase;">Total</th>
+                                        <th style="padding:12px 16px; text-align:right; font-size:0.75rem; font-weight:600; color:#059669; text-transform:uppercase;">Efectivo</th>
+                                        <th style="padding:12px 16px; text-align:right; font-size:0.75rem; font-weight:600; color:#2563eb; text-transform:uppercase;">Transf.</th>
+                                        <th style="padding:12px 16px; text-align:right; font-size:0.75rem; font-weight:600; color:#7c3aed; text-transform:uppercase;">Tarjeta</th>
+                                        <th style="padding:12px 16px; text-align:left; font-size:0.75rem; font-weight:600; color:#6b7280; text-transform:uppercase;">Usuario</th>
+                                        <th style="padding:12px 16px; text-align:center; font-size:0.75rem; font-weight:600; color:#6b7280; text-transform:uppercase;">Acción</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${items.map(c => `
+                                        <tr style="border-top:1px solid #e5e7eb; transition:background 0.2s;" onmouseover="this.style.background='#f9fafb'" onmouseout="this.style.background='white'">
+                                            <td style="padding:14px 16px; font-weight:500; color:#1f2937;">${formatDateFull(c.fecha)}</td>
+                                            <td style="padding:14px 16px; text-align:center;"><span style="background:#e5e7eb; padding:4px 10px; border-radius:12px; font-size:0.8rem; font-weight:500; color:#374151;">${c.cantidad_ventas}</span></td>
+                                            <td style="padding:14px 16px; text-align:right; font-weight:700; color:#1f2937; font-size:0.95rem;">${formatCurrency(c.total)}</td>
+                                            <td style="padding:14px 16px; text-align:right; font-weight:600; color:#059669;">${formatCurrency(c.efectivo)}</td>
+                                            <td style="padding:14px 16px; text-align:right; font-weight:600; color:#2563eb;">${formatCurrency(c.transferencia)}</td>
+                                            <td style="padding:14px 16px; text-align:right; font-weight:600; color:#7c3aed;">${formatCurrency(c.tarjeta)}</td>
+                                            <td style="padding:14px 16px;">
+                                                <div style="display:flex; align-items:center; gap:0.5rem;">
+                                                    <div style="width:28px; height:28px; background:${colorHex}; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.7rem; font-weight:600; color:white;">${c.usuario.charAt(0).toUpperCase()}</div>
+                                                    <span style="font-size:0.85rem; color:#6b7280;">${escapeHtml(c.usuario)}</span>
+                                                </div>
+                                            </td>
+                                            <td style="padding:14px 16px; text-align:center;">
+                                                <div style="display:flex; justify-content:center; gap:0.5rem;">
+                                                    <button onclick="verDetallesCierre('${c.fecha}', ${c.id})" style="padding:6px 10px; background:#f3f4f6; border:none; border-radius:6px; cursor:pointer; color:#6b7280; font-size:0.8rem; transition:all 0.2s;" title="Ver detalles">👁️</button>
+                                                    <button onclick="eliminarCuadre(${c.id})" style="padding:6px 10px; background:#fee2e2; border:none; border-radius:6px; cursor:pointer; color:#ef4444; font-size:0.8rem; transition:all 0.2s;" title="Eliminar">🗑️</button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    `).join('')}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                `;
+            };
+            
             container.innerHTML = `
-                <table class="tabla-simple">
-                    <thead>
-                        <tr>
-                            <th>Fecha</th>
-                            <th>Ventas</th>
-                            <th>Total</th>
-                            <th>Efectivo</th>
-                            <th>Transferencia</th>
-                            <th>Tarjeta</th>
-                            <th>Usuario</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${historial.map(c => `
-                            <tr id="fila-${c.id}">
-                                <td>${formatDateFull(c.fecha)}</td>
-                                <td>${c.cantidad_ventas}</td>
-                                <td><strong>${formatCurrency(c.total)}</strong></td>
-                                <td>${formatCurrency(c.efectivo)}</td>
-                                <td>${formatCurrency(c.transferencia)}</td>
-                                <td>${formatCurrency(c.tarjeta)}</td>
-                                <td>${escapeHtml(c.usuario)}</td>
-                                <td>
-                                    <button class="btn btn-secondary btn-sm" onclick="verDetallesCierre('${c.fecha}', ${c.id})" title="Ver detalles">
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path></svg>
-                                    </button>
-                                    <button class="btn btn-danger btn-sm" onclick="eliminarCuadre(${c.id})" title="Eliminar">
-                                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg>
-                                    </button>
-                                </td>
-                            </tr>
-                            <tr id="detalles-${c.id}" style="display: none;">
-                                <td colspan="8" id="contenido-detalles-${c.id}">
-                                    <div style="padding: 1rem; background: #f9f9f9; border-radius: 0.5rem;">
-                                        <p>Cargando detalles...</p>
-                                    </div>
-                                </td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
+                <div style="background:linear-gradient(135deg, #1f2937 0%, #374151 100%); border-radius:16px; padding:1.25rem 1.5rem; margin-bottom:1.5rem;">
+                    <div style="display:flex; align-items:center; gap:0.75rem;">
+                        <div style="width:40px; height:40px; background:rgba(255,255,255,0.1); border-radius:10px; display:flex; align-items:center; justify-content:center;">
+                            <svg width="20" height="20" fill="none" stroke="white" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path></svg>
+                        </div>
+                        <div>
+                            <h2 style="margin:0; color:white; font-size:1.1rem; font-weight:600;">Historial de Cajas</h2>
+                            <p style="margin:0; color:rgba(255,255,255,0.7); font-size:0.8rem;">Últimos 7 días</p>
+                        </div>
+                        <div style="margin-left:auto; display:flex; gap:0.5rem;">
+                            <span style="background:rgba(16,185,129,0.2); color:#34d399; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:600;">📅 ${cierresDia.length}</span>
+                            <span style="background:rgba(245,158,11,0.2); color:#fbbf24; padding:3px 10px; border-radius:20px; font-size:0.75rem; font-weight:600;">📆 ${cierresMes.length}</span>
+                        </div>
+                    </div>
+                </div>
+                ${renderTabla(cierresMes, '📆 Cierres del Mes', true)}
+                ${renderTabla(cierresDia, '📅 Cierres del Día', false)}
             `;
         }
         
         async function verDetallesCierre(fecha, id) {
-            const fila = document.getElementById(`detalles-${id}`);
-            const contenido = document.getElementById(`contenido-detalles-${id}`);
-            
-            if (fila.style.display === 'table-row') {
-                fila.style.display = 'none';
-                return;
-            }
+            initModalContainer();
+            modalContainer.innerHTML = `
+                <div class="modal-overlay active" onclick="if(event.target===this)closeGlobalModal()">
+                    <div style="background:white; border-radius:20px; padding:1.5rem; max-width:500px; width:95%; max-height:80vh; overflow-y:auto; box-shadow:0 20px 60px rgba(0,0,0,0.3);">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:1rem;">
+                            <h3 style="margin:0; font-size:1.1rem; color:var(--gray-800);">📊 Detalles del Cierre</h3>
+                            <button onclick="closeGlobalModal()" style="background:none; border:none; font-size:24px; cursor:pointer; color:#999;">&times;</button>
+                        </div>
+                        <div id="detalles-content">Cargando...</div>
+                    </div>
+                </div>
+            `;
             
             try {
                 const datos = await apiCall(`/reports/cuadre/detalles/${fecha}`);
+                const c = datos.cierre;
+                const negocio = datos.negocio || {};
+                const eg = datos.egresos || {};
+                const esCierreMensual = datos.tipo === 'mes';
+                const bancoTrans = datos.porBancoTransferencia || [];
+                const bancoTarj = datos.porBancoTarjeta || [];
                 
-                if (!datos.ventas || datos.ventas.length === 0) {
-                    contenido.innerHTML = '<p>No hay ventas registradas en este cierre</p>';
-                } else {
-                    let ventasHtml = '';
-                    datos.ventas.forEach(v => {
-                        ventasHtml += `
-                            <div style="margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; border-left: 3px solid #10b981;">
-                                <p style="margin: 0;"><strong>${escapeHtml(v.cliente || 'Venta rápida')}</strong> - ${formatTime(v.fecha)}</p>
-                                <p style="margin: 2px 0; font-size: 0.85rem; color: #666;">${escapeHtml(v.detalles)}</p>
-                                <p style="margin: 2px 0; font-size: 0.85rem;">
-                                    <span style="background: #e5e7eb; padding: 2px 6px; border-radius: 3px;">${v.metodo_pago}</span>
-                                    <strong style="color: #10b981;">${formatCurrency(v.total)}</strong>
-                                </p>
+                let bancoTransHtml = bancoTrans.map(b => `
+                    <div style="display:flex; justify-content:space-between; padding:0.25rem 0; font-size:0.82rem;">
+                        <span style="color:var(--gray-600);">🏦 ${b.banco}</span>
+                        <span style="font-weight:600; color:#3b82f6;">${formatCurrency(b.total)}</span>
+                    </div>
+                `).join('');
+                
+                let bancoTarjHtml = bancoTarj.map(b => `
+                    <div style="display:flex; justify-content:space-between; padding:0.25rem 0; font-size:0.82rem;">
+                        <span style="color:var(--gray-600);">💳 ${b.banco}</span>
+                        <span style="font-weight:600; color:#8b5cf6;">${formatCurrency(b.total)}</span>
+                    </div>
+                `).join('');
+                
+                const egresosHtml = Object.keys(eg).length > 0 ? `
+                        <div style="margin-top:1rem; padding:1rem; background:#fef2f2; border-radius:10px;">
+                            <div style="font-size:0.7rem; font-weight:700; color:#dc2626; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem;">EGRESOS</div>
+                            <div style="display:flex; justify-content:space-between; padding:0.3rem 0; font-size:0.85rem;">
+                                <span style="color:var(--gray-600);">📦 Costo de Ventas</span>
+                                <span style="font-weight:600; color:#f59e0b;">${formatCurrency(eg.costo_ventas)}</span>
                             </div>
-                        `;
-                    });
-                    
-                    contenido.innerHTML = `
-                        <div style="max-height: 300px; overflow-y: auto;">
-                            ${ventasHtml}
+                            <div style="display:flex; justify-content:space-between; padding:0.3rem 0; font-size:0.85rem;">
+                                <span style="color:var(--gray-600);">🏢 Gastos Fijos</span>
+                                <span style="font-weight:600; color:#8b5cf6;">${formatCurrency(eg.gastos_fijos)}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; padding:0.3rem 0; font-size:0.85rem;">
+                                <span style="color:var(--gray-600);">💸 Gastos Personales</span>
+                                <span style="font-weight:600; color:#ef4444;">${formatCurrency(eg.gastos_personales)}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; padding:0.5rem 0; margin-top:0.5rem; border-top:2px solid #e5e7eb; font-size:0.9rem;">
+                                <span style="font-weight:700;">Total Egresos</span>
+                                <span style="font-weight:800; color:#ef4444;">-${formatCurrency(eg.total_egresos)}</span>
+                            </div>
                         </div>
-                        <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ddd; display: flex; justify-content: space-between;">
-                            <strong>Total:</strong>
-                            <strong style="color: #10b981;">${formatCurrency(datos.cierre.total)}</strong>
-                        </div>
-                        ${datos.cierre.notas ? `<div style="margin-top: 8px; font-size: 0.8rem; color: #666;"><em>Notas: ${escapeHtml(datos.cierre.notas)}</em></div>` : ''}
-                    `;
-                }
+                ` : '';
                 
-                fila.style.display = 'table-row';
+                const resultadoHtml = esCierreMensual && datos.totalEntregar !== null ? `
+                        <div style="margin-top:1rem; background:linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); border-radius:10px; padding:1rem; text-align:center;">
+                            <div style="font-size:0.7rem; color:rgba(255,255,255,0.6); text-transform:uppercase; letter-spacing:1px;">TOTAL A ENTREGAR</div>
+                            <div style="font-size:1.75rem; font-weight:800; color:#10b981; margin:0.25rem 0;">${formatCurrency(datos.totalEntregar)}</div>
+                            <div style="font-size:0.7rem; color:rgba(255,255,255,0.4);">Efectivo en caja: ${formatCurrency(c.efectivo)}</div>
+                        </div>
+                ` : '';
+                
+                const contenido = document.getElementById('detalles-content');
+                window.ultimoCierre = {
+                    resumen: {
+                        efectivo: c.efectivo,
+                        transferencia: c.transferencia,
+                        tarjeta: c.tarjeta,
+                        total: c.total
+                    },
+                    egresos: datos.egresos || {},
+                    tipo: esCierreMensual ? 'mes' : 'dia',
+                    porBancoTransferencia: bancoTrans,
+                    porBancoTarjeta: bancoTarj,
+                    fecha: c.fecha,
+                    cantidad_ventas: c.cantidad_ventas,
+                    notas: c.notas,
+                    usuario: c.usuario,
+                    totalEntregar: datos.totalEntregar,
+                    negocio: typeof datos.negocio === 'object' ? datos.negocio : { nombre: datos.negocio, direccion: '', telefono: '' }
+                };
+                contenido.innerHTML = `
+                    <div style="text-align:center; margin-bottom:1.5rem;">
+                        <div style="font-weight:700; font-size:1.1rem; color:var(--gray-800);">${datos.negocio || 'Mi Negocio'}</div>
+                        <div style="font-size:0.8rem; color:var(--gray-500); margin-top:0.25rem;">📊 CUADRE DE CAJA - ${formatDateFull(c.fecha)}${esCierreMensual ? ' [MENSUAL]' : ''}</div>
+                    </div>
+                    
+                    <div style="margin-bottom:1rem;">
+                        <div style="font-size:0.7rem; font-weight:700; color:#10b981; text-transform:uppercase; letter-spacing:1px; margin-bottom:0.5rem;">💰 INGRESOS</div>
+                        <div style="background:#ecfdf5; border-radius:10px; padding:1rem;">
+                            <div style="display:flex; justify-content:space-between; padding:0.4rem 0;">
+                                <span style="color:var(--gray-700);">💵 Efectivo</span>
+                                <span style="font-weight:600;">${formatCurrency(c.efectivo)}</span>
+                            </div>
+                            <div style="display:flex; justify-content:space-between; padding:0.4rem 0;">
+                                <span style="color:var(--gray-700);">🔄 Transferencia</span>
+                                <span style="font-weight:600; color:#2563eb;">${formatCurrency(c.transferencia)}</span>
+                            </div>
+                            ${bancoTransHtml ? `<div style="padding-left:0.5rem; border-left:2px solid #dbeafe; margin:0.25rem 0;">${bancoTransHtml}</div>` : ''}
+                            <div style="display:flex; justify-content:space-between; padding:0.4rem 0;">
+                                <span style="color:var(--gray-700);">💳 Tarjeta</span>
+                                <span style="font-weight:600; color:#7c3aed;">${formatCurrency(c.tarjeta)}</span>
+                            </div>
+                            ${bancoTarjHtml ? `<div style="padding-left:0.5rem; border-left:2px solid #ede9fe; margin:0.25rem 0;">${bancoTarjHtml}</div>` : ''}
+                            <div style="display:flex; justify-content:space-between; padding:0.75rem 0 0; margin-top:0.5rem; border-top:2px solid #10b981; font-size:1rem;">
+                                <span style="font-weight:700;">Total Ventas</span>
+                                <span style="font-weight:800; color:#10b981; font-size:1.1rem;">${formatCurrency(c.total)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    ${egresosHtml}
+                    ${resultadoHtml}
+                    
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-top:1.5rem; padding-top:1rem; border-top:1px solid #e5e7eb;">
+                        <div style="display:flex; align-items:center; gap:0.5rem;">
+                            <div style="width:32px; height:32px; background:#e5e7eb; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:0.8rem; font-weight:600; color:#6b7280;">${c.usuario ? c.usuario.charAt(0).toUpperCase() : 'U'}</div>
+                            <span style="font-size:0.85rem; color:#6b7280;">${escapeHtml(c.usuario || 'Usuario')}</span>
+                        </div>
+                        <div style="font-size:0.8rem; color:#9ca3af;">${c.cantidad_ventas} venta${c.cantidad_ventas !== 1 ? 's' : ''}</div>
+                    </div>
+                    
+                    ${c.notas ? `<div style="margin-top:1rem; padding:0.75rem; background:#fefce8; border-radius:8px; font-size:0.8rem; color:#a16207;"><strong>📝 Notas:</strong> ${escapeHtml(c.notas)}</div>` : ''}
+                    
+                    <button onclick="imprimirCuadreDesdeDetalle()" style="width:100%; margin-top:1rem; padding:0.75rem; background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; border:none; border-radius:10px; font-weight:600; cursor:pointer;">🖨️ Imprimir Cuadre</button>
+                `;
             } catch (error) {
-                contenido.innerHTML = '<p style="color: red;">Error al cargar detalles</p>';
+                const contenido = document.getElementById('detalles-content');
+                if (contenido) {
+                    contenido.innerHTML = `<p style="color:red; text-align:center;">Error al cargar detalles: ${error.message}</p>`;
+                }
             }
+        }
+        
+        async function imprimirCuadreDesdeDetalle() {
+            closeGlobalModal();
+            imprimirCuadreResumen();
         }
         
         async function eliminarCuadre(id) {
@@ -1383,6 +1795,9 @@
             });
         }
     </script>
+    <script src="/js/api.js"></script>
+    <script src="/js/common.js"></script>
+    <script src="/js/sidebar.js"></script>
     <script src="/js/license-banner.js"></script>
 </body>
 </html>

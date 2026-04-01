@@ -24,6 +24,17 @@ const ICONOS_CATEGORIA = {
     'DEFAULT': '✨'
 };
 
+function toTitleCase(str) {
+    if (!str) return '';
+    return str.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
+}
+
+function capitalizeFirst(str) {
+    if (!str || !str.trim()) return '';
+    const s = str.trim();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     slug = window.location.pathname.split('/booking/')[1];
     if (!slug) {
@@ -358,10 +369,10 @@ async function submitBooking() {
         servicio_id: selectedService.id,
         fecha: document.getElementById('fecha').value,
         hora: selectedHora.hora,
-        nombre: document.getElementById('nombre').value.trim(),
+        nombre: toTitleCase(document.getElementById('nombre').value.trim()),
         whatsapp: document.getElementById('whatsapp').value.trim(),
         email: document.getElementById('email').value.trim() || null,
-        notas: document.getElementById('notas').value.trim() || null
+        notas: capitalizeFirst(document.getElementById('notas').value) || null
     };
     
     try {

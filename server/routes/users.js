@@ -43,7 +43,7 @@ router.get('/:id', requireAuth, (req, res) => {
     }
 });
 
-router.post('/', async (req, res) => {
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
     try {
         const { nombre, email, password, rol, horario_tipo, hora_entrada, hora_salida } = req.body;
         
@@ -61,23 +61,19 @@ router.post('/', async (req, res) => {
         }
 
         if (rol === 'admin') {
-            if (req.session.email !== 'azdelmicha@gmail.com') {
-                return res.status(403).json({ error: 'Solo el administrador principal puede crear admins' });
-            }
+            return res.status(403).json({ error: 'Solo el administrador del sistema puede crear admins' });
         }
         
         if (rol === 'empleado') {
             const db = getDb();
             
-            if (req.session.email !== 'azdelmicha@gmail.com') {
-                const employeeCount = db.prepare(`
-                    SELECT COUNT(*) as count FROM usuarios 
-                    WHERE negocio_id = ? AND rol = 'empleado'
-                `).get(req.session.negocioId);
-                
-                if (employeeCount.count >= 3) {
-                    return res.status(403).json({ error: 'Solo puedes crear máximo 3 empleados' });
-                }
+            const employeeCount = db.prepare(`
+                SELECT COUNT(*) as count FROM usuarios 
+                WHERE negocio_id = ? AND rol = 'empleado'
+            `).get(req.session.negocioId);
+            
+            if (employeeCount.count >= 3) {
+                return res.status(403).json({ error: 'Solo puedes crear máximo 3 empleados' });
             }
         }
 

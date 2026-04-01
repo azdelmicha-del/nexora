@@ -4,6 +4,10 @@ node_modules/
 # Database (se recrea automáticamente)
 server/db/nexora.db
 server/db/nexora.db-journal
+server/db/nexora.db-shm
+server/db/nexora.db-wal
+server/db/sessions.db
+server/db/backups/
 
 # Logs
 *.log
@@ -28,3 +32,24 @@ temp/
 # License files (solo para desarrollo)
 license.json
 valid_keys.json
+
+# Scripts temporales de debug/fix/patch
+check-db.js
+cleanup-admin.js
+debug-license.js
+fix-*.js
+patch-*.js
+patch*.js
+test-*.js
+test*.js
+update-superadmin.js
+
+# Documentación y assets no necesarios
+PROMPT_MAESTRO.md
+*.txt
+*.docx
+*.jpeg
+*.png
+
+# Backup de superadmin
+public/superadmin.backup.html

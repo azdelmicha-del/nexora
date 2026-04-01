@@ -60,7 +60,7 @@ router.get('/ventas', requireAuth, (req, res) => {
         `).all(...params);
 
         const ultimasVentas = db.prepare(`
-            SELECT v.id, v.total, v.metodo_pago, v.fecha, c.nombre as cliente
+            SELECT v.id, v.total, v.metodo_pago, v.banco, v.fecha, c.nombre as cliente
             FROM ventas v
             LEFT JOIN clientes c ON v.cliente_id = c.id
             ${where}
@@ -279,7 +279,7 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
         const ahora = new Date();
         const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
 
-        // SOLO MOSTRAR VENTAS SIN CUADRE (ventas nuevas del turno actual)
+        // Ventas sin cuadre (turno actual)
         const resumen = db.prepare(`
             SELECT COALESCE(SUM(total), 0) as total,
                    COUNT(*) as cantidad,
@@ -290,6 +290,22 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
             WHERE negocio_id = ? AND cuadre_id IS NULL
         `).get(req.session.negocioId);
 
+        // Desglose por banco (transferencias)
+        const porBancoTransferencia = db.prepare(`
+            SELECT COALESCE(banco, 'Sin banco') as banco, COALESCE(SUM(total), 0) as total, COUNT(*) as cantidad
+            FROM ventas
+            WHERE negocio_id = ? AND cuadre_id IS NULL AND metodo_pago = 'transferencia'
+            GROUP BY banco
+        `).all(req.session.negocioId);
+
+        // Desglose por banco (tarjetas)
+        const porBancoTarjeta = db.prepare(`
+            SELECT COALESCE(banco, 'Sin banco') as banco, COALESCE(SUM(total), 0) as total, COUNT(*) as cantidad
+            FROM ventas
+            WHERE negocio_id = ? AND cuadre_id IS NULL AND metodo_pago = 'tarjeta'
+            GROUP BY banco
+        `).all(req.session.negocioId);
+
         const resumenFueraCuadre = db.prepare(`
             SELECT COALESCE(SUM(total), 0) as total,
                    COUNT(*) as cantidad
@@ -298,7 +314,7 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
         `).get(req.session.negocioId);
 
         const ventas = db.prepare(`
-            SELECT v.id, v.total, v.metodo_pago, v.fecha, v.fuera_cuadre, c.nombre as cliente
+            SELECT v.id, v.total, v.metodo_pago, v.banco, v.fecha, v.fuera_cuadre, c.nombre as cliente
             FROM ventas v
             LEFT JOIN clientes c ON v.cliente_id = c.id
             WHERE v.negocio_id = ? AND v.cuadre_id IS NULL
@@ -319,12 +335,54 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
             };
         });
 
+        // Egresos del turno actual (sin cuadre)
+        const egresosTurno = db.prepare(`
+            SELECT COALESCE(SUM(monto), 0) as total_egresos,
+                   COUNT(*) as cantidad,
+                   COALESCE(SUM(CASE WHEN metodo_pago = 'efectivo' THEN monto ELSE 0 END), 0) as efectivo,
+                   COALESCE(SUM(CASE WHEN metodo_pago = 'transferencia' THEN monto ELSE 0 END), 0) as transferencia
+            FROM estado_resultado_items
+            WHERE negocio_id = ? AND tipo = 'gasto' AND cuadre_id IS NULL
+        `).get(req.session.negocioId);
+
+        const listaEgresosTurno = db.prepare(`
+            SELECT id, categoria, descripcion, monto, metodo_pago, fecha, hora
+            FROM estado_resultado_items
+            WHERE negocio_id = ? AND tipo = 'gasto' AND cuadre_id IS NULL
+            ORDER BY created_at DESC
+        `).all(req.session.negocioId);
+
+        // Efectivo neto = ventas efectivo - egresos efectivo
+        const efectivoNeto = resumen.efectivo - (egresosTurno.efectivo || 0);
+
+        // Verificar si hay ventas pendientes (sin cuadre)
+        const hayVentasPendientes = resumen.cantidad > 0;
+        
+        // Verificar si hay un cierre del día de hoy
+        const cierreHoy = db.prepare(`
+            SELECT id FROM cajas_cerradas 
+            WHERE negocio_id = ? AND fecha LIKE ?
+            ORDER BY id DESC LIMIT 1
+        `).get(req.session.negocioId, `${hoy}%`);
+        
+        // La caja está cerrada si no hay ventas pendientes Y hay un cierre hoy
+        const cajaCerrada = !hayVentasPendientes && cierreHoy !== undefined;
+        
+        // Datos del negocio
+        const negocio = db.prepare('SELECT nombre, direccion, telefono FROM negocios WHERE id = ?').get(req.session.negocioId);
+
         res.json({
             resumen,
             resumenFueraCuadre,
+            porBancoTransferencia,
+            porBancoTarjeta,
             ventas: ventasConDetalles,
+            egresosTurno,
+            listaEgresosTurno,
+            efectivoNeto,
             fecha: hoy,
-            caja_cerrada: false // Siempre abierto para nuevas ventas
+            caja_cerrada: cajaCerrada,
+            negocio: negocio || { nombre: 'Mi Negocio', direccion: '', telefono: '' }
         });
     } catch (error) {
         console.error('Error en GET /cuadre:', error);
@@ -337,8 +395,38 @@ router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
         const db = getDb();
         const ahora = new Date();
         const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+        const inicioMes = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-01`;
+        
+        const tipo = req.body.tipo || 'dia';
+        const fechaPersonalizada = req.body.fecha || null;
+        
+        let fechaDesde;
+        let fechaCierre;
+        
+        if (tipo === 'mes' && fechaPersonalizada) {
+            fechaDesde = fechaPersonalizada;
+            fechaCierre = `${fechaPersonalizada} al ${hoy}`;
+        } else if (tipo === 'mes') {
+            fechaDesde = inicioMes;
+            fechaCierre = `${inicioMes} al ${hoy}`;
+        } else {
+            fechaDesde = hoy;
+            fechaCierre = hoy;
+        }
 
-        // SOLO CONTAR VENTAS SIN CUADRE (turno actual)
+        // Determinar filtro de ventas según tipo
+        let whereVentas = 'cuadre_id IS NULL';
+        let ventasParams = [req.session.negocioId];
+        
+        if (tipo === 'dia') {
+            whereVentas += ' AND DATE(fecha) = ?';
+            ventasParams.push(hoy);
+        } else {
+            whereVentas += ' AND DATE(fecha) >= ?';
+            ventasParams.push(fechaDesde);
+        }
+
+        // CONTAR VENTAS SEGÚN TIPO
         const resumen = db.prepare(`
             SELECT COALESCE(SUM(total), 0) as total,
                    COUNT(*) as cantidad,
@@ -346,40 +434,72 @@ router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
                    COALESCE(SUM(CASE WHEN metodo_pago = 'transferencia' THEN total ELSE 0 END), 0) as transferencia,
                    COALESCE(SUM(CASE WHEN metodo_pago = 'tarjeta' THEN total ELSE 0 END), 0) as tarjeta
             FROM ventas
-            WHERE negocio_id = ? AND cuadre_id IS NULL
-        `).get(req.session.negocioId);
+            WHERE negocio_id = ? AND ${whereVentas}
+        `).get(req.session.negocioId, ...(tipo === 'dia' ? [hoy] : [fechaDesde]));
 
         if (resumen.cantidad === 0) {
-            return res.status(400).json({ error: 'No hay ventas registradas para cerrar la caja' });
+            return res.status(400).json({ error: 'No hay ventas pendientes. La caja ya está cerrada o no hay ventas nuevas.' });
         }
 
-        // CREAR NUEVO REGISTRO DE CIERRE (siempre, sin importar si ya hay uno)
+        // CREAR NUEVO REGISTRO DE CIERRE
         const result = db.prepare(`
             INSERT INTO cajas_cerradas (negocio_id, fecha, total, cantidad_ventas, efectivo, transferencia, tarjeta, user_id, notas)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             req.session.negocioId,
-            hoy,
+            fechaCierre,
             resumen.total,
             resumen.cantidad,
             resumen.efectivo,
             resumen.transferencia,
             resumen.tarjeta,
             req.session.userId,
-            req.body.notas || null
+            (tipo === 'mes' ? '[CIERRE MENSUAL] ' : '') + (req.body.notas || '')
         );
 
         const cierreId = result.lastInsertRowid;
 
-        // MARCAR TODAS LAS VENTAS SIN CUADRE CON EL NUEVO CIERRE
-        db.prepare(`
-            UPDATE ventas 
-            SET cuadre_id = ? 
-            WHERE negocio_id = ? AND cuadre_id IS NULL
-        `).run(cierreId, req.session.negocioId);
+        // MARCAR VENTAS CON EL NUEVO CIERRE (según tipo)
+        const updateParams = [cierreId, req.session.negocioId];
+        let updateWhere = 'cuadre_id IS NULL';
+        
+        if (tipo === 'dia') {
+            updateWhere += ' AND DATE(fecha) = ?';
+            updateParams.push(hoy);
+        } else {
+            updateWhere += ' AND DATE(fecha) >= ?';
+            updateParams.push(fechaDesde);
+        }
+        
+        db.prepare(`UPDATE ventas SET cuadre_id = ? WHERE negocio_id = ? AND ${updateWhere}`).run(...updateParams);
+        
+        // Marcar egrosos del turno actual con el cuadre_id
+        let updateEgresosWhere = 'cuadre_id IS NULL AND tipo = ?';
+        const updateEgresosParams = [cierreId, req.session.negocioId, 'gasto'];
+        
+        if (tipo === 'dia') {
+            updateEgresosWhere += ' AND DATE(fecha) = ?';
+            updateEgresosParams.push(hoy);
+        } else {
+            updateEgresosWhere += ' AND DATE(fecha) >= ?';
+            updateEgresosParams.push(fechaDesde);
+        }
+        
+        db.prepare(`UPDATE estado_resultado_items SET cuadre_id = ? WHERE negocio_id = ? AND ${updateEgresosWhere}`).run(...updateEgresosParams);
+        
+        // Si es cierre del día, marcar la caja como cerrada
+        if (tipo === 'dia') {
+            try {
+                db.prepare(`INSERT OR IGNORE INTO config (negocio_id, caja_cerrada) VALUES (?, 0)`).run(req.session.negocioId);
+                db.prepare(`UPDATE config SET caja_cerrada = 1 WHERE negocio_id = ?`).run(req.session.negocioId);
+            } catch (e) {
+                console.error('Error actualizando config:', e);
+            }
+        }
 
+        // Ventas del día con detalles
         const ventasDelDia = db.prepare(`
-            SELECT v.id, v.total, v.metodo_pago, v.fecha, c.nombre as cliente
+            SELECT v.id, v.total, v.metodo_pago, v.banco, v.fecha, c.nombre as cliente
             FROM ventas v
             LEFT JOIN clientes c ON v.cliente_id = c.id
             WHERE v.negocio_id = ? AND v.cuadre_id = ?
@@ -400,24 +520,99 @@ router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
             };
         });
 
+        // Desglose por banco (transferencias)
+        const porBancoTrans = db.prepare(`
+            SELECT COALESCE(banco, 'Sin banco') as banco, SUM(total) as total, COUNT(*) as cantidad
+            FROM ventas WHERE negocio_id = ? AND cuadre_id = ? AND metodo_pago = 'transferencia'
+            GROUP BY banco
+        `).all(req.session.negocioId, cierreId);
+
+        // Desglose por banco (tarjetas)
+        const porBancoTarj = db.prepare(`
+            SELECT COALESCE(banco, 'Sin banco') as banco, SUM(total) as total, COUNT(*) as cantidad
+            FROM ventas WHERE negocio_id = ? AND cuadre_id = ? AND metodo_pago = 'tarjeta'
+            GROUP BY banco
+        `).all(req.session.negocioId, cierreId);
+
+        // Egresos solo para cierre mensual (visualización)
+        let egresos = null;
+        let totalEntregar = null;
+        
+        if (tipo === 'mes') {
+            try {
+                egresos = db.prepare(`
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN categoria = 'costo_ventas' AND (subtipo = 'costo' OR subtipo IS NULL) THEN monto ELSE 0 END), 0) as costo_ventas,
+                        COALESCE(SUM(CASE WHEN categoria = 'gastos_operativos' AND (subtipo = 'costo' OR subtipo IS NULL) THEN monto ELSE 0 END), 0) as gastos_fijos,
+                        COALESCE(SUM(CASE WHEN categoria = 'otros_gastos' AND (subtipo = 'costo' OR subtipo IS NULL) THEN monto ELSE 0 END), 0) as otros_costos,
+                        COALESCE(SUM(CASE WHEN subtipo = 'gasto' THEN monto ELSE 0 END), 0) as gastos_personales,
+                        COALESCE(SUM(CASE WHEN subtipo = 'costo' OR subtipo IS NULL THEN monto ELSE 0 END), 0) as total_costos,
+                        COALESCE(SUM(CASE WHEN subtipo = 'gasto' THEN monto ELSE 0 END), 0) as total_gastos
+                    FROM estado_resultado_items
+                    WHERE negocio_id = ? AND tipo = 'gasto' AND DATE(fecha) >= ?
+                `).get(req.session.negocioId, inicioMes);
+                
+                totalEntregar = resumen.total - ((egresos.total_costos || 0) + (egresos.total_gastos || 0));
+            } catch (egresosError) {
+                console.error('Error obteniendo egresos:', egresosError);
+                egresos = { costo_ventas: 0, gastos_fijos: 0, otros_costos: 0, gastos_personales: 0, total_costos: 0, total_gastos: 0, total_egresos: 0 };
+                totalEntregar = resumen.total;
+            }
+        }
+
+        // Obtener datos del negocio
+        const negocio = db.prepare('SELECT nombre, direccion, telefono FROM negocios WHERE id = ?').get(req.session.negocioId);
+
         res.json({
             success: true,
             mensaje: 'Caja cerrada correctamente',
             cierreId,
+            negocio: negocio || { nombre: 'Mi Negocio', direccion: '', telefono: '' },
             resumen,
+            porBancoTransferencia: porBancoTrans,
+            porBancoTarjeta: porBancoTarj,
+            egresos,
+            totalEntregar,
+            tipo,
             ventas: ventasConDetalles
         });
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Error al cerrar caja' });
+        console.error('Error en cierre de caja:', error);
+        res.status(500).json({ error: 'Error al cerrar caja: ' + error.message });
     }
 });
 
 router.post('/cuadre/abrir', requireAuth, requireAdmin, (req, res) => {
     try {
-        // Solo confirmar que se puede empezar a vender de nuevo
-        // NO eliminamos ningún cierre - quedan en historial
-        res.json({ success: true, mensaje: 'Caja abierta. Nuevo turno iniciado.' });
+        const db = getDb();
+        
+        // Desmarcar las ventas del último cierre (hacerlas disponibles para un nuevo cuadre)
+        const cierre = db.prepare(`
+            SELECT id FROM cajas_cerradas 
+            WHERE negocio_id = ?
+            ORDER BY id DESC LIMIT 1
+        `).get(req.session.negocioId);
+        
+        if (cierre) {
+            db.prepare('UPDATE ventas SET cuadre_id = NULL WHERE cuadre_id = ?').run(cierre.id);
+            // También desmarcar egresos del cuadre
+            db.prepare('UPDATE estado_resultado_items SET cuadre_id = NULL WHERE cuadre_id = ?').run(cierre.id);
+        }
+        
+        // Eliminar el cierre más reciente para limpiar el estado
+        if (cierre) {
+            db.prepare('DELETE FROM cajas_cerradas WHERE id = ?').run(cierre.id);
+        }
+        
+        // Abrir la caja (habilitar ventas)
+        try {
+            db.prepare(`INSERT OR IGNORE INTO config (negocio_id, caja_cerrada) VALUES (?, 0)`).run(req.session.negocioId);
+            db.prepare(`UPDATE config SET caja_cerrada = 0 WHERE negocio_id = ?`).run(req.session.negocioId);
+        } catch (e) {
+            console.error('Error abriendo caja:', e);
+        }
+        
+        res.json({ success: true, mensaje: 'Caja abierta. Nuevo turno iniciado. Las ventas ahora están disponibles para un nuevo cierre.' });
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Error al abrir caja' });
@@ -465,7 +660,7 @@ router.get('/cuadre/detalles/:fecha', requireAuth, requireAdmin, (req, res) => {
         }
 
         const ventas = db.prepare(`
-            SELECT v.id, v.total, v.metodo_pago, v.fecha, c.nombre as cliente
+            SELECT v.id, v.total, v.metodo_pago, v.banco, v.fecha, c.nombre as cliente
             FROM ventas v
             LEFT JOIN clientes c ON v.cliente_id = c.id
             WHERE v.negocio_id = ? AND DATE(v.fecha) = ?
@@ -486,9 +681,60 @@ router.get('/cuadre/detalles/:fecha', requireAuth, requireAdmin, (req, res) => {
             };
         });
 
+        // Desglose por banco
+        const porBancoTrans = db.prepare(`
+            SELECT COALESCE(banco, 'Sin banco') as banco, SUM(total) as total
+            FROM ventas WHERE negocio_id = ? AND DATE(fecha) = ? AND metodo_pago = 'transferencia'
+            GROUP BY banco
+        `).all(req.session.negocioId, fecha);
+
+        const porBancoTarj = db.prepare(`
+            SELECT COALESCE(banco, 'Sin banco') as banco, SUM(total) as total
+            FROM ventas WHERE negocio_id = ? AND DATE(fecha) = ? AND metodo_pago = 'tarjeta'
+            GROUP BY banco
+        `).all(req.session.negocioId, fecha);
+
+        // Egresos solo para cierre mensual
+        const esCierreMensual = cierre.notas && cierre.notas.includes('[CIERRE MENSUAL]');
+        let egresos = null;
+        let totalEntregar = null;
+        
+        if (esCierreMensual) {
+            // Para cierre mensual, obtener egresos de todo el mes
+            const inicioMes = fecha.substring(0, 7) + '-01';
+            try {
+                egresos = db.prepare(`
+                    SELECT 
+                        COALESCE(SUM(CASE WHEN categoria = 'costo_ventas' AND (subtipo = 'costo' OR subtipo IS NULL) THEN monto ELSE 0 END), 0) as costo_ventas,
+                        COALESCE(SUM(CASE WHEN categoria = 'gastos_operativos' AND (subtipo = 'costo' OR subtipo IS NULL) THEN monto ELSE 0 END), 0) as gastos_fijos,
+                        COALESCE(SUM(CASE WHEN categoria = 'otros_gastos' AND (subtipo = 'costo' OR subtipo IS NULL) THEN monto ELSE 0 END), 0) as otros_costos,
+                        COALESCE(SUM(CASE WHEN subtipo = 'gasto' THEN monto ELSE 0 END), 0) as gastos_personales,
+                        COALESCE(SUM(CASE WHEN subtipo = 'costo' OR subtipo IS NULL THEN monto ELSE 0 END), 0) as total_costos,
+                        COALESCE(SUM(CASE WHEN subtipo = 'gasto' THEN monto ELSE 0 END), 0) as total_gastos
+                    FROM estado_resultado_items
+                    WHERE negocio_id = ? AND tipo = 'gasto' AND DATE(fecha) >= ?
+                `).get(req.session.negocioId, inicioMes);
+                
+                totalEntregar = cierre.total - ((egresos.total_costos || 0) + (egresos.total_gastos || 0));
+            } catch (egresosError) {
+                console.error('Error obteniendo egresos:', egresosError);
+                egresos = { costo_ventas: 0, gastos_fijos: 0, otros_costos: 0, gastos_personales: 0, total_costos: 0, total_gastos: 0 };
+                totalEntregar = cierre.total;
+            }
+        }
+
+        // Datos del negocio
+        const negocio = db.prepare('SELECT nombre, direccion, telefono FROM negocios WHERE id = ?').get(req.session.negocioId);
+        
         res.json({
             cierre,
-            ventas: ventasConDetalles
+            ventas: ventasConDetalles,
+            porBancoTransferencia: porBancoTrans,
+            porBancoTarjeta: porBancoTarj,
+            egresos,
+            totalEntregar,
+            tipo: esCierreMensual ? 'mes' : 'dia',
+            negocio: negocio || { nombre: 'Mi Negocio', direccion: '', telefono: '' }
         });
     } catch (error) {
         console.error('Error:', error);
@@ -504,6 +750,27 @@ router.delete('/cuadre/cleanup', requireAuth, requireAdmin, (req, res) => {
         fechaLimite.setDate(fechaLimite.getDate() - 7);
         const fechaLimiteStr = `${fechaLimite.getFullYear()}-${String(fechaLimite.getMonth() + 1).padStart(2, '0')}-${String(fechaLimite.getDate()).padStart(2, '0')}`;
 
+        // Primero desvincular las ventas de los cuadres antiguos
+        db.prepare(`
+            UPDATE ventas 
+            SET cuadre_id = NULL 
+            WHERE cuadre_id IN (
+                SELECT id FROM cajas_cerradas 
+                WHERE negocio_id = ? AND fecha < ?
+            )
+        `).run(req.session.negocioId, fechaLimiteStr);
+
+        // Desvincular egresos de los cuadres antiguos
+        db.prepare(`
+            UPDATE estado_resultado_items 
+            SET cuadre_id = NULL 
+            WHERE cuadre_id IN (
+                SELECT id FROM cajas_cerradas 
+                WHERE negocio_id = ? AND fecha < ?
+            )
+        `).run(req.session.negocioId, fechaLimiteStr);
+
+        // Ahora eliminar los cuadres
         const result = db.prepare(`
             DELETE FROM cajas_cerradas 
             WHERE negocio_id = ? AND fecha < ?
@@ -515,8 +782,8 @@ router.delete('/cuadre/cleanup', requireAuth, requireAdmin, (req, res) => {
             eliminados: result.changes
         });
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Error al limpiar cuadres' });
+        console.error('Error cleanup:', error);
+        res.status(500).json({ error: 'Error al limpiar cuadres: ' + error.message });
     }
 });
 
@@ -535,6 +802,8 @@ router.delete('/cuadre/:id', requireAuth, requireAdmin, (req, res) => {
 
         // Desmarcar las ventas de este cuadre (vuelven a estado pendiente)
         db.prepare('UPDATE ventas SET cuadre_id = NULL WHERE cuadre_id = ?').run(req.params.id);
+        // Desmarcar egresos de este cuadre
+        db.prepare('UPDATE estado_resultado_items SET cuadre_id = NULL WHERE cuadre_id = ?').run(req.params.id);
 
         // Eliminar el registro de cierre
         db.prepare('DELETE FROM cajas_cerradas WHERE id = ?').run(req.params.id);

@@ -341,6 +341,12 @@
             return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
         }
         
+        function capitalizeFirst(str) {
+            if (!str || !str.trim()) return '';
+            const s = str.trim();
+            return s.charAt(0).toUpperCase() + s.slice(1);
+        }
+        
         async function loadCategorias() {
             try {
                 categorias = await apiCall('/categories');
@@ -472,7 +478,7 @@
                 precio: parseFloat(precioInput.value),
                 duracion: parseInt(duracionInput.value),
                 categoria_id: document.getElementById('categoria_id').value || null,
-                descripcion: document.getElementById('descripcion').value.trim() || null,
+                descripcion: capitalizeFirst(document.getElementById('descripcion').value) || null,
                 estado: document.getElementById('estado').value,
                 imagen: document.getElementById('imagenData').value || null
             };

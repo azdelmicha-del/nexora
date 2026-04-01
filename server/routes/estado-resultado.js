@@ -8,13 +8,17 @@ const router = express.Router();
 router.get('/', requireAuth, requireAdmin, (req, res) => {
     try {
         const db = getDb();
-        const { desde, hasta } = req.query;
+        const { desde, hasta, turno } = req.query;
         
         let query = `
             SELECT * FROM estado_resultado_items 
             WHERE negocio_id = ?
         `;
         const params = [req.session.negocioId];
+        
+        if (turno === 'actual') {
+            query += ' AND cuadre_id IS NULL';
+        }
         
         if (desde) {
             query += ' AND fecha >= ?';
@@ -38,6 +42,10 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
         `;
         const ventasParams = [req.session.negocioId];
         
+        if (turno === 'actual') {
+            ventasQuery += ' AND cuadre_id IS NULL';
+        }
+        
         if (desde) {
             ventasQuery += ' AND date(fecha) >= ?';
             ventasParams.push(desde);
@@ -50,7 +58,7 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
         ventasQuery += ' ORDER BY fecha DESC';
         
         const ventasPOS = db.prepare(ventasQuery).all(...ventasParams);
-        const totalVentasPOS = ventasPOS.reduce((sum, v) => v.monto, 0);
+        const totalVentasPOS = ventasPOS.reduce((sum, v) => sum + v.monto, 0);
         
         // Combinar items manuales + ventas POS
         const todosLosItems = [...items, ...ventasPOS].sort((a, b) => {
@@ -65,7 +73,8 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
             costo_ventas: 0,
             gastos_operativos: 0,
             otros_ingresos: 0,
-            otros_gastos: 0
+            otros_gastos: 0,
+            gastos_personales: 0
         };
         
         // Sumar ventas manuales
@@ -115,7 +124,7 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
 // Agregar item al estado de resultado
 router.post('/', requireAuth, requireAdmin, (req, res) => {
     try {
-        const { tipo, subtipo, categoria, descripcion, monto, fecha, notas } = req.body;
+        const { tipo, subtipo, categoria, descripcion, subtotal, itbis, descuento, monto, fecha, notas, metodo_pago } = req.body;
         
         if (!tipo || !categoria || !descripcion || !monto || !fecha) {
             return res.status(400).json({ error: 'Todos los campos son requeridos' });
@@ -125,7 +134,7 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
             return res.status(400).json({ error: 'Tipo debe ser ingreso o gasto' });
         }
         
-        const categoriasValidas = ['ventas', 'costo_ventas', 'gastos_operativos', 'otros_ingresos', 'otros_gastos'];
+        const categoriasValidas = ['ventas', 'costo_ventas', 'gastos_operativos', 'otros_ingresos', 'otros_gastos', 'gastos_personales'];
         if (!categoriasValidas.includes(categoria)) {
             return res.status(400).json({ error: 'Categoría no válida' });
         }
@@ -134,25 +143,40 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
             return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
         }
         
-        // Determinar subtipo automáticamente si no se envía
+        // Determinar subtipo automáticamente según la categoría
         let subtipoFinal = subtipo;
-        if (!subtipoFinal && tipo === 'gasto') {
-            subtipoFinal = 'costo'; // Por defecto, gastos son costos del negocio
+        if (tipo === 'gasto') {
+            if (categoria === 'gastos_personales') {
+                subtipoFinal = 'gasto';
+            } else {
+                subtipoFinal = 'costo';
+            }
         }
+        
+        // Obtener hora actual
+        const ahora = new Date();
+        const horaActual = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}:${String(ahora.getSeconds()).padStart(2, '0')}`;
+        
+        const metodoPago = metodo_pago || 'efectivo';
         
         const db = getDb();
         
         const result = db.prepare(`
-            INSERT INTO estado_resultado_items (negocio_id, tipo, subtipo, categoria, descripcion, monto, fecha, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO estado_resultado_items (negocio_id, tipo, subtipo, categoria, descripcion, subtotal, itbis, descuento, monto, metodo_pago, fecha, hora, notas)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             req.session.negocioId,
             tipo,
             subtipoFinal,
             categoria,
             descripcion.trim(),
+            parseFloat(subtotal) || 0,
+            parseFloat(itbis) || 0,
+            parseFloat(descuento) || 0,
             parseFloat(monto),
+            metodoPago,
             fecha,
+            horaActual,
             notas ? notas.trim() : null
         );
         
@@ -168,7 +192,7 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
 // Actualizar item
 router.put('/:id', requireAuth, requireAdmin, (req, res) => {
     try {
-        const { tipo, categoria, descripcion, monto, fecha, notas } = req.body;
+        const { tipo, categoria, descripcion, subtotal, itbis, descuento, monto, fecha, notas, metodo_pago } = req.body;
         const itemId = req.params.id;
         
         const db = getDb();
@@ -190,14 +214,37 @@ router.put('/:id', requireAuth, requireAdmin, (req, res) => {
         if (categoria) {
             updates.push('categoria = ?');
             values.push(categoria);
+            if (categoria === 'gastos_personales') {
+                updates.push('subtipo = ?');
+                values.push('gasto');
+            } else {
+                updates.push('subtipo = ?');
+                values.push('costo');
+            }
         }
         if (descripcion) {
             updates.push('descripcion = ?');
             values.push(descripcion.trim());
         }
+        if (subtotal !== undefined) {
+            updates.push('subtotal = ?');
+            values.push(parseFloat(subtotal) || 0);
+        }
+        if (itbis !== undefined) {
+            updates.push('itbis = ?');
+            values.push(parseFloat(itbis) || 0);
+        }
+        if (descuento !== undefined) {
+            updates.push('descuento = ?');
+            values.push(parseFloat(descuento) || 0);
+        }
         if (monto !== undefined) {
             updates.push('monto = ?');
             values.push(parseFloat(monto));
+        }
+        if (metodo_pago) {
+            updates.push('metodo_pago = ?');
+            values.push(metodo_pago);
         }
         if (fecha) {
             updates.push('fecha = ?');

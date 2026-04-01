@@ -55,6 +55,18 @@ function initDatabase() {
         );
     `);
     
+    // Tabla de configuración por negocio
+    try {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS config (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL UNIQUE,
+                caja_cerrada INTEGER DEFAULT 0,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+            )
+        `);
+    } catch (e) {}
+    
     const columns = db.prepare("PRAGMA table_info(ventas)").all();
     const hasFueraCuadre = columns.some(c => c.name === 'fuera_cuadre');
     if (!hasFueraCuadre) {
@@ -148,8 +160,67 @@ function initDatabase() {
     const hasSubtipo = erColumns.some(c => c.name === 'subtipo');
     if (!hasSubtipo) {
         db.exec('ALTER TABLE estado_resultado_items ADD COLUMN subtipo TEXT');
-        // Migrar items existentes
         db.exec("UPDATE estado_resultado_items SET subtipo = 'costo' WHERE tipo = 'gasto' AND categoria IN ('costo_ventas', 'gastos_operativos', 'otros_gastos')");
+        db.exec("UPDATE estado_resultado_items SET subtipo = 'gasto' WHERE tipo = 'gasto' AND categoria = 'gastos_personales'");
+    }
+    
+    // Agregar columnas subtotal, itbis, descuento
+    const hasSubtotal = erColumns.some(c => c.name === 'subtotal');
+    if (!hasSubtotal) {
+        db.exec('ALTER TABLE estado_resultado_items ADD COLUMN subtotal REAL DEFAULT 0');
+        db.exec('ALTER TABLE estado_resultado_items ADD COLUMN itbis REAL DEFAULT 0');
+        db.exec('ALTER TABLE estado_resultado_items ADD COLUMN descuento REAL DEFAULT 0');
+    }
+
+    // Agregar columnas cuadre_id, metodo_pago, hora a estado_resultado_items
+    const erColumnsUpdated = db.prepare("PRAGMA table_info(estado_resultado_items)").all();
+    if (!erColumnsUpdated.some(c => c.name === 'cuadre_id')) {
+        db.exec('ALTER TABLE estado_resultado_items ADD COLUMN cuadre_id INTEGER');
+        console.log('Columna cuadre_id agregada a estado_resultado_items.');
+    }
+    if (!erColumnsUpdated.some(c => c.name === 'metodo_pago')) {
+        db.exec("ALTER TABLE estado_resultado_items ADD COLUMN metodo_pago TEXT DEFAULT 'efectivo'");
+        console.log('Columna metodo_pago agregada a estado_resultado_items.');
+    }
+    if (!erColumnsUpdated.some(c => c.name === 'hora')) {
+        db.exec("ALTER TABLE estado_resultado_items ADD COLUMN hora TEXT");
+        console.log('Columna hora agregada a estado_resultado_items.');
+    }
+    
+    // Verificar si la categoría gastos_personales está permitida (si no, recrear la tabla)
+    try {
+        db.exec("INSERT INTO estado_resultado_items (negocio_id, tipo, categoria, descripcion, monto, fecha) VALUES (999, 'gasto', 'gastos_personales', 'test', 1, '2024-01-01')");
+        db.exec("DELETE FROM estado_resultado_items WHERE negocio_id = 999");
+    } catch (e) {
+        if (e.message.includes('CHECK constraint')) {
+            console.log('Reconstruyendo tabla estado_resultado_items para soportar gastos_personales...');
+            db.exec(`
+                CREATE TABLE estado_resultado_items_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    negocio_id INTEGER NOT NULL,
+                    tipo TEXT NOT NULL,
+                    subtipo TEXT,
+                    categoria TEXT NOT NULL,
+                    descripcion TEXT NOT NULL,
+                    subtotal REAL DEFAULT 0,
+                    itbis REAL DEFAULT 0,
+                    descuento REAL DEFAULT 0,
+                    monto REAL NOT NULL DEFAULT 0,
+                    fecha TEXT NOT NULL,
+                    notas TEXT,
+                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+                );
+                INSERT INTO estado_resultado_items_new SELECT * FROM estado_resultado_items;
+                DROP TABLE estado_resultado_items;
+                ALTER TABLE estado_resultado_items_new RENAME TO estado_resultado_items;
+            `);
+        }
+    }
+    
+    // Agregar columna banco a ventas
+    const ventasCols = db.prepare("PRAGMA table_info(ventas)").all();
+    if (!ventasCols.some(c => c.name === 'banco')) {
+        db.exec('ALTER TABLE ventas ADD COLUMN banco TEXT');
     }
     
     console.log('Base de datos inicializada');
@@ -257,16 +328,10 @@ function activarLicenciaNegocio(negocioId, plan, dias, hardwareId) {
 function getDiasLicenciaNegocio(negocioId) {
     const licencia = getLicenciaNegocio(negocioId);
     
-    if (!licencia) return { valid: false, type: 'trial', daysRemaining: 7 };
+    if (!licencia) return { valid: true, type: 'trial', daysRemaining: 7 };
     
-    if (licencia.plan !== 'trial') {
-        if (licencia.hardwareId) {
-            const { getMachineId } = require('./license');
-            if (licencia.hardwareId !== getMachineId()) {
-                return { valid: false, type: 'wrong_hardware', daysRemaining: 0, message: 'Licencia activa en otra computadora' };
-            }
-        }
-        
+    // Plan pagado (mensual, semestral, anual)
+    if (licencia.plan && licencia.plan !== 'trial') {
         if (licencia.fechaExpiracion) {
             const expDate = new Date(licencia.fechaExpiracion);
             const now = new Date();
@@ -280,8 +345,18 @@ function getDiasLicenciaNegocio(negocioId) {
                 licenciaFechaExpiracion: licencia.fechaExpiracion
             };
         }
+        // Plan pagado sin fecha de expiración = válido sin límite
+        return { 
+            valid: true, 
+            type: licencia.plan, 
+            daysRemaining: 999,
+            licenciaPlan: licencia.plan,
+            licenciaFechaInicio: licencia.fechaInicio,
+            licenciaFechaExpiracion: null
+        };
     }
     
+    // Trial: calcular desde fecha de inicio
     if (licencia.fechaInicio) {
         const TRIAL_DAYS = 7;
         const startDate = new Date(licencia.fechaInicio);
@@ -292,12 +367,13 @@ function getDiasLicenciaNegocio(negocioId) {
             valid: daysRemaining > 0, 
             type: 'trial', 
             daysRemaining: Math.max(0, daysRemaining),
-            licenciaPlan: licencia.plan,
+            licenciaPlan: 'trial',
             licenciaFechaInicio: licencia.fechaInicio,
-            licenciaFechaExpiracion: licencia.fechaExpiracion
+            licenciaFechaExpiracion: null
         };
     }
     
+    // Sin datos = nuevo trial
     return { valid: true, type: 'trial', daysRemaining: 7 };
 }
 

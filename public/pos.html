@@ -172,6 +172,29 @@
             font-size: 0.75rem;
         }
         
+        .banco-btn {
+            padding: 0.5rem 0.75rem;
+            border: 2px solid var(--gray-200);
+            border-radius: 8px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.7rem;
+            font-weight: 600;
+            transition: all 0.2s;
+            font-family: inherit;
+            color: var(--gray-600);
+        }
+        
+        .banco-btn:hover {
+            border-color: var(--gray-400);
+        }
+        
+        .banco-btn.active {
+            border-color: var(--primary);
+            background: #eef2ff;
+            color: var(--primary);
+        }
+        
         .quick-client {
             display: flex;
             gap: 0.5rem;
@@ -256,62 +279,7 @@
 </head>
 <body>
     <div class="layout">
-        <aside class="sidebar">
-            <div class="sidebar-header">
-                <h2>Nexora</h2>
-                <p>Panel de gestión</p>
-            </div>
-            
-            <nav class="sidebar-nav">
-                <a href="/dashboard" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path></svg>
-                    Dashboard
-                </a>
-                <a href="/pos" class="nav-item active">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"></path></svg>
-                    Facturar
-                </a>
-                <a href="/citas" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
-                    Citas
-                </a>
-                <a href="/clientes" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
-                    Clientes
-                </a>
-                <a href="/servicios" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>
-                    Servicios
-                </a>
-                <a href="/categorias" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path></svg>
-                    Categorías
-                </a>
-                <a href="/reportes" class="nav-item">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
-                    Reportes
-                </a>
-                <a href="/usuarios" class="nav-item admin-only">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"></path></svg>
-                    Usuarios
-                </a>
-                <a href="/configuracion" class="nav-item admin-only">
-                    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                    Configuración
-                </a>
-            </nav>
-            
-            <div class="sidebar-footer">
-                <div class="user-info">
-                    <div class="user-avatar" id="userAvatar">U</div>
-                    <div class="user-details">
-                        <h4 id="userName">Usuario</h4>
-                        <span id="userRole">Rol</span>
-                    </div>
-                </div>
-                <button onclick="logout()" class="btn btn-secondary btn-sm mt-2" style="width: 100%;">Cerrar Sesión</button>
-            </div>
-        </aside>
+        <!-- Sidebar dinámico -->
         
         <main class="main-content">
             <div class="page-header">
@@ -412,10 +380,10 @@
                             </div>
                             <div id="descuentoPorcentaje" style="display: block;">
                                 <div style="display: flex; gap: 0.25rem; flex-wrap: wrap;">
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="aplicarDescuento(3)">3%</button>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="aplicarDescuento(5)">5%</button>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="aplicarDescuento(7)">7%</button>
-                                    <button type="button" class="btn btn-secondary btn-sm" onclick="aplicarDescuento(10)">10%</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="aplicarDescuentoPorcentaje(3)">3%</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="aplicarDescuentoPorcentaje(5)">5%</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="aplicarDescuentoPorcentaje(7)">7%</button>
+                                    <button type="button" class="btn btn-secondary btn-sm" onclick="aplicarDescuentoPorcentaje(10)">10%</button>
                                 </div>
                             </div>
                             <div id="descuentoMontoInput" style="display: none;">
@@ -432,6 +400,14 @@
                                 <button type="button" class="btn btn-sm btn-danger" onclick="limpiarDescuento()" style="margin-left: 0.5rem; padding: 0.2rem 0.4rem; font-size: 0.7rem;">X</button>
                             </div>
                         </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span>ITBIS 18%:</span>
+                            <button id="itbisToggle" onclick="toggleITBIS()" style="background: var(--gray-100); border: 1px solid var(--gray-300); padding: 0.2rem 0.6rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">NO</button>
+                        </div>
+                        <div id="itbisRow" style="display: none; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span>ITBIS 18%:</span>
+                            <strong id="itbisMonto">$0.00</strong>
+                        </div>
                         <div id="descuentoRow" style="display: none; justify-content: space-between; margin-bottom: 0.5rem;">
                             <span>Descuento:</span>
                             <strong class="text-danger" id="descuentoMonto">-$0.00</strong>
@@ -442,6 +418,21 @@
                         </div>
                     </div>
                     
+                    <div id="vueltoSection" style="display: none; margin-top: 0.75rem; padding: 0.75rem; background: #e8f5e9; border-radius: 8px;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span style="font-size: 0.9rem;">Paga con:</span>
+                            <div style="display: flex; align-items: center; gap: 0.5rem;">
+                                <span style="font-weight: 600;">RD$</span>
+                                <input type="number" id="montoRecibido" placeholder="0.00" min="0" step="0.01"
+                                       oninput="calcularVuelto()"
+                                       style="width: 120px; padding: 0.3rem; border: 2px solid #4caf50; border-radius: 6px; font-size: 0.9rem; font-weight: 600; text-align: right;">
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; font-size: 1.1rem;">
+                            <span style="font-weight: 700; color: #2e7d32;">Vuelto:</span>
+                            <strong id="vueltoMonto" style="color: #2e7d32; font-size: 1.2rem;">RD$0.00</strong>
+                        </div>
+                    </div>
                     <div class="metodos-pago" id="metodosPago">
                         <button class="metodo-btn active" data-metodo="efectivo" onclick="seleccionarMetodo('efectivo')">
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
@@ -455,6 +446,19 @@
                             <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h18M7 15h1m4 0h1m-7 4h12a3 3 0 003-3V8a3 3 0 00-3-3H6a3 3 0 00-3 3v8a3 3 0 003 3z"></path></svg>
                             <span>Tarjeta</span>
                         </button>
+                    </div>
+                    
+                    <!-- Selector de banco -->
+                    <div id="bancoSelector" style="display:none; margin:0.75rem 0;">
+                        <label style="font-size:0.75rem; color:var(--gray-500); font-weight:600; text-transform:uppercase; letter-spacing:0.5px; margin-bottom:0.4rem; display:block;">Banco</label>
+                        <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                            <button class="banco-btn active" data-banco="BANRESERVAS" onclick="seleccionarBanco('BANRESERVAS', this)">BANRESERVAS</button>
+                            <button class="banco-btn" data-banco="BHD" onclick="seleccionarBanco('BHD', this)">BHD</button>
+                            <button class="banco-btn" data-banco="POPULAR" onclick="seleccionarBanco('POPULAR', this)">POPULAR</button>
+                            <button class="banco-btn" data-banco="BANESCO" onclick="seleccionarBanco('BANESCO', this)">BANESCO</button>
+                            <button class="banco-btn" data-banco="SCOTIABANK" onclick="seleccionarBanco('SCOTIABANK', this)">SCOTIABANK</button>
+                            <button class="banco-btn" data-banco="OTRO" onclick="seleccionarBanco('OTRO', this)">Otro</button>
+                        </div>
                     </div>
                     
                     <button class="btn btn-success btn-cobrar" onclick="cobrar()" id="btnCobrar">
@@ -543,8 +547,11 @@
         let categorias = [];
         let categoriaSeleccionada = null;
         let metodoPago = 'efectivo';
+        let bancoSeleccionado = null;
         let configPOS = {};
         let descuentoAplicado = 0;
+        let itbisActivo = false;
+        let montoRecibido = 0;
         let citasDelDia = [];
         let ultimaVentaId = null;
         let negocioNombre = '';
@@ -559,10 +566,6 @@
                 window.location.href = '/';
                 return;
             }
-            
-            document.getElementById('userName').textContent = session.user.nombre;
-            document.getElementById('userRole').textContent = session.user.rol === 'admin' ? 'Administrador' : 'Empleado';
-            document.getElementById('userAvatar').textContent = session.user.nombre.charAt(0).toUpperCase();
             
             const status = await checkLicense();
             if (status.type === 'trial' && status.daysRemaining > 0) {
@@ -801,8 +804,13 @@
             `).join('');
             
             const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+            const itbis = itbisActivo ? Math.round((subtotal - descuentoAplicado) * 0.18 * 100) / 100 : 0;
+            const total = subtotal - descuentoAplicado + itbis;
             document.getElementById('subtotal').textContent = formatCurrency(subtotal);
-            document.getElementById('total').textContent = formatCurrency(subtotal - descuentoAplicado);
+            document.getElementById('itbisRow').style.display = itbisActivo ? 'flex' : 'none';
+            document.getElementById('itbisMonto').textContent = '+' + formatCurrency(itbis);
+            document.getElementById('total').textContent = formatCurrency(total);
+            actualizarVueltoDisplay();
         }
         
         function modificarCantidad(index, cambio) {
@@ -832,13 +840,13 @@
             
             if (tipo === 'porcentaje') {
                 if (numValor > 100) {
-                    showAlert('El descuento no puede ser mayor a 100%');
+                    showModalError('El descuento no puede ser mayor a 100%');
                     return;
                 }
                 descuentoAplicado = (subtotal * numValor) / 100;
             } else {
                 if (numValor > subtotal) {
-                    showAlert('El descuento no puede ser mayor al subtotal');
+                    showModalError('El descuento no puede ser mayor al subtotal');
                     return;
                 }
                 descuentoAplicado = numValor;
@@ -860,13 +868,15 @@
             }
         }
         
-        function aplicarDescuento(porcentaje) {
+        function aplicarDescuentoPorcentaje(porcentaje) {
             const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-            descuentoAplicado = (subtotal * porcentaje) / 100;
+            descuentoAplicado = Math.round((subtotal * porcentaje) / 100 * 100) / 100;
             
             document.getElementById('descuentoRow').style.display = 'flex';
             document.getElementById('descuentoMonto').textContent = '-' + formatCurrency(descuentoAplicado);
-            document.getElementById('total').textContent = formatCurrency(subtotal - descuentoAplicado);
+            const itbis = itbisActivo ? Math.round((subtotal - descuentoAplicado) * 0.18 * 100) / 100 : 0;
+            document.getElementById('itbisMonto').textContent = '+' + formatCurrency(itbis);
+            document.getElementById('total').textContent = formatCurrency(subtotal - descuentoAplicado + itbis);
             
             document.getElementById('descuentoAplicadoTexto').textContent = porcentaje + '%';
             document.getElementById('descuentoAplicado').style.display = 'block';
@@ -884,7 +894,7 @@
             const numValor = parseFloat(valor);
             
             if (numValor > subtotal) {
-                showAlert('El descuento no puede ser mayor al subtotal');
+                showModalError('El descuento no puede ser mayor al subtotal');
                 return;
             }
             
@@ -892,7 +902,9 @@
             
             document.getElementById('descuentoRow').style.display = 'flex';
             document.getElementById('descuentoMonto').textContent = '-' + formatCurrency(descuentoAplicado);
-            document.getElementById('total').textContent = formatCurrency(subtotal - descuentoAplicado);
+            const itbis = itbisActivo ? Math.round((subtotal - descuentoAplicado) * 0.18 * 100) / 100 : 0;
+            document.getElementById('itbisMonto').textContent = '+' + formatCurrency(itbis);
+            document.getElementById('total').textContent = formatCurrency(subtotal - descuentoAplicado + itbis);
             
             document.getElementById('descuentoAplicadoTexto').textContent = formatCurrency(descuentoAplicado);
             document.getElementById('descuentoAplicado').style.display = 'block';
@@ -925,24 +937,82 @@
         
         function seleccionarMetodo(metodo) {
             metodoPago = metodo;
+            bancoSeleccionado = null;
             document.querySelectorAll('.metodo-btn').forEach(btn => {
                 btn.classList.toggle('active', btn.dataset.metodo === metodo);
             });
+            
+            const bancoSelector = document.getElementById('bancoSelector');
+            actualizarVueltoDisplay();
+            if (metodo === 'transferencia' || metodo === 'tarjeta') {
+                bancoSelector.style.display = 'block';
+                document.querySelectorAll('.banco-btn').forEach(btn => btn.classList.remove('active'));
+                document.querySelector('.banco-btn[data-banco="BANRESERVAS"]').classList.add('active');
+                bancoSeleccionado = 'BANRESERVAS';
+            } else {
+                bancoSelector.style.display = 'none';
+            }
+        }
+        
+        function seleccionarBanco(banco, btn) {
+            bancoSeleccionado = banco;
+            document.querySelectorAll('.banco-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+        }
+        
+        function toggleITBIS() {
+            itbisActivo = !itbisActivo;
+            const btn = document.getElementById('itbisToggle');
+            btn.textContent = itbisActivo ? 'SÍ' : 'NO';
+            btn.style.background = itbisActivo ? '#4caf50' : 'var(--gray-100)';
+            btn.style.color = itbisActivo ? 'white' : 'inherit';
+            btn.style.borderColor = itbisActivo ? '#4caf50' : 'var(--gray-300)';
+            renderCarrito();
+        }
+        
+        function calcularVuelto() {
+            const totalElement = document.getElementById('total').textContent;
+            const total = parseFloat(totalElement.replace(/[^0-9.-]/g, '')) || 0;
+            montoRecibido = parseFloat(document.getElementById('montoRecibido').value) || 0;
+            const vuelto = montoRecibido - total;
+            document.getElementById('vueltoMonto').textContent = formatCurrency(Math.max(0, vuelto));
+            document.getElementById('vueltoMonto').style.color = vuelto < 0 ? '#f44336' : '#2e7d32';
+        }
+        
+        function actualizarVueltoDisplay() {
+            const section = document.getElementById('vueltoSection');
+            if (metodoPago === 'efectivo' && carrito.length > 0) {
+                section.style.display = 'block';
+                calcularVuelto();
+            } else {
+                section.style.display = 'none';
+                document.getElementById('montoRecibido').value = '';
+                montoRecibido = 0;
+            }
         }
         
         async function cobrar() {
             if (carrito.length === 0) {
-                showAlert('Agregue servicios al carrito');
+                showModalError('Agregue servicios al carrito');
                 return;
             }
             
             if (!clienteSeleccionado) {
-                showAlert('Para completar su orden, seleccione un cliente');
+                showModalError('Para completar su orden, seleccione un cliente');
                 return;
             }
             
             if (configPOS.caja_cerrada) {
-                showAlert('La caja está cerrada. No se pueden realizar ventas. Vaya a Reportes para abrir la caja.');
+                showModalError('La caja está cerrada. No se pueden realizar ventas. Vaya a Reportes para abrir la caja.');
+                return;
+            }
+            
+            const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
+            const itbis = itbisActivo ? Math.round((subtotal - descuentoAplicado) * 0.18 * 100) / 100 : 0;
+            const totalPagar = subtotal - descuentoAplicado + itbis;
+            
+            if (metodoPago === 'efectivo' && montoRecibido < totalPagar) {
+                showModalError('El monto recibido es insuficiente. Se necesitan ' + formatCurrency(totalPagar));
                 return;
             }
             
@@ -954,6 +1024,7 @@
                         cantidad: item.cantidad
                     })),
                     metodo_pago: metodoPago,
+                    banco: bancoSeleccionado,
                     descuento: descuentoAplicado
                 };
                 
@@ -991,7 +1062,7 @@
                 document.getElementById('clienteSeleccionado').style.display = 'none';
                 document.getElementById('buscadorCliente').style.display = 'block';
             } catch (error) {
-                showAlert(error.message || error.error || 'Error al procesar la venta');
+                showModalError(error.message || error.error || 'Error al procesar la venta');
             }
         }
         
@@ -1003,7 +1074,7 @@
                 renderRecibo(venta);
                 document.getElementById('modalRecibo').classList.add('active');
             } catch (error) {
-                showAlert(error.message);
+                showModalError(error.message);
             }
         }
         
@@ -1036,7 +1107,7 @@
                         <p style="margin: 2px 0;"><strong>Fecha:</strong> ${fechaStr}</p>
                         <p style="margin: 2px 0;"><strong>Hora:</strong> ${horaStr}</p>
                         <p style="margin: 2px 0;"><strong>Cliente:</strong> ${escapeHtml(venta.cliente || 'Venta rápida')}</p>
-                        <p style="margin: 2px 0;"><strong>Método:</strong> ${venta.metodo_pago}</p>
+                        <p style="margin: 2px 0;"><strong>Método:</strong> ${venta.metodo_pago}${venta.banco ? ' - ' + venta.banco : ''}</p>
                     </div>
                     <div class="recibo-divider"></div>
                     <div style="text-align: left;">
@@ -1185,24 +1256,24 @@
             const telefono = document.getElementById('clienteTelefonoInput').value.trim();
             
             if (!nombre) {
-                showAlert('El nombre es requerido');
+                showModalError('El nombre es requerido');
                 return;
             }
             
             if (!telefono) {
-                showAlert('El celular es requerido');
+                showModalError('El celular es requerido');
                 return;
             }
             
             const phoneRegex = /^[\+]?[\d\s\-\(\)]{10,20}$/;
             const digitsOnly = telefono.replace(/[\D]/g, '');
             if (digitsOnly.length < 10 || digitsOnly.length > 15) {
-                showAlert('El celular debe tener entre 10 y 15 dígitos');
+                showModalError('El celular debe tener entre 10 y 15 dígitos');
                 return;
             }
             
             if (!phoneRegex.test(telefono)) {
-                showAlert('Formato de celular inválido. Ejemplo: +1 (809) 555-1234');
+                showModalError('Formato de celular inválido. Ejemplo: +1 (809) 555-1234');
                 return;
             }
             
@@ -1215,7 +1286,7 @@
                 cerrarModalCliente();
                 seleccionarCliente(cliente.id, cliente.nombre, cliente.telefono || '');
             } catch (error) {
-                showAlert(error.message);
+                showModalError(error.message);
             }
         }
         
@@ -1230,28 +1301,8 @@
             return '$' + parseFloat(amount || 0).toFixed(2).replace(/\d(?=(\d{3})+\.)/g, '$&,');
         }
         
-        async function logout() {
-            await apiCall('/auth/logout', { method: 'POST' });
-            clearSessionStorage();
-            window.location.href = '/';
-        }
-        
-        async function initPage() {
-            const session = await checkSession();
-            if (!session || !session.authenticated) {
-                window.location.href = '/';
-                return;
-            }
-            const sessionData = getSessionStorage();
-            document.getElementById('userName').textContent = sessionData.userName;
-            document.getElementById('userRole').textContent = sessionData.userRol === 'admin' ? 'Administrador' : 'Empleado';
-            document.getElementById('userAvatar').textContent = sessionData.userName.charAt(0).toUpperCase();
-            if (sessionData.userRol !== 'admin') {
-                document.querySelectorAll('.admin-only').forEach(el => el.style.display = 'none');
-            }
-        }
-        initPage();
     </script>
+    <script src="/js/sidebar.js"></script>
     <script src="/js/license-banner.js"></script>
 </body>
 </html>

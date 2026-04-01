@@ -40,10 +40,10 @@ function showToast(message, type = 'error', title = null, duration = 4000) {
     toast.className = `toast toast-${type}`;
     
     const icons = {
-        success: '<svg width="20" height="20" fill="none" stroke="var(--secondary)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>',
-        error: '<svg width="20" height="20" fill="none" stroke="var(--danger)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>',
-        warning: '<svg width="20" height="20" fill="none" stroke="var(--warning)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>',
-        info: '<svg width="20" height="20" fill="none" stroke="var(--primary)" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>'
+        success: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>',
+        error: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>',
+        warning: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>',
+        info: '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>'
     };
     
     const titles = {
@@ -76,6 +76,85 @@ function showToast(message, type = 'error', title = null, duration = 4000) {
 
 function showAlert(message, type = 'error') {
     showToast(message, type);
+}
+
+function showConfirm(title, message) {
+    return new Promise((resolve) => {
+        const existing = document.getElementById('oc-confirm-modal');
+        if (existing) existing.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'oc-confirm-modal';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999999;backdrop-filter:blur(4px);';
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background:white;border-radius:16px;padding:0;width:90%;max-width:400px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);animation:ocModalIn 0.2s ease-out;';
+        
+        const style = document.createElement('style');
+        style.textContent = '@keyframes ocModalIn{from{opacity:0;transform:scale(0.95);}to{opacity:1;transform:scale(1);}}';
+        document.head.appendChild(style);
+        
+        modal.innerHTML = `
+            <div style="padding:24px;text-align:center;">
+                <div style="width:56px;height:56px;background:#fef3c7;border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 16px;">
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#f59e0b" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                </div>
+                <h3 style="margin:0 0 8px;font-size:18px;font-weight:600;color:#111827;">${title}</h3>
+                <p style="margin:0 0 24px;font-size:14px;color:#6b7280;line-height:1.5;">${message}</p>
+                <div style="display:flex;gap:12px;">
+                    <button id="oc-confirm-cancel" style="flex:1;padding:12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;color:#374151;font-size:14px;font-weight:500;cursor:pointer;">Cancelar</button>
+                    <button id="oc-confirm-ok" style="flex:1;padding:12px;border:none;border-radius:8px;background:#ef4444;color:#fff;font-size:14px;font-weight:500;cursor:pointer;">Confirmar</button>
+                </div>
+            </div>
+        `;
+        
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        
+        document.getElementById('oc-confirm-cancel').onclick = () => { overlay.remove(); resolve(false); };
+        document.getElementById('oc-confirm-ok').onclick = () => { overlay.remove(); resolve(true); };
+        overlay.onclick = (e) => { if(e.target===overlay){ overlay.remove(); resolve(false); } };
+    });
+}
+
+function showPrompt(title, placeholder = '') {
+    return new Promise((resolve) => {
+        const existing = document.getElementById('oc-prompt-modal');
+        if (existing) existing.remove();
+        
+        const overlay = document.createElement('div');
+        overlay.id = 'oc-prompt-modal';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999999;backdrop-filter:blur(4px);';
+        
+        const modal = document.createElement('div');
+        modal.style.cssText = 'background:white;border-radius:16px;padding:0;width:90%;max-width:400px;box-shadow:0 25px 50px -12px rgba(0,0,0,0.25);animation:ocModalIn 0.2s ease-out;';
+        
+        const style = document.createElement('style');
+        style.textContent = '@keyframes ocModalIn{from{opacity:0;transform:scale(0.95);}to{opacity:1;transform:scale(1);}}';
+        document.head.appendChild(style);
+        
+        modal.innerHTML = `
+            <div style="padding:24px;text-align:center;">
+                <h3 style="margin:0 0 16px;font-size:18px;font-weight:600;color:#111827;">${title}</h3>
+                <input type="text" id="oc-prompt-input" placeholder="${placeholder}" style="width:100%;padding:12px;border:1px solid #e5e7eb;border-radius:8px;font-size:14px;margin-bottom:20px;outline:none;box-sizing:border-box;">
+                <div style="display:flex;gap:12px;">
+                    <button id="oc-prompt-cancel" style="flex:1;padding:12px;border:1px solid #e5e7eb;border-radius:8px;background:#fff;color:#374151;font-size:14px;font-weight:500;cursor:pointer;">Cancelar</button>
+                    <button id="oc-prompt-ok" style="flex:1;padding:12px;border:none;border-radius:8px;background:#6366f1;color:#fff;font-size:14px;font-weight:500;cursor:pointer;">Aceptar</button>
+                </div>
+            </div>
+        `;
+        
+        overlay.appendChild(modal);
+        document.body.appendChild(overlay);
+        
+        const input = document.getElementById('oc-prompt-input');
+        input.focus();
+        
+        document.getElementById('oc-prompt-cancel').onclick = () => { overlay.remove(); resolve(null); };
+        document.getElementById('oc-prompt-ok').onclick = () => { overlay.remove(); resolve(input.value); };
+        overlay.onclick = (e) => { if(e.target===overlay){ overlay.remove(); resolve(null); } };
+        input.addEventListener('keypress', (e) => { if(e.key === 'Enter'){ overlay.remove(); resolve(input.value); } });
+    });
 }
 
 function showLoading(element) {
@@ -375,52 +454,14 @@ async function checkLicense() {
 }
 
 async function requireLicense() {
-    const status = await checkLicense();
-    
-    if (status.isOwner) return true;
-    
-    if (!status.valid && (status.type === 'expired' || status.type === 'wrong_hardware')) {
-        window.location.href = '/actualizar';
-        return false;
-    }
-    
+    // No bloqueamos el acceso por licencia expirada
+    // Solo mostramos advertencia en el banner
     return true;
 }
 
 function showTrialBanner(daysRemaining) {
-    if (daysRemaining <= 0) return;
-    
-    const session = getSessionStorage();
-    if (session.userEmail === 'azdelmicha@gmail.com') return;
-    
-    const existing = document.querySelector('.trial-banner');
-    if (existing) return;
-    
-    const banner = document.createElement('div');
-    banner.className = 'trial-banner';
-    banner.style.cssText = `
-        position: fixed;
-        top: 0;
-        left: 0;
-        right: 0;
-        background: ${daysRemaining <= 2 ? '#fef3c7' : '#eef2ff'};
-        border-bottom: 2px solid ${daysRemaining <= 2 ? '#f59e0b' : '#4f46e5'};
-        padding: 0.75rem;
-        text-align: center;
-        z-index: 9999;
-        font-size: 0.875rem;
-    `;
-    
-    const text = daysRemaining === 1 
-        ? 'Último día de prueba. ¡Activa tu licencia!'
-        : `Te quedan ${daysRemaining} días de prueba. <a href="/actualizar" style="color: #4f46e5; font-weight: 600;">Actualizar ahora</a>`;
-    
-    banner.innerHTML = text;
-    document.body.appendChild(banner);
-    
-    if (document.querySelector('.main-content')) {
-        document.querySelector('.main-content').style.marginTop = '50px';
-    }
+    // Desactivado: el banner se maneja en license-banner.js y dashboard.js
+    return;
 }
 
 // ============================================
@@ -505,7 +546,7 @@ function showModalConfirm(message, onConfirm, onCancel = null, title = '¿Estás
 
 // Cerrar modal global
 function closeGlobalModal() {
-    if (modalContainer) {
-        modalContainer.innerHTML = '';
-    }
+    const cierreModal = document.getElementById('cierre-modal-container');
+    if (cierreModal) cierreModal.innerHTML = '';
+    if (modalContainer) modalContainer.innerHTML = '';
 }

@@ -1,33 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const license = require('../license');
+const { LICENSE_MASTER_KEY } = require('../config');
 
-const MASTER_KEY = process.env.LICENSE_MASTER_KEY || 'NX-admin-7x9k-2026-m3f8';
-const OWNER_EMAIL = 'azdelmicha@gmail.com';
+function isAuthorized(req) {
+    const masterKey = req.headers['x-master-key'];
+    console.log('isAuthorized check:', { 
+        hasMasterKey: !!masterKey, 
+        hasSuperAdminId: !!req.session?.superAdminId,
+        sessionId: req.session?.id,
+        superAdminId: req.session?.superAdminId
+    });
+    return masterKey === LICENSE_MASTER_KEY || !!req.session?.superAdminId;
+}
 
 router.get('/status', (req, res) => {
-    const userEmail = req.session?.email;
     const negocioId = req.session.negocioId;
     const isLocal = license.isLocalInstallation();
-    
-    if (userEmail === OWNER_EMAIL) {
-        const info = license.getLicense();
-        return res.json({
-            valid: true,
-            type: 'owner',
-            daysRemaining: -1,
-            installDate: info?.installDate || new Date().toISOString(),
-            isPaid: info?.isPaid || false,
-            plan: info?.plan || 'trial',
-            planName: 'Propietario',
-            expirationDate: null,
-            trialDays: license.TRIAL_DAYS,
-            plans: license.getPlans(),
-            isOwner: true,
-            licenseType: isLocal ? 'local' : 'database'
-        });
-    }
-    
     const status = license.isLicenseValid(negocioId);
     const plans = license.getPlans();
     let planName = 'Prueba';
@@ -74,9 +63,7 @@ router.post('/start-trial', (req, res) => {
     const userEmail = req.session?.email;
     const negocioId = req.session?.negocioId;
     
-    if (userEmail === OWNER_EMAIL) {
-        return res.json({ success: true, message: 'Owner exempt from trial' });
-    }
+    // Todos los usuarios pasan por validación de licencia
     
     const trialStartDate = license.recordTrialStart(negocioId);
     res.json({ success: true, trialStartDate });
@@ -108,8 +95,7 @@ router.get('/plans', (req, res) => {
 });
 
 router.use((req, res, next) => {
-    const key = req.headers['x-master-key'];
-    if (key !== MASTER_KEY) {
+    if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     next();
@@ -160,9 +146,7 @@ router.delete('/keys/:key', (req, res) => {
 });
 
 router.get('/businesses', (req, res) => {
-    const userEmail = req.session?.email;
-    
-    if (userEmail !== OWNER_EMAIL) {
+    if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
@@ -184,7 +168,7 @@ router.get('/businesses', (req, res) => {
             (SELECT COUNT(*) FROM clientes c WHERE c.negocio_id = n.id) as total_clientes,
             (SELECT COUNT(*) FROM servicios s WHERE s.negocio_id = n.id AND s.estado = 'activo') as total_servicios,
             (SELECT COALESCE(SUM(v.total), 0) FROM ventas v WHERE v.negocio_id = n.id) as total_ventas,
-            (SELECT COUNT(*) FROM ventas v WHERE DATE(v.fecha) = DATE('now')) as ventas_hoy,
+            (SELECT COUNT(*) FROM ventas v WHERE v.negocio_id = n.id AND DATE(v.fecha) = DATE('now')) as ventas_hoy,
             (SELECT MAX(v.fecha) FROM ventas v WHERE v.negocio_id = n.id) as ultima_actividad
         FROM negocios n
     `;
@@ -204,9 +188,7 @@ router.get('/businesses', (req, res) => {
 });
 
 router.get('/businesses/:id', (req, res) => {
-    const userEmail = req.session?.email;
-    
-    if (userEmail !== OWNER_EMAIL) {
+    if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
@@ -242,9 +224,7 @@ router.get('/businesses/:id', (req, res) => {
 });
 
 router.put('/businesses/:id/suspend', (req, res) => {
-    const userEmail = req.session?.email;
-    
-    if (userEmail !== OWNER_EMAIL) {
+    if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
@@ -264,37 +244,29 @@ router.put('/businesses/:id/suspend', (req, res) => {
 });
 
 router.delete('/businesses/:id', (req, res) => {
-    const userEmail = req.session?.email;
-    
-    if (userEmail !== OWNER_EMAIL) {
+    if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
     const db = require('../database').getDb();
     const negocioId = parseInt(req.params.id);
     
-    const negocio = db.prepare('SELECT id FROM negocios WHERE id = ?').get(negocioId);
+    const negocio = db.prepare('SELECT id, nombre FROM negocios WHERE id = ?').get(negocioId);
     if (!negocio) {
         return res.status(404).json({ error: 'Negocio no encontrado' });
     }
     
-    db.prepare('DELETE FROM citas WHERE cliente_id IN (SELECT id FROM clientes WHERE negocio_id = ?)').run(negocioId);
-    db.prepare('DELETE FROM venta_detalles WHERE venta_id IN (SELECT id FROM ventas WHERE negocio_id = ?)').run(negocioId);
-    db.prepare('DELETE FROM ventas WHERE negocio_id = ?').run(negocioId);
-    db.prepare('DELETE FROM clientes WHERE negocio_id = ?').run(negocioId);
-    db.prepare('DELETE FROM servicios WHERE negocio_id = ?').run(negocioId);
-    db.prepare('DELETE FROM categorias WHERE negocio_id = ?').run(negocioId);
-    db.prepare('DELETE FROM usuarios WHERE negocio_id = ?').run(negocioId);
-    db.prepare('DELETE FROM notificaciones WHERE negocio_id = ?').run(negocioId);
-    db.prepare('DELETE FROM negocios WHERE id = ?').run(negocioId);
+    // Soft delete - cambiar estado a eliminado
+    db.prepare('UPDATE negocios SET estado = ? WHERE id = ?').run('eliminado', negocioId);
     
-    res.json({ success: true, message: 'Negocio eliminado' });
+    // Desactivar todos los usuarios del negocio
+    db.prepare('UPDATE usuarios SET estado = ? WHERE negocio_id = ?').run('inactivo', negocioId);
+    
+    res.json({ success: true, message: `Negocio "${negocio.nombre}" eliminado (soft delete)` });
 });
 
 router.post('/businesses/:id/renew', (req, res) => {
-    const userEmail = req.session?.email;
-    
-    if (userEmail !== OWNER_EMAIL) {
+    if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
@@ -333,9 +305,7 @@ router.post('/businesses/:id/renew', (req, res) => {
 });
 
 router.get('/businesses/stats/growth', (req, res) => {
-    const userEmail = req.session?.email;
-    
-    if (userEmail !== OWNER_EMAIL) {
+    if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
@@ -358,6 +328,7 @@ router.get('/businesses/stats/growth', (req, res) => {
             SUM(CASE WHEN licencia_plan = 'trial' OR licencia_plan IS NULL THEN 1 ELSE 0 END) as en_trial,
             SUM(CASE WHEN estado = 'suspendido' THEN 1 ELSE 0 END) as suspendidos
         FROM negocios
+        WHERE estado != 'eliminado'
     `).get();
     
     res.json({

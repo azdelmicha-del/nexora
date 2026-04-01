@@ -215,21 +215,9 @@ router.post('/login', async (req, res) => {
         }
         
         const license = require('../license');
-        const licenseStatus = license.isLicenseValid(user.negocio_id);
-        
-        if (!licenseStatus.valid && licenseStatus.type === 'wrong_hardware') {
-            return res.status(403).json({ 
-                error: 'Licencia activa en otra computadora',
-                message: 'Contacta al vendedor para adquirir una nueva.'
-            });
-        }
-        
-        if (!licenseStatus.valid) {
-            return res.status(403).json({ 
-                error: 'Licencia expirada',
-                message: 'Tu período de prueba ha finalizado. Activa una licencia para continuar.'
-            });
-        }
+        let licenseStatus = license.isLicenseValid(user.negocio_id);
+        // NOTA: No bloqueamos el login por licencia expirada
+        // Solo se muestra advertencia en el frontend
         
         const INACTIVITY_DAYS = 30;
         const lastLogin = user.last_login ? new Date(user.last_login) : new Date(user.fecha_creacion);
@@ -333,21 +321,9 @@ router.get('/license-info', (req, res) => {
         return res.status(401).json({ error: 'No autenticado' });
     }
     
-    const OWNER_EMAIL = 'azdelmicha@gmail.com';
     const userEmail = req.session.email;
     
-    // El propietario no tiene restricciones de licencia
-    if (userEmail === OWNER_EMAIL) {
-        return res.json({
-            daysRemaining: -1,
-            type: 'owner',
-            valid: true,
-            isOwner: true,
-            licenciaPlan: 'owner',
-            licenciaFechaInicio: null,
-            licenciaFechaExpiracion: null
-        });
-    }
+    // Todos los usuarios pasan por validación de licencia normal
     
     const license = require('../license');
     const licenseStatus = license.isLicenseValid(req.session.negocioId);
