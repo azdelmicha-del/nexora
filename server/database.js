@@ -194,6 +194,8 @@ function initDatabase() {
     } catch (e) {
         if (e.message.includes('CHECK constraint')) {
             console.log('Reconstruyendo tabla estado_resultado_items para soportar gastos_personales...');
+            // Limpiar tabla temporal si existe de intento anterior fallido
+            db.exec("DROP TABLE IF EXISTS estado_resultado_items_new");
             db.exec(`
                 CREATE TABLE estado_resultado_items_new (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -206,11 +208,15 @@ function initDatabase() {
                     itbis REAL DEFAULT 0,
                     descuento REAL DEFAULT 0,
                     monto REAL NOT NULL DEFAULT 0,
+                    metodo_pago TEXT DEFAULT 'efectivo',
+                    cuadre_id INTEGER,
+                    hora TEXT,
                     fecha TEXT NOT NULL,
                     notas TEXT,
                     created_at TEXT DEFAULT CURRENT_TIMESTAMP
                 );
-                INSERT INTO estado_resultado_items_new SELECT * FROM estado_resultado_items;
+                INSERT INTO estado_resultado_items_new (id, negocio_id, tipo, subtipo, categoria, descripcion, subtotal, itbis, descuento, monto, metodo_pago, cuadre_id, hora, fecha, notas, created_at)
+                SELECT id, negocio_id, tipo, subtipo, categoria, descripcion, subtotal, itbis, descuento, monto, metodo_pago, cuadre_id, hora, fecha, notas, created_at FROM estado_resultado_items;
                 DROP TABLE estado_resultado_items;
                 ALTER TABLE estado_resultado_items_new RENAME TO estado_resultado_items;
             `);
