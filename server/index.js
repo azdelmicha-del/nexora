@@ -5,7 +5,7 @@ const path = require('path');
 const { initDatabase } = require('./database');
 const { sanitizeInput } = require('./middleware/sanitize');
 const { initLicense, isLicenseValid } = require('./license');
-const { requireAuth, requireAdmin } = require('./middleware/auth');
+const { requireAuth, requireAdmin, requireActiveLicense } = require('./middleware/auth');
 const config = require('./config');
 
 const authRoutes = require('./routes/auth');
@@ -81,21 +81,21 @@ app.use(session({
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.use('/api/auth', authRoutes);
-app.use('/api/users', usersRoutes);
-app.use('/api/config', configRoutes);
-app.use('/api/services', servicesRoutes);
-app.use('/api/categories', categoriesRoutes);
-app.use('/api/clients', clientsRoutes);
-app.use('/api/sales', salesRoutes);
-app.use('/api/appointments', appointmentsRoutes);
-app.use('/api/reports', reportsRoutes);
-app.use('/api/notifications', notificationsRoutes);
+app.use('/api/users', requireActiveLicense, usersRoutes);
+app.use('/api/config', requireActiveLicense, configRoutes);
+app.use('/api/services', requireActiveLicense, servicesRoutes);
+app.use('/api/categories', requireActiveLicense, categoriesRoutes);
+app.use('/api/clients', requireActiveLicense, clientsRoutes);
+app.use('/api/sales', requireActiveLicense, salesRoutes);
+app.use('/api/appointments', requireActiveLicense, appointmentsRoutes);
+app.use('/api/reports', requireActiveLicense, reportsRoutes);
+app.use('/api/notifications', requireActiveLicense, notificationsRoutes);
 app.use('/api/license', licenseRoutes);
 app.use('/api/public', publicRoutes);
-app.use('/api', testDbRoutes);
+app.use('/api', requireActiveLicense, testDbRoutes);
 app.use('/api', detailsRoutes);
 app.use('/api/superadmin', superAdminRoutes);
-app.use('/api/estado-resultado', estadoResultadoRoutes);
+app.use('/api/estado-resultado', requireActiveLicense, estadoResultadoRoutes);
 app.use('/api', debugRoutes);
 
 app.get('/', (req, res) => {
@@ -110,51 +110,51 @@ app.get('/registro', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'registro.html'));
 });
 
-app.get('/dashboard', requireAuth, (req, res) => {
+app.get('/dashboard', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html'));
 });
 
-app.get('/pos', requireAuth, (req, res) => {
+app.get('/pos', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'pos.html'));
 });
 
-app.get('/citas', requireAuth, (req, res) => {
+app.get('/citas', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'citas.html'));
 });
 
-app.get('/calendario', requireAuth, (req, res) => {
+app.get('/calendario', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'calendario.html'));
 });
 
-app.get('/usuarios', requireAuth, (req, res) => {
+app.get('/usuarios', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'usuarios.html'));
 });
 
-app.get('/servicios', requireAuth, (req, res) => {
+app.get('/servicios', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'servicios.html'));
 });
 
-app.get('/categorias', requireAuth, (req, res) => {
+app.get('/categorias', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'categorias.html'));
 });
 
-app.get('/estado-resultado', requireAuth, (req, res) => {
+app.get('/estado-resultado', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'estado-resultado.html'));
 });
 
-app.get('/egresos', requireAuth, (req, res) => {
+app.get('/egresos', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'egresos.html'));
 });
 
-app.get('/clientes', requireAuth, (req, res) => {
+app.get('/clientes', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'clientes.html'));
 });
 
-app.get('/reportes', requireAuth, (req, res) => {
+app.get('/reportes', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'reportes.html'));
 });
 
-app.get('/configuracion', requireAuth, (req, res) => {
+app.get('/configuracion', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'configuracion.html'));
 });
 
