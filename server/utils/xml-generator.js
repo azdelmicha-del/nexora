@@ -32,11 +32,21 @@ function generarXMLConsumo(datos) {
 
     const fechaFmt = formatarFechaXML(fechaEmision);
 
+    // Calcular subtotal bruto de items para distribuir descuento proporcionalmente
+    const subtotalBruto = round2(items.reduce((sum, item) => sum + round2(item.precio * (item.cantidad || 1)), 0));
+
     const detallesXML = items.map((item, i) => {
         const linea = i + 1;
         const precioUnitario = round2(item.precio);
-        const montoItem = round2(precioUnitario * item.cantidad);
-        const itbisItem = item.excento ? 0 : round2(montoItem * 0.18);
+        const montoBruto = round2(precioUnitario * item.cantidad);
+        
+        // Distribuir descuento proporcionalmente a este item
+        const proporcionDescuento = subtotalBruto > 0 ? round2(montoBruto / subtotalBruto) : 0;
+        const descuentoItem = round2(proporcionDescuento * descuento);
+        const montoNeto = round2(montoBruto - descuentoItem);
+        
+        // ITBIS sobre el monto neto (con descuento aplicado)
+        const itbisItem = item.excento ? 0 : round2(montoNeto * 0.18);
         const tasaITBIS = item.excento ? '0' : '18';
 
         return `
@@ -45,7 +55,7 @@ function generarXMLConsumo(datos) {
             <NombreItem>${escapeXML(item.nombre)}</NombreItem>
             <CantidadItem>${item.cantidad}</CantidadItem>
             <PrecioUnitarioItem>${formatAmountXML(precioUnitario)}</PrecioUnitarioItem>
-            <MontoItem>${formatAmountXML(montoItem)}</MontoItem>
+            <MontoItem>${formatAmountXML(montoBruto)}</MontoItem>
             <IndicadorFacturacion>${item.excento ? 2 : 1}</IndicadorFacturacion>
             <TasaITBIS>${tasaITBIS}</TasaITBIS>
             <ITBIS18>${formatAmountXML(itbisItem)}</ITBIS18>
