@@ -1437,43 +1437,49 @@
             const printContent = document.getElementById('reciboPrint');
             if (!printContent) return;
             
-            const printHTML = `
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Recibo - 80mm</title>
-                    <style>
-                        @page { margin: 0; size: 80mm auto; }
-                        * { margin: 0; padding: 0; box-sizing: border-box; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact; }
-                        body { 
-                            font-family: 'Courier New', monospace; 
-                            font-size: 12px; 
-                            width: 80mm;
-                            max-width: 80mm;
-                            padding: 5px;
-                            print-color-adjust: exact;
-                            -webkit-print-color-adjust: exact;
-                        }
-                        .recibo-container { text-align: center; width: 100%; font-family: 'Courier New', monospace; }
-                        .recibo-header { margin-bottom: 5px; }
-                        .recibo-header h3 { font-size: 14px; margin-bottom: 2px; }
-                        .recibo-divider { border-top: 1px dashed #666; margin: 5px 0; }
-                        .recibo-item { display: flex; justify-content: space-between; padding: 2px 0; font-size: 12px; }
-                        .recibo-total { font-weight: 800; font-size: 16px; text-align: right; padding: 5px 0; border-top: 2px solid #000; margin-top: 5px; }
-                    </style>
-                </head>
-                <body>
-                    ${printContent.innerHTML}
-                </body>
-                </html>
-            `;
+            const printHTML = `<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Recibo Nexora</title>
+<style>
+    @page { margin: 0; size: 80mm auto; }
+    * { margin: 0; padding: 0; box-sizing: border-box; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact; }
+    body { 
+        font-family: 'Courier New', Courier, monospace; 
+        font-size: 12px; 
+        width: 80mm;
+        max-width: 80mm;
+        margin: 0 auto;
+        padding: 5mm;
+        print-color-adjust: exact;
+        -webkit-print-color-adjust: exact;
+    }
+    .recibo-container { text-align: center; width: 100%; font-family: 'Courier New', Courier, monospace; }
+    .recibo-header { margin-bottom: 5px; text-align: center; }
+    .recibo-header h3 { font-size: 14px; margin-bottom: 2px; text-align: center; display: block; }
+    .recibo-header p { text-align: center; display: block; }
+    .recibo-divider { border-top: 1px dashed #666; margin: 5px 0; }
+    .recibo-item { display: flex; justify-content: space-between; padding: 2px 0; font-size: 12px; width: 100%; }
+    .recibo-total { font-weight: 800; font-size: 16px; text-align: right; padding: 5px 0; border-top: 2px solid #000; margin-top: 5px; }
+    #reciboQR { text-align: center; }
+    #reciboQR img { display: block; margin: 0 auto; }
+</style>
+</head>
+<body>${printContent.innerHTML}</body>
+</html>`;
             
-            const win = window.open('', '', 'width=320,height=600');
+            const win = window.open('', '_blank', 'width=320,height=600');
+            if (!win) return;
+            
             win.document.write(printHTML);
             win.document.close();
-            win.focus();
-            setTimeout(() => win.print(), 300);
+            
+            win.onload = function() {
+                win.focus();
+                win.print();
+                win.close();
+            };
         }
         
         function cerrarModalRecibo() {
