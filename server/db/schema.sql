@@ -35,7 +35,25 @@ CREATE TABLE IF NOT EXISTS negocios (
     licencia_plan TEXT DEFAULT 'trial',
     licencia_fecha_inicio TEXT,
     licencia_fecha_expiracion TEXT,
-    licencia_hardware_id TEXT
+    licencia_hardware_id TEXT,
+    rnc TEXT,
+    nombre_legal TEXT,
+    logo_url TEXT,
+    regimen_itbis TEXT DEFAULT 'incluido',
+    estado_dgii TEXT DEFAULT 'no_inscrito'
+);
+
+-- Tabla: Secuencias NCF/e-CF por negocio
+CREATE TABLE IF NOT EXISTS secuencias_ncf (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    negocio_id INTEGER NOT NULL,
+    tipo_comprobante TEXT NOT NULL,
+    prefijo TEXT NOT NULL,
+    secuencia_actual INTEGER DEFAULT 0,
+    fecha_ultima_emision TEXT,
+    estado TEXT DEFAULT 'activo',
+    FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+    UNIQUE(negocio_id, tipo_comprobante)
 );
 
 -- Tabla: Usuarios
@@ -86,6 +104,8 @@ CREATE TABLE IF NOT EXISTS clientes (
     nombre TEXT NOT NULL,
     telefono TEXT,
     email TEXT,
+    documento TEXT,
+    tipo_documento TEXT,
     notas TEXT,
     estado TEXT DEFAULT 'activo',
     fecha_registro TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -99,14 +119,36 @@ CREATE TABLE IF NOT EXISTS ventas (
     cliente_id INTEGER,
     user_id INTEGER,
     total REAL NOT NULL,
+    subtotal REAL DEFAULT 0,
+    itbis REAL DEFAULT 0,
     descuento REAL DEFAULT 0,
     metodo_pago TEXT NOT NULL,
     fuera_cuadre INTEGER DEFAULT 0,
     cuadre_id INTEGER,
+    tipo_ecf TEXT DEFAULT '31',
+    secuencia_ecf TEXT,
+    codigo_seguridad TEXT,
+    track_id TEXT,
+    xml_generado TEXT,
+    estado_dgii TEXT DEFAULT 'pendiente',
     fecha TEXT DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (negocio_id) REFERENCES negocios(id),
     FOREIGN KEY (cliente_id) REFERENCES clientes(id),
     FOREIGN KEY (user_id) REFERENCES usuarios(id)
+);
+
+-- Tabla: Certificados DGII por negocio
+CREATE TABLE IF NOT EXISTS certificados_dgii (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    negocio_id INTEGER NOT NULL UNIQUE,
+    alias TEXT NOT NULL,
+    rnc_negocio TEXT NOT NULL,
+    archivo_p12_path TEXT NOT NULL,
+    pin_encriptado TEXT NOT NULL,
+    fecha_vencimiento TEXT,
+    estado TEXT DEFAULT 'activo',
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (negocio_id) REFERENCES negocios(id)
 );
 
 -- Tabla: Detalle de Ventas

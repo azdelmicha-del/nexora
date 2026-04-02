@@ -263,8 +263,18 @@
                 left: 0;
                 top: 0;
                 width: 80mm;
+                max-width: 80mm;
                 padding: 10px;
+                print-color-adjust: exact;
+                -webkit-print-color-adjust: exact;
+                color-adjust: exact;
             }
+            @page {
+                margin: 0;
+                size: 80mm auto;
+            }
+            .recibo-header { background: none !important; }
+            .recibo-item { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         }
         
         .recibo-container {
@@ -378,8 +388,19 @@
                             <div style="flex: 1;">
                                 <strong id="carritoClienteNombre" style="font-size: 0.875rem;"></strong>
                                 <div id="carritoClienteTelefono" style="font-size: 0.75rem; color: var(--gray-500);"></div>
+                                <div id="carritoClienteRNC" style="font-size: 0.7rem; color: var(--primary); font-weight: 600; display: none;"></div>
                             </div>
                             <button class="btn btn-secondary btn-sm" onclick="quitarCliente()" style="font-size: 0.7rem;">Cambiar</button>
+                        </div>
+                        <div id="selectorComprobante" style="display: none; margin-top: 0.75rem; padding-top: 0.75rem; border-top: 1px solid #ddd6fe;">
+                            <div style="font-size: 0.7rem; font-weight: 600; color: var(--gray-500); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 0.5rem;">Tipo de Comprobante</div>
+                            <div style="display: flex; gap: 0.4rem;">
+                                <button id="btnE31" type="button" onclick="setTipoECF('31')" style="flex: 1; padding: 0.5rem; border: 2px solid var(--gray-300); background: white; color: var(--gray-500); border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">E31<br><span style="font-size: 0.65rem; font-weight: 400;">Crédito Fiscal</span></button>
+                                <button id="btnE32" type="button" onclick="setTipoECF('32')" style="flex: 1; padding: 0.5rem; border: 2px solid #10b981; background: #f0fdf4; color: #166534; border-radius: 8px; font-size: 0.75rem; font-weight: 600; cursor: pointer;">E32<br><span style="font-size: 0.65rem; font-weight: 400;">Consumo</span></button>
+                            </div>
+                            <div id="alertaRNC" style="display: none; margin-top: 0.5rem; font-size: 0.7rem; color: #dc2626; background: #fef2f2; padding: 0.4rem 0.6rem; border-radius: 6px;">
+                                ⚠️ Crédito Fiscal requiere RNC (9) o Cédula (11) válidos
+                            </div>
                         </div>
                     </div>
                     
@@ -571,10 +592,13 @@
                 </button>
             </div>
             <div class="modal-body" id="reciboContent"></div>
-            <div class="modal-footer">
+            <div class="modal-footer" style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                 <button class="btn btn-primary" onclick="imprimirRecibo()">
                     <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"></path></svg>
                     Imprimir
+                </button>
+                <button class="btn" style="background:#7c3aed; color:white; border:none;" onclick="descargarXML()">
+                    📄 XML e-CF
                 </button>
                 <button class="btn btn-secondary" onclick="cerrarModalRecibo()">Cerrar</button>
             </div>
@@ -585,6 +609,7 @@
     <script>
         let carrito = [];
         let clienteSeleccionado = null;
+        let tipoECF = '32';
         let servicios = [];
         let categorias = [];
         let categoriaSeleccionada = null;
@@ -597,6 +622,9 @@
         let citasDelDia = [];
         let ultimaVentaId = null;
         let negocioNombre = '';
+        let negocioRNC = '';
+        let negocioDireccion = '';
+        let negocioTelefono = '';
         let citaIdParaFinalizar = null;
         
         document.addEventListener('DOMContentLoaded', async () => {
@@ -671,6 +699,9 @@
                 try {
                     const config = await apiCall('/config');
                     negocioNombre = config.nombre || 'Nexora';
+                    negocioRNC = config.rnc || '';
+                    negocioDireccion = config.direccion || '';
+                    negocioTelefono = config.telefono || '';
                 } catch (e) {
                     negocioNombre = 'Nexora';
                 }
@@ -1157,6 +1188,9 @@
         }
         
         async function procesarPago() {
+            // Guardar monto recibido para el recibo
+            window._ultimoMontoRecibido = montoRecibido;
+            
             document.getElementById('pagoOverlay').remove();
             
             const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
@@ -1170,7 +1204,8 @@
                     })),
                     metodo_pago: metodoPago,
                     banco: bancoSeleccionado,
-                    descuento: descuentoAplicado
+                    descuento: descuentoAplicado,
+                    tipo_ecf: tipoECF
                 };
                 
                 const venta = await apiCall('/sales', {
@@ -1218,6 +1253,7 @@
                 const venta = await apiCall(`/sales/${ultimaVentaId}`);
                 renderRecibo(venta);
                 document.getElementById('modalRecibo').classList.add('active');
+                cargarQRRecibo(ultimaVentaId);
             } catch (error) {
                 showModalError(error.message);
             }
@@ -1225,7 +1261,7 @@
         
         function renderRecibo(venta) {
             const content = document.getElementById('reciboContent');
-             const fecha = new Date(venta.fecha);
+            const fecha = new Date(venta.fecha);
             const fechaStr = fecha.toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' });
             const horaStr = fecha.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: false });
             
@@ -1241,10 +1277,68 @@
                 itemsHtml = '<div class="recibo-item"><span>Venta</span><span>' + formatCurrency(venta.total) + '</span></div>';
             }
             
+            // Desglose fiscal - SOLO usar valores de la DB (sin fallbacks)
+            const subtotal = Math.round(parseFloat(venta.subtotal || 0) * 100) / 100;
+            const descuento = Math.round(parseFloat(venta.descuento || 0) * 100) / 100;
+            const itbis = Math.round(parseFloat(venta.itbis || 0) * 100) / 100;
+            const total = Math.round(parseFloat(venta.total || 0) * 100) / 100;
+            
+            // Tipo de comprobante
+            const tipoECF = venta.tipo_ecf || '31';
+            const secuenciaECF = venta.secuencia_ecf || '';
+            const esCreditoFiscal = tipoECF === '31';
+            const comprobanteLabel = esCreditoFiscal ? 'FACTURA DE CRÉDITO FISCAL (E31)' : 'FACTURA DE CONSUMO (E32)';
+            
+            // RNC del negocio formateado
+            const rncNegocioFmt = negocioRNC 
+                ? (negocioRNC.length === 9 
+                    ? `${negocioRNC.substring(0,3)}-${negocioRNC.substring(3,5)}-${negocioRNC.substring(5)}`
+                    : negocioRNC.length === 11 
+                    ? `${negocioRNC.substring(0,3)}-${negocioRNC.substring(3,10)}-${negocioRNC.substring(10)}`
+                    : negocioRNC)
+                : '';
+            
+            // Datos de pago
+            const esEfectivo = venta.metodo_pago === 'efectivo';
+            let pagoHtml = '';
+            if (esEfectivo && window._ultimoMontoRecibido) {
+                const recibido = window._ultimoMontoRecibido;
+                const vuelto = Math.max(0, recibido - venta.total);
+                pagoHtml = `
+                    <div class="recibo-item" style="text-align: left; font-size: 11px;">
+                        <span>Efectivo Recibido:</span>
+                        <span>${formatCurrency(recibido)}</span>
+                    </div>
+                    <div class="recibo-item" style="text-align: left; font-size: 11px; color: #166534; font-weight: 700;">
+                        <span>Vuelto:</span>
+                        <span>${formatCurrency(vuelto)}</span>
+                    </div>
+                `;
+            }
+            
+            // RNC del cliente (solo para Crédito Fiscal)
+            const clienteRNC = venta.cliente_documento || clienteSeleccionado?.documento || '';
+            let clienteRNCHtml = '';
+            if (esCreditoFiscal && clienteRNC) {
+                const docClean = String(clienteRNC).replace(/[\s\-]/g, '');
+                const docFmt = docClean.length === 9 
+                    ? `${docClean.substring(0,3)}-${docClean.substring(3,5)}-${docClean.substring(5)}`
+                    : docClean.length === 11 
+                    ? `${docClean.substring(0,3)}-${docClean.substring(3,10)}-${docClean.substring(10)}`
+                    : docClean;
+                const docTipo = docClean.length === 9 ? 'RNC' : 'Cédula';
+                clienteRNCHtml = `<p style="margin: 2px 0;"><strong>${docTipo} Cliente:</strong> ${docFmt}</p>`;
+            }
+            
             content.innerHTML = `
                 <div class="recibo-container" id="reciboPrint">
                     <div class="recibo-header">
                         <h3>${escapeHtml(negocioNombre)}</h3>
+                        ${rncNegocioFmt ? `<p style="margin: 2px 0; font-size: 10px;">RNC: ${rncNegocioFmt}</p>` : ''}
+                        ${negocioDireccion ? `<p style="margin: 2px 0; font-size: 10px;">${escapeHtml(negocioDireccion)}</p>` : ''}
+                        ${negocioTelefono ? `<p style="margin: 2px 0; font-size: 10px;">Tel: ${escapeHtml(negocioTelefono)}</p>` : ''}
+                        <p style="margin: 4px 0 2px; font-size: 10px; font-weight: 600; color: ${esCreditoFiscal ? '#7c3aed' : '#10b981'};">${comprobanteLabel}</p>
+                        ${secuenciaECF ? `<p style="margin: 2px 0; font-size: 10px;">e-NCF: ${secuenciaECF}</p>` : ''}
                         <p style="margin: 2px 0; font-size: 11px;">Recibo #${venta.id}</p>
                     </div>
                     <div class="recibo-divider"></div>
@@ -1252,6 +1346,7 @@
                         <p style="margin: 2px 0;"><strong>Fecha:</strong> ${fechaStr}</p>
                         <p style="margin: 2px 0;"><strong>Hora:</strong> ${horaStr}</p>
                         <p style="margin: 2px 0;"><strong>Cliente:</strong> ${escapeHtml(venta.cliente || 'Venta rápida')}</p>
+                        ${clienteRNCHtml}
                         <p style="margin: 2px 0;"><strong>Método:</strong> ${venta.metodo_pago}${venta.banco ? ' - ' + venta.banco : ''}</p>
                     </div>
                     <div class="recibo-divider"></div>
@@ -1261,21 +1356,81 @@
                     <div class="recibo-divider"></div>
                     <div class="recibo-item" style="text-align: left;">
                         <span>Subtotal:</span>
-                        <span>${formatCurrency(venta.total + (venta.descuento || 0))}</span>
+                        <span>${formatCurrency(subtotal)}</span>
                     </div>
-                    ${venta.descuento > 0 ? `
+                    ${descuento > 0 ? `
                         <div class="recibo-item" style="text-align: left; color: #dc2626;">
                             <span>Descuento:</span>
-                            <span>-${formatCurrency(venta.descuento)}</span>
+                            <span>-${formatCurrency(descuento)}</span>
                         </div>
                     ` : ''}
+                    <div class="recibo-item" style="text-align: left;">
+                        <span>ITBIS 18%:</span>
+                        <span>${formatCurrency(itbis)}</span>
+                    </div>
                     <div class="recibo-total">
                         TOTAL: ${formatCurrency(venta.total)}
                     </div>
+                    ${pagoHtml}
                     <div class="recibo-divider"></div>
+                    <div id="reciboQR" style="text-align:center; margin: 8px 0;"></div>
                     <p style="font-size: 10px; color: #666; margin: 0;">¡Gracias por su preferencia!</p>
                 </div>
             `;
+        }
+        
+        async function descargarXML() {
+            if (!ultimaVentaId) return;
+            
+            try {
+                const response = await fetch(`/api/sales/${ultimaVentaId}/xml`);
+                
+                if (!response.ok) {
+                    const error = await response.json();
+                    showModalError(error.error || 'Error al generar XML');
+                    return;
+                }
+                
+                const blob = await response.blob();
+                const url = window.URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                
+                // Extraer nombre del archivo del header
+                const disposition = response.headers.get('Content-Disposition');
+                const match = disposition?.match(/filename="(.+)"/);
+                a.download = match ? match[1] : `ecf-${ultimaVentaId}.xml`;
+                
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                window.URL.revokeObjectURL(url);
+                
+                showToast('XML descargado correctamente', 'success');
+            } catch (e) {
+                showModalError('Error al descargar XML: ' + e.message);
+            }
+        }
+        
+        async function cargarQRRecibo(ventaId) {
+            try {
+                const qrData = await apiCall(`/sales/${ventaId}/qr`);
+                const qrContainer = document.getElementById('reciboQR');
+                if (!qrContainer) return;
+                
+                // Generar string para QR según formato DGII
+                const qrString = `RNC:${qrData.rnc_emisor}|ECF:${qrData.ecf}|TOTAL:${parseFloat(qrData.total).toFixed(2)}|FECHA:${qrData.fecha}|COD:${qrData.codigo_seguridad}`;
+                
+                // Usar API de QR gratuita para generar imagen
+                qrContainer.innerHTML = `
+                    <img src="https://api.qrserver.com/v1/create-qr-code/?size=120x120&data=${encodeURIComponent(qrString)}" 
+                         alt="QR Fiscal" style="width:100px; height:100px; margin: 8px auto; display:block;" 
+                         onerror="this.style.display='none'">
+                    <p style="font-size:8px; color:#999; margin:2px 0;">${qrData.ecf || ''}</p>
+                `;
+            } catch (e) {
+                console.error('Error QR:', e);
+            }
         }
         
         function imprimirRecibo() {
@@ -1290,25 +1445,27 @@
                     <title>Recibo - 80mm</title>
                     <style>
                         @page { margin: 0; size: 80mm auto; }
-                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        * { margin: 0; padding: 0; box-sizing: border-box; print-color-adjust: exact; -webkit-print-color-adjust: exact; color-adjust: exact; }
                         body { 
                             font-family: 'Courier New', monospace; 
                             font-size: 12px; 
-                            width: 80mm; 
+                            width: 80mm;
+                            max-width: 80mm;
                             padding: 5px;
+                            print-color-adjust: exact;
+                            -webkit-print-color-adjust: exact;
                         }
-                        .centrado { text-align: center; }
-                        .negrita { font-weight: bold; }
-                        .linea { border-top: 1px dashed #000; margin: 5px 0; }
-                        .espacio { margin: 3px 0; }
-                        .item { display: flex; justify-content: space-between; }
-                        .total { font-weight: bold; font-size: 14px; text-align: right; }
+                        .recibo-container { text-align: center; width: 100%; font-family: 'Courier New', monospace; }
+                        .recibo-header { margin-bottom: 5px; }
+                        .recibo-header h3 { font-size: 14px; margin-bottom: 2px; }
+                        .recibo-divider { border-top: 1px dashed #666; margin: 5px 0; }
+                        .recibo-item { display: flex; justify-content: space-between; padding: 2px 0; font-size: 12px; }
+                        .recibo-total { font-weight: 800; font-size: 16px; text-align: right; padding: 5px 0; border-top: 2px solid #000; margin-top: 5px; }
                     </style>
                 </head>
                 <body>
                     ${printContent.innerHTML}
-                    <`+`script src="/js/license-banner.js"><`+`/script>
-</body>
+                </body>
                 </html>
             `;
             
@@ -1316,7 +1473,7 @@
             win.document.write(printHTML);
             win.document.close();
             win.focus();
-            win.print();
+            setTimeout(() => win.print(), 300);
         }
         
         function cerrarModalRecibo() {
@@ -1348,10 +1505,13 @@
                 resultados.innerHTML = clientes.slice(0, 5).map(c => {
                     const nombreEsc = (c.nombre || '').replace(/'/g, "\\'").replace(/"/g, '&quot;');
                     const telEsc = (c.telefono || '').replace(/'/g, "\\'");
+                    const docEsc = (c.documento || '').replace(/'/g, "\\'");
+                    const tipoDocEsc = (c.tipo_documento || '').replace(/'/g, "\\'");
+                    const docLabel = c.documento ? ` · ${c.tipo_documento === 'rnc' ? 'RNC' : 'Cédula'}: ${c.documento}` : '';
                     return `
-                    <div style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid var(--gray-100);" onclick="seleccionarCliente(${c.id}, '${nombreEsc}', '${telEsc}')">
+                    <div style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid var(--gray-100);" onclick="seleccionarCliente(${c.id}, '${nombreEsc}', '${telEsc}', '${docEsc}', '${tipoDocEsc}')">
                         <strong>${escapeHtml(c.nombre)}</strong>
-                        <br><small class="text-muted">${escapeHtml(c.telefono || 'Sin teléfono')}</small>
+                        <br><small class="text-muted">${escapeHtml(c.telefono || 'Sin teléfono')}${docLabel}</small>
                     </div>
                 `}).join('');
             } catch (error) {
@@ -1359,8 +1519,8 @@
             }
         }
         
-        function seleccionarCliente(id, nombre, telefono) {
-            clienteSeleccionado = { id, nombre, telefono };
+        function seleccionarCliente(id, nombre, telefono, documento, tipoDocumento) {
+            clienteSeleccionado = { id, nombre, telefono, documento, tipo_documento: tipoDocumento };
             document.getElementById('clienteNombre').textContent = nombre;
             document.getElementById('clienteTelefono').textContent = telefono || '';
             document.getElementById('clienteSeleccionado').style.display = 'block';
@@ -1370,14 +1530,90 @@
             
             document.getElementById('carritoClienteNombre').textContent = nombre;
             document.getElementById('carritoClienteTelefono').textContent = telefono || '';
+            
+            // Mostrar RNC/Cédula si existe
+            const rncEl = document.getElementById('carritoClienteRNC');
+            if (documento) {
+                const clean = String(documento).replace(/[\s\-]/g, '');
+                const tipo = clean.length === 9 ? 'RNC' : clean.length === 11 ? 'Cédula' : 'Doc';
+                const formatted = clean.length === 9 
+                    ? `${clean.substring(0,3)}-${clean.substring(3,5)}-${clean.substring(5)}`
+                    : clean.length === 11 
+                    ? `${clean.substring(0,3)}-${clean.substring(3,10)}-${clean.substring(10)}`
+                    : clean;
+                rncEl.textContent = `${tipo}: ${formatted}`;
+                rncEl.style.display = 'block';
+                
+                // Mostrar selector de comprobante
+                document.getElementById('selectorComprobante').style.display = 'block';
+                setTipoECF('32');
+            } else {
+                rncEl.style.display = 'none';
+                // Sin documento = solo Consumo
+                document.getElementById('selectorComprobante').style.display = 'none';
+                tipoECF = '32';
+            }
+            
             document.getElementById('carritoCliente').style.display = 'block';
+            renderCarrito();
+        }
+        
+        function setTipoECF(tipo) {
+            const btn31 = document.getElementById('btnE31');
+            const btn32 = document.getElementById('btnE32');
+            const alertaRNC = document.getElementById('alertaRNC');
+            
+            if (tipo === '32') {
+                // E32 = Consumo (sin validación)
+                tipoECF = '32';
+                btn32.style.borderColor = '#10b981';
+                btn32.style.background = '#f0fdf4';
+                btn32.style.color = '#166534';
+                btn31.style.borderColor = 'var(--gray-300)';
+                btn31.style.background = 'white';
+                btn31.style.color = 'var(--gray-500)';
+                alertaRNC.style.display = 'none';
+            } else {
+                // E31 = Crédito Fiscal (requiere RNC)
+                // Validar RNC del negocio primero
+                if (!negocioRNC || (negocioRNC.length !== 9 && negocioRNC.length !== 11)) {
+                    alertaRNC.textContent = '⚠️ Su negocio no tiene RNC configurado. Vaya a Configuración.';
+                    alertaRNC.style.display = 'block';
+                    tipoECF = '32';
+                    setTipoECF('32');
+                    return;
+                }
+                
+                // Validar RNC del cliente
+                const doc = clienteSeleccionado?.documento;
+                if (!doc || (String(doc).replace(/[\s\-]/g, '').length !== 9 && String(doc).replace(/[\s\-]/g, '').length !== 11)) {
+                    alertaRNC.textContent = '⚠️ Crédito Fiscal requiere RNC (9) o Cédula (11) válidos del cliente';
+                    alertaRNC.style.display = 'block';
+                    tipoECF = '32';
+                    setTipoECF('32');
+                    return;
+                }
+                
+                tipoECF = '31';
+                alertaRNC.textContent = '⚠️ Crédito Fiscal requiere RNC (9) o Cédula (11) válidos del cliente';
+                alertaRNC.style.display = 'none';
+                btn31.style.borderColor = '#7c3aed';
+                btn31.style.background = '#f5f3ff';
+                btn31.style.color = '#7c3aed';
+                btn32.style.borderColor = 'var(--gray-300)';
+                btn32.style.background = 'white';
+                btn31.style.color = 'var(--gray-500)';
+            }
         }
         
         function quitarCliente() {
             clienteSeleccionado = null;
+            tipoECF = '31';
             document.getElementById('clienteSeleccionado').style.display = 'none';
             document.getElementById('buscadorCliente').style.display = 'block';
             document.getElementById('carritoCliente').style.display = 'none';
+            document.getElementById('selectorComprobante').style.display = 'none';
+            document.getElementById('carritoClienteRNC').style.display = 'none';
         }
         
         function mostrarCrearCliente() {

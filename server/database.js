@@ -229,6 +229,112 @@ function initDatabase() {
         db.exec('ALTER TABLE ventas ADD COLUMN banco TEXT');
     }
     
+    // Migración: Agregar campos e-CF a tabla ventas
+    const ventasColsECF = db.prepare("PRAGMA table_info(ventas)").all();
+    const ventasColNames = ventasColsECF.map(c => c.name);
+    
+    if (!ventasColNames.includes('tipo_ecf')) {
+        db.exec("ALTER TABLE ventas ADD COLUMN tipo_ecf TEXT DEFAULT '31'");
+        console.log('Columna tipo_ecf agregada a ventas.');
+    }
+    if (!ventasColNames.includes('secuencia_ecf')) {
+        db.exec("ALTER TABLE ventas ADD COLUMN secuencia_ecf TEXT");
+        console.log('Columna secuencia_ecf agregada a ventas.');
+    }
+    if (!ventasColNames.includes('codigo_seguridad')) {
+        db.exec("ALTER TABLE ventas ADD COLUMN codigo_seguridad TEXT");
+        console.log('Columna codigo_seguridad agregada a ventas.');
+    }
+    if (!ventasColNames.includes('track_id')) {
+        db.exec("ALTER TABLE ventas ADD COLUMN track_id TEXT");
+        console.log('Columna track_id agregada a ventas.');
+    }
+    if (!ventasColNames.includes('xml_generado')) {
+        db.exec("ALTER TABLE ventas ADD COLUMN xml_generado TEXT");
+        console.log('Columna xml_generado agregada a ventas.');
+    }
+    if (!ventasColNames.includes('estado_dgii')) {
+        db.exec("ALTER TABLE ventas ADD COLUMN estado_dgii TEXT DEFAULT 'pendiente'");
+        console.log('Columna estado_dgii agregada a ventas.');
+    }
+    if (!ventasColNames.includes('subtotal')) {
+        db.exec("ALTER TABLE ventas ADD COLUMN subtotal REAL DEFAULT 0");
+        console.log('Columna subtotal agregada a ventas.');
+    }
+    if (!ventasColNames.includes('itbis')) {
+        db.exec("ALTER TABLE ventas ADD COLUMN itbis REAL DEFAULT 0");
+        console.log('Columna itbis agregada a ventas.');
+    }
+    
+    // Crear tabla certificados_dgii si no existe
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS certificados_dgii (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            negocio_id INTEGER NOT NULL UNIQUE,
+            alias TEXT NOT NULL,
+            rnc_negocio TEXT NOT NULL,
+            archivo_p12_path TEXT NOT NULL,
+            pin_encriptado TEXT NOT NULL,
+            fecha_vencimiento TEXT,
+            estado TEXT DEFAULT 'activo',
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+        )
+    `);
+    
+    // Migración: Agregar campos RNC a negocios
+    const negociosCols = db.prepare("PRAGMA table_info(negocios)").all();
+    const negociosColNames = negociosCols.map(c => c.name);
+    
+    if (!negociosColNames.includes('rnc')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN rnc TEXT");
+        console.log('Columna rnc agregada a negocios.');
+    }
+    if (!negociosColNames.includes('nombre_legal')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN nombre_legal TEXT");
+        console.log('Columna nombre_legal agregada a negocios.');
+    }
+    if (!negociosColNames.includes('logo_url')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN logo_url TEXT");
+        console.log('Columna logo_url agregada a negocios.');
+    }
+    if (!negociosColNames.includes('regimen_itbis')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN regimen_itbis TEXT DEFAULT 'incluido'");
+        console.log('Columna regimen_itbis agregada a negocios.');
+    }
+    if (!negociosColNames.includes('estado_dgii')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN estado_dgii TEXT DEFAULT 'no_inscrito'");
+        console.log('Columna estado_dgii agregada a negocios.');
+    }
+    
+    // Migración: Agregar documento y tipo_documento a clientes
+    const clientesCols = db.prepare("PRAGMA table_info(clientes)").all();
+    const clientesColNames = clientesCols.map(c => c.name);
+    
+    if (!clientesColNames.includes('documento')) {
+        db.exec("ALTER TABLE clientes ADD COLUMN documento TEXT");
+        console.log('Columna documento agregada a clientes.');
+    }
+    if (!clientesColNames.includes('tipo_documento')) {
+        db.exec("ALTER TABLE clientes ADD COLUMN tipo_documento TEXT");
+        console.log('Columna tipo_documento agregada a clientes.');
+    }
+    
+    // Crear tabla secuencias_ncf si no existe
+    db.exec(`
+        CREATE TABLE IF NOT EXISTS secuencias_ncf (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            negocio_id INTEGER NOT NULL,
+            tipo_comprobante TEXT NOT NULL,
+            prefijo TEXT NOT NULL,
+            secuencia_actual INTEGER DEFAULT 0,
+            fecha_ultima_emision TEXT,
+            estado TEXT DEFAULT 'activo',
+            FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+            UNIQUE(negocio_id, tipo_comprobante)
+        )
+    `);
+    
     console.log('Base de datos inicializada');
     return db;
 }
@@ -383,6 +489,61 @@ function getDiasLicenciaNegocio(negocioId) {
     return { valid: true, type: 'trial', daysRemaining: 7 };
 }
 
+/**
+ * Obtener siguiente secuencia NCF para un negocio y tipo de comprobante
+ * @param {number} negocioId
+ * @param {string} tipoComprobante - '31' (Consumo), '32' (Crédito Fiscal)
+ * @returns {string} Secuencia NCF completa (ej: E310000000001)
+ */
+function getNextNCF(negocioId, tipoComprobante) {
+    try {
+        const localDb = getDb();
+        
+        // Asegurar que la tabla existe
+        localDb.exec(`
+            CREATE TABLE IF NOT EXISTS secuencias_ncf (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                tipo_comprobante TEXT NOT NULL,
+                prefijo TEXT NOT NULL,
+                secuencia_actual INTEGER DEFAULT 0,
+                fecha_ultima_emision TEXT,
+                estado TEXT DEFAULT 'activo',
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+                UNIQUE(negocio_id, tipo_comprobante)
+            )
+        `);
+        
+        // Prefijos por tipo
+        const prefijos = { '31': 'E31', '32': 'E32' };
+        const prefijo = prefijos[tipoComprobante] || 'E31';
+        
+        // Verificar si existe la secuencia
+        const existente = localDb.prepare(
+            'SELECT * FROM secuencias_ncf WHERE negocio_id = ? AND tipo_comprobante = ?'
+        ).get(negocioId, tipoComprobante);
+        
+        if (existente) {
+            const nuevaSecuencia = existente.secuencia_actual + 1;
+            localDb.prepare(
+                'UPDATE secuencias_ncf SET secuencia_actual = ?, fecha_ultima_emision = ? WHERE id = ?'
+            ).run(nuevaSecuencia, new Date().toISOString(), existente.id);
+            
+            return `${prefijo}${String(nuevaSecuencia).padStart(10, '0')}`;
+        }
+        
+        // Crear nueva secuencia
+        localDb.prepare(
+            'INSERT INTO secuencias_ncf (negocio_id, tipo_comprobante, prefijo, secuencia_actual, fecha_ultima_emision) VALUES (?, ?, ?, 1, ?)'
+        ).run(negocioId, tipoComprobante, prefijo, new Date().toISOString());
+        
+        return `${prefijo}0000000001`;
+    } catch (error) {
+        console.error('Error getNextNCF:', error);
+        return `E31${String(Date.now()).slice(-10)}`;
+    }
+}
+
 module.exports = { 
     getDb, 
     initDatabase, 
@@ -390,5 +551,6 @@ module.exports = {
     getLicenciaNegocio,
     iniciarTrialNegocio,
     activarLicenciaNegocio,
-    getDiasLicenciaNegocio
+    getDiasLicenciaNegocio,
+    getNextNCF
 };

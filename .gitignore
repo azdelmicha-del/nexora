@@ -8,6 +8,7 @@ server/db/nexora.db-shm
 server/db/nexora.db-wal
 server/db/sessions.db
 server/db/backups/
+server/facturas_electronicas/
 
 # Logs
 *.log

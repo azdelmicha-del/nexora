@@ -134,10 +134,16 @@
                                     <input type="text" id="nombre" name="nombre">
                                 </div>
                                 <div class="form-group">
+                                    <label for="rnc">RNC</label>
+                                    <input type="text" id="rnc" name="rnc" placeholder="123456789 (9 dígitos)" maxlength="11" inputmode="numeric" pattern="[0-9]*" oninput="this.value=this.value.replace(/[^0-9]/g,'')">
+                                    <div id="rncError" style="display:none; font-size:0.75rem; color:#dc2626; margin-top:4px; font-weight:500;">RNC Inválido: Debe tener 9 dígitos (Jurídico) u 11 dígitos (Cédula)</div>
+                                </div>
+                            </div>
+                            <div class="form-row">
+                                <div class="form-group">
                                     <label for="telefono">Teléfono / WhatsApp</label>
                                     <input type="text" id="telefono" name="telefono">
                                 </div>
-                            </div>
                             <div class="form-row">
                                 <div class="form-group">
                                     <label for="email">Email</label>
@@ -419,6 +425,7 @@
                 const config = await apiCall('/config');
                 
                 document.getElementById('nombre').value = config.nombre || '';
+                document.getElementById('rnc').value = config.rnc || '';
                 document.getElementById('telefono').value = config.telefono || '';
                 document.getElementById('email').value = config.email || '';
                 document.getElementById('direccion').value = config.direccion || '';
@@ -471,8 +478,19 @@
                 diasSeleccionados.push(cb.value);
             });
             
+            // Validar RNC
+            const rncVal = document.getElementById('rnc').value.replace(/[\s\-]/g, '').trim();
+            const rncError = document.getElementById('rncError');
+            if (rncVal && rncVal.length !== 9 && rncVal.length !== 11) {
+                rncError.style.display = 'block';
+                document.getElementById('rnc').focus();
+                return;
+            }
+            rncError.style.display = 'none';
+            
             const data = {
                 nombre: document.getElementById('nombre').value.toUpperCase(),
+                rnc: rncVal || null,
                 telefono: document.getElementById('telefono').value,
                 email: document.getElementById('email').value.toLowerCase().trim(),
                 direccion: capitalizeFirst(document.getElementById('direccion').value),

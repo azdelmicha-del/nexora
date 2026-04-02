@@ -26,7 +26,7 @@ router.put('/', requireAdmin, (req, res) => {
         const negocioId = req.session.negocioId;
 
         const camposPermitidos = [
-            'nombre', 'telefono', 'email', 'direccion', 'logo',
+            'nombre', 'rnc', 'telefono', 'email', 'direccion', 'logo',
             'moneda', 'formato_moneda', 'hora_apertura', 'hora_cierre',
             'dias_laborales', 'duracion_minima_cita', 'permitir_solapamiento',
             'tiempo_anticipacion', 'tiempo_cancelacion', 'mostrar_impuestos',
@@ -38,6 +38,18 @@ router.put('/', requireAdmin, (req, res) => {
 
         const updates = [];
         const values = [];
+
+        // Validar RNC si se proporcionó
+        if (req.body.rnc !== undefined && req.body.rnc !== null && req.body.rnc !== '') {
+            const rncClean = String(req.body.rnc).replace(/[\s\-]/g, '');
+            if (rncClean.length !== 9 && rncClean.length !== 11) {
+                return res.status(400).json({ error: 'RNC Inválido: Debe tener 9 dígitos (Jurídico) u 11 dígitos (Cédula)' });
+            }
+            if (!/^\d+$/.test(rncClean)) {
+                return res.status(400).json({ error: 'RNC Inválido: Solo se permiten números' });
+            }
+            req.body.rnc = rncClean;
+        }
 
         for (const campo of camposPermitidos) {
             if (req.body[campo] !== undefined) {

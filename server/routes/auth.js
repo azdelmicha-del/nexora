@@ -54,7 +54,7 @@ function toUpperCase(str) {
 
 router.post('/registrar', async (req, res) => {
     try {
-        const { nombreNegocio, nombreAdmin, email, telefono, password } = req.body;
+        const { nombreNegocio, rncNegocio, nombreAdmin, email, telefono, password } = req.body;
         
         if (!nombreNegocio || !nombreAdmin || !email || !password) {
             return res.status(400).json({ error: 'Todos los campos son requeridos' });
@@ -62,6 +62,17 @@ router.post('/registrar', async (req, res) => {
 
         if (password.length < 8) {
             return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+        }
+
+        // Validar RNC si se proporcionó
+        if (rncNegocio) {
+            const rncClean = String(rncNegocio).replace(/[\s\-]/g, '');
+            if (rncClean.length !== 9 && rncClean.length !== 11) {
+                return res.status(400).json({ error: 'RNC Inválido: Debe tener 9 dígitos (Jurídico) u 11 dígitos (Cédula)' });
+            }
+            if (!/^\d+$/.test(rncClean)) {
+                return res.status(400).json({ error: 'RNC Inválido: Solo se permiten números' });
+            }
         }
 
         const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -123,9 +134,9 @@ router.post('/registrar', async (req, res) => {
         if (existSlug) slug = slug + "-" + Date.now();
         
         const result = db.prepare(`
-            INSERT INTO negocios (nombre, slug, telefono, email, licencia_fecha_inicio) 
-            VALUES (?, ?, ?, ?, ?)
-        `).run(negocioNombreNormalizado, slug, telefono || null, emailNormalizado, fechaInicio);
+            INSERT INTO negocios (nombre, slug, telefono, email, rnc, licencia_fecha_inicio) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).run(negocioNombreNormalizado, slug, telefono || null, emailNormalizado, rncNegocio || null, fechaInicio);
 
         const negocioId = result.lastInsertRowid;
 

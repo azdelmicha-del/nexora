@@ -12,7 +12,7 @@ router.get('/', requireAuth, (req, res) => {
         const { estado, buscar } = req.query;
 
         let query = `
-            SELECT c.id, c.nombre, c.telefono, c.email, c.notas, c.estado, c.fecha_registro,
+            SELECT c.id, c.nombre, c.telefono, c.email, c.documento, c.tipo_documento, c.notas, c.estado, c.fecha_registro,
                    COUNT(DISTINCT v.id) as total_ventas,
                    COUNT(DISTINCT cit.id) as total_citas
             FROM clientes c
