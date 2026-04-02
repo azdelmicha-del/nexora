@@ -119,6 +119,7 @@
                     <button type="button" class="tab" onclick="showTab('horario')">Horario</button>
                     <button type="button" class="tab" onclick="showTab('pagos')">Métodos de Pago</button>
                     <button type="button" class="tab" onclick="showTab('reservas')">Reservas Online</button>
+                    <button type="button" class="tab" onclick="showTab('firma')">Firma Digital</button>
                     <button type="button" class="tab" onclick="showTab('cuenta')">Mi Cuenta</button>
                 </div>
                 
@@ -144,11 +145,12 @@
                                     <label for="telefono">Teléfono / WhatsApp</label>
                                     <input type="text" id="telefono" name="telefono">
                                 </div>
-                            <div class="form-row">
                                 <div class="form-group">
                                     <label for="email">Email</label>
                                     <input type="email" id="email" name="email">
                                 </div>
+                            </div>
+                            <div class="form-row">
                                 <div class="form-group">
                                     <label for="direccion">Dirección</label>
                                     <input type="text" id="direccion" name="direccion">
@@ -360,11 +362,60 @@
                     </div>
                 </div>
                 
+                <!-- Tab Firma Digital -->
+                <div id="tab-firma" class="tab-content" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                                <h3>Certificado Digital para Facturacion Electronica</h3>
+                            <p style="font-size: 0.85rem; color: var(--gray-500); margin-top: 0.25rem;">Sube tu certificado .p12/.pfx para firmar comprobantes e-CF ante la DGII</p>
+                        </div>
+                        <div class="card-body">
+                            <div id="certificadoActual" style="display: none; background: #f0fdf4; border: 1px solid #a7f3d0; border-radius: 12px; padding: 1rem; margin-bottom: 1rem;">
+                                <div style="display: flex; align-items: center; gap: 0.75rem;">
+                                    <div style="width: 48px; height: 48px; background: #dcfce7; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 24px;">🔑</div>
+                                    <div style="flex: 1;">
+                                        <div style="font-weight: 600; color: #166534;">Certificado cargado</div>
+                                        <div id="certInfoAmbiente" style="font-size: 0.8rem; color: #4ade80;"></div>
+                                    </div>
+                                    <button type="button" onclick="eliminarCertificado()" style="padding: 0.5rem 1rem; background: #fee2e2; color: #dc2626; border: none; border-radius: 8px; cursor: pointer; font-size: 0.8rem; font-weight: 600;">Eliminar</button>
+                                </div>
+                            </div>
+                            
+                            <div id="certificadoForm">
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="certFile">Archivo del Certificado (.p12 / .pfx)</label>
+                                        <input type="file" id="certFile" accept=".p12,.pfx" style="padding: 0.75rem; border: 2px dashed var(--gray-300); border-radius: 12px; width: 100%; cursor: pointer;">
+                                    </div>
+                                </div>
+                                <div class="form-row">
+                                    <div class="form-group">
+                                        <label for="certPassword">Contraseña del Certificado</label>
+                                        <input type="password" id="certPassword" placeholder="Contraseña del archivo .p12">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>Ambiente DGII</label>
+                                        <div style="display: flex; gap: 0.5rem; margin-top: 0.5rem;">
+                                            <button type="button" id="btnCertificacion" onclick="setAmbiente('certificacion')" style="flex: 1; padding: 0.75rem; border: 2px solid #3b82f6; background: #eff6ff; color: #1d4ed8; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">🧪 Certificación</button>
+                                            <button type="button" id="btnProduccion" onclick="setAmbiente('produccion')" style="flex: 1; padding: 0.75rem; border: 2px solid var(--gray-300); background: white; color: var(--gray-500); border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 0.85rem;">🏭 Producción</button>
+                                        </div>
+                                        <input type="hidden" id="ambienteDgii" value="certificacion">
+                                    </div>
+                                </div>
+                                <div id="certError" style="display: none; background: #fef2f2; color: #dc2626; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.85rem; font-weight: 500;"></div>
+                                <button type="button" onclick="subirCertificado()" style="width: 100%; padding: 1rem; background: linear-gradient(135deg, #7c3aed, #6d28d9); color: white; border: none; border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer;">
+                                    Guardar Certificado
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
                 <!-- Tab Mi Cuenta - Cambiar Contraseña -->
                 <div id="tab-cuenta" class="tab-content" style="display: none;">
                     <div class="card">
                         <div class="card-header">
-                            <h3>🔐 Cambiar Contraseña</h3>
+                            <h3>Cambiar Contrasena</h3>
                         </div>
                         <div class="card-body">
                             <div id="passwordMessage" style="display: none; padding: 1rem; border-radius: 0.5rem; margin-bottom: 1rem;"></div>
@@ -455,8 +506,15 @@
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
             document.querySelectorAll('.tab-content').forEach(c => c.style.display = 'none');
             
-            document.querySelector(`.tab[onclick="showTab('${tab}')"]`).classList.add('active');
-            document.getElementById(`tab-${tab}`).style.display = 'block';
+            // Buscar botón por texto de función onclick
+            document.querySelectorAll('.tab').forEach(t => {
+                if (t.getAttribute('onclick') === `showTab('${tab}')`) {
+                    t.classList.add('active');
+                }
+            });
+            
+            const tabEl = document.getElementById(`tab-${tab}`);
+            if (tabEl) tabEl.style.display = 'block';
         }
         
         function toggleMetodoPago(id) {
@@ -671,6 +729,123 @@
             element.style.background = type === 'success' ? '#d1fae5' : '#fee2e2';
             element.style.color = type === 'success' ? '#059669' : '#dc2626';
         }
+
+        let ambienteSeleccionado = 'certificacion';
+        
+        function setAmbiente(tipo) {
+            ambienteSeleccionado = tipo;
+            document.getElementById('ambienteDgii').value = tipo;
+            const btn1 = document.getElementById('btnCertificacion');
+            const btn2 = document.getElementById('btnProduccion');
+            if (tipo === 'certificacion') {
+                btn1.style.borderColor = '#3b82f6';
+                btn1.style.background = '#eff6ff';
+                btn1.style.color = '#1d4ed8';
+                btn2.style.borderColor = 'var(--gray-300)';
+                btn2.style.background = 'white';
+                btn2.style.color = 'var(--gray-500)';
+            } else {
+                btn2.style.borderColor = '#ef4444';
+                btn2.style.background = '#fef2f2';
+                btn2.style.color = '#dc2626';
+                btn1.style.borderColor = 'var(--gray-300)';
+                btn1.style.background = 'white';
+                btn1.style.color = 'var(--gray-500)';
+            }
+        }
+        
+        async function subirCertificado() {
+            const fileInput = document.getElementById('certFile');
+            const password = document.getElementById('certPassword').value;
+            const errorEl = document.getElementById('certError');
+            
+            errorEl.style.display = 'none';
+            
+            if (!fileInput.files.length) {
+                errorEl.textContent = 'Debe seleccionar un archivo .p12 o .pfx';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            const ext = file.name.split('.').pop().toLowerCase();
+            if (ext !== 'p12' && ext !== 'pfx') {
+                errorEl.textContent = 'Solo se permiten archivos .p12 o .pfx';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            if (!password || password.length < 4) {
+                errorEl.textContent = 'La contraseña debe tener al menos 4 caracteres';
+                errorEl.style.display = 'block';
+                return;
+            }
+            
+            const formData = new FormData();
+            formData.append('certificado', file);
+            formData.append('password', password);
+            formData.append('ambiente', ambienteSeleccionado);
+            
+            try {
+                const res = await fetch('/api/config/certificado', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await res.json();
+                
+                if (!res.ok) {
+                    errorEl.textContent = data.error || 'Error al subir certificado';
+                    errorEl.style.display = 'block';
+                    return;
+                }
+                
+                showToast('Certificado guardado correctamente', 'success');
+                loadCertificado();
+            } catch (e) {
+                errorEl.textContent = 'Error de conexión: ' + e.message;
+                errorEl.style.display = 'block';
+            }
+        }
+        
+        async function eliminarCertificado() {
+            if (!confirm('¿Está seguro de eliminar el certificado?')) return;
+            
+            try {
+                const res = await fetch('/api/config/certificado', { method: 'DELETE' });
+                const data = await res.json();
+                if (data.success) {
+                    showToast('Certificado eliminado', 'success');
+                    loadCertificado();
+                }
+            } catch (e) {
+                showToast('Error al eliminar', 'error');
+            }
+        }
+        
+        async function loadCertificado() {
+            try {
+                const config = await apiCall('/config');
+                const certActual = document.getElementById('certificadoActual');
+                const certForm = document.getElementById('certificadoForm');
+                
+                if (config.certificado_path) {
+                    certActual.style.display = 'block';
+                    certForm.style.display = 'none';
+                    document.getElementById('certInfoAmbiente').textContent = 
+                        `Ambiente: ${config.ambiente_dgii === 'produccion' ? '🏭 Producción' : '🧪 Certificación'}`;
+                } else {
+                    certActual.style.display = 'none';
+                    certForm.style.display = 'block';
+                }
+            } catch (e) {
+                console.error('Error cargando certificado:', e);
+            }
+        }
+        
+        // Cargar estado del certificado al iniciar
+        document.addEventListener('DOMContentLoaded', () => {
+            loadCertificado();
+        });
 
     </script>
     <script src="/js/sidebar.js"></script>

@@ -60,6 +60,12 @@ createSuperAdmin();
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(require('express-fileupload')({
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+    abortOnLimit: true,
+    responseOnLimit: 'Archivo demasiado grande (máximo 5MB)',
+    createParentPath: true
+}));
 app.use(sanitizeInput);
 
 app.use(session({

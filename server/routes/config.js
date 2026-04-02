@@ -200,4 +200,95 @@ router.put('/slug', requireAdmin, (req, res) => {
     }
 });
 
+// Subir certificado .p12/.pfx
+router.post('/certificado', requireAuth, requireAdmin, (req, res) => {
+    try {
+        const path = require('path');
+        const fs = require('fs');
+        
+        // Verificar que se envió un archivo
+        if (!req.files || !req.files.certificado) {
+            return res.status(400).json({ error: 'Debe subir un archivo .p12 o .pfx' });
+        }
+        
+        const certFile = req.files.certificado;
+        const { password, ambiente } = req.body;
+        
+        // Validar extensión
+        const ext = path.extname(certFile.name).toLowerCase();
+        if (ext !== '.p12' && ext !== '.pfx') {
+            return res.status(400).json({ error: 'Solo se permiten archivos .p12 o .pfx' });
+        }
+        
+        // Validar contraseña
+        if (!password || password.length < 4) {
+            return res.status(400).json({ error: 'La contraseña del certificado es requerida (mínimo 4 caracteres)' });
+        }
+        
+        // Crear carpeta protegida fuera de acceso público
+        const certDir = path.join(__dirname, '..', 'certificados');
+        if (!fs.existsSync(certDir)) {
+            fs.mkdirSync(certDir, { recursive: true });
+        }
+        
+        // Crear .gitignore en la carpeta
+        const gitignorePath = path.join(certDir, '.gitignore');
+        if (!fs.existsSync(gitignorePath)) {
+            fs.writeFileSync(gitignorePath, '*\n!.gitignore\n');
+        }
+        
+        // Guardar archivo con nombre del negocio_id
+        const fileName = `cert-${req.session.negocioId}${ext}`;
+        const filePath = path.join(certDir, fileName);
+        certFile.mv(filePath, (err) => {
+            if (err) {
+                console.error('Error guardando certificado:', err);
+                return res.status(500).json({ error: 'Error al guardar el certificado' });
+            }
+            
+            // Guardar path y contraseña encriptada en la DB
+            const db = getDb();
+            const bcrypt = require('bcryptjs');
+            const passEncriptada = bcrypt.hashSync(password, 10);
+            
+            db.prepare(`
+                UPDATE negocios 
+                SET certificado_path = ?, certificado_pass = ?, ambiente_dgii = ?, estado_dgii = 'inscrito'
+                WHERE id = ?
+            `).run(filePath, passEncriptada, ambiente || 'certificacion', req.session.negocioId);
+            
+            res.json({ success: true, message: 'Certificado guardado correctamente' });
+        });
+    } catch (error) {
+        console.error('Error subiendo certificado:', error);
+        res.status(500).json({ error: 'Error al procesar el certificado' });
+    }
+});
+
+// Eliminar certificado
+router.delete('/certificado', requireAuth, requireAdmin, (req, res) => {
+    try {
+        const path = require('path');
+        const fs = require('fs');
+        const db = getDb();
+        
+        const config = db.prepare('SELECT certificado_path FROM negocios WHERE id = ?').get(req.session.negocioId);
+        
+        if (config.certificado_path && fs.existsSync(config.certificado_path)) {
+            fs.unlinkSync(config.certificado_path);
+        }
+        
+        db.prepare(`
+            UPDATE negocios 
+            SET certificado_path = NULL, certificado_pass = NULL, estado_dgii = 'no_inscrito'
+            WHERE id = ?
+        `).run(req.session.negocioId);
+        
+        res.json({ success: true, message: 'Certificado eliminado' });
+    } catch (error) {
+        console.error('Error eliminando certificado:', error);
+        res.status(500).json({ error: 'Error al eliminar el certificado' });
+    }
+});
+
 module.exports = router;

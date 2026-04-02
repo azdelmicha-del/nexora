@@ -306,6 +306,18 @@ function initDatabase() {
         db.exec("ALTER TABLE negocios ADD COLUMN estado_dgii TEXT DEFAULT 'no_inscrito'");
         console.log('Columna estado_dgii agregada a negocios.');
     }
+    if (!negociosColNames.includes('certificado_path')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN certificado_path TEXT");
+        console.log('Columna certificado_path agregada a negocios.');
+    }
+    if (!negociosColNames.includes('certificado_pass')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN certificado_pass TEXT");
+        console.log('Columna certificado_pass agregada a negocios.');
+    }
+    if (!negociosColNames.includes('ambiente_dgii')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN ambiente_dgii TEXT DEFAULT 'certificacion'");
+        console.log('Columna ambiente_dgii agregada a negocios.');
+    }
     
     // Migración: Agregar documento y tipo_documento a clientes
     const clientesCols = db.prepare("PRAGMA table_info(clientes)").all();

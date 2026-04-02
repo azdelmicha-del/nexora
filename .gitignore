@@ -9,6 +9,7 @@ server/db/nexora.db-wal
 server/db/sessions.db
 server/db/backups/
 server/facturas_electronicas/
+server/certificados/
 
 # Logs
 *.log
