@@ -814,7 +814,9 @@
                 const res = await fetch('/api/config/certificado', { method: 'DELETE' });
                 const data = await res.json();
                 if (data.success) {
-                    showToast('Certificado eliminado', 'success');
+                    showToast('Certificado guardado correctamente', 'success');
+                    document.getElementById('certPassword').value = '';
+                    document.getElementById('certFile').value = '';
                     loadCertificado();
                 }
             } catch (e) {
@@ -831,8 +833,19 @@
                 if (config.certificado_path) {
                     certActual.style.display = 'block';
                     certForm.style.display = 'none';
-                    document.getElementById('certInfoAmbiente').textContent = 
-                        `Ambiente: ${config.ambiente_dgii === 'produccion' ? '🏭 Producción' : '🧪 Certificación'}`;
+                    
+                    let infoHtml = config.ambiente_dgii === 'produccion' ? 'Ambiente: Produccion' : 'Ambiente: Certificacion';
+                    if (config.cert_sujeto) {
+                        infoHtml += ` | Titular: ${config.cert_sujeto}`;
+                    }
+                    if (config.cert_vencimiento) {
+                        const fecha = new Date(config.cert_vencimiento);
+                        const fechaStr = fecha.toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' });
+                        const diasRest = Math.floor((fecha - new Date()) / (1000 * 60 * 60 * 24));
+                        const colorVence = diasRest < 30 ? '#dc2626' : diasRest < 90 ? '#f59e0b' : '#166534';
+                        infoHtml += ` | <span style="color:${colorVence}; font-weight:600;">Vence: ${fechaStr} (${diasRest} dias)</span>`;
+                    }
+                    document.getElementById('certInfoAmbiente').innerHTML = infoHtml;
                 } else {
                     certActual.style.display = 'none';
                     certForm.style.display = 'block';

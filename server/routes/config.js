@@ -205,6 +205,7 @@ router.post('/certificado', requireAuth, requireAdmin, (req, res) => {
     try {
         const path = require('path');
         const fs = require('fs');
+        const forge = require('node-forge');
         
         // Verificar que se envió un archivo
         if (!req.files || !req.files.certificado) {
@@ -223,6 +224,27 @@ router.post('/certificado', requireAuth, requireAdmin, (req, res) => {
         // Validar contraseña
         if (!password || password.length < 4) {
             return res.status(400).json({ error: 'La contraseña del certificado es requerida (mínimo 4 caracteres)' });
+        }
+        
+        // Validar certificado con node-forge ANTES de guardar
+        let certInfo = { vencimiento: null, sujeto: null };
+        try {
+            const p12Buffer = certFile.data;
+            const p12Asn1 = forge.asn1.fromDer(forge.util.binary.raw.encode(new Uint8Array(p12Buffer)));
+            const p12 = forge.pkcs12.pkcs12FromAsn1(p12Asn1, password);
+            
+            // Extraer certificado del contenedor PKCS#12
+            const certBags = p12.getBags({ bagType: forge.pki.oids.certBag });
+            const certs = certBags[forge.pki.oids.certBag];
+            
+            if (certs && certs.length > 0) {
+                const cert = certs[0].cert;
+                certInfo.vencimiento = cert.validity.notAfter.toISOString();
+                certInfo.sujeto = cert.subject.getField('CN')?.value || cert.subject.attributes.map(a => a.value).join(', ');
+            }
+        } catch (e) {
+            // Contraseña incorrecta o archivo dañado
+            return res.status(401).json({ error: 'La contraseña no coincide con el certificado seleccionado o el archivo está dañado' });
         }
         
         // Crear carpeta protegida fuera de acceso público
@@ -246,18 +268,27 @@ router.post('/certificado', requireAuth, requireAdmin, (req, res) => {
                 return res.status(500).json({ error: 'Error al guardar el certificado' });
             }
             
-            // Guardar path y contraseña encriptada en la DB
+            // Guardar en la DB
             const db = getDb();
             const bcrypt = require('bcryptjs');
             const passEncriptada = bcrypt.hashSync(password, 10);
             
             db.prepare(`
                 UPDATE negocios 
-                SET certificado_path = ?, certificado_pass = ?, ambiente_dgii = ?, estado_dgii = 'inscrito'
+                SET certificado_path = ?, certificado_pass = ?, ambiente_dgii = ?, 
+                    cert_vencimiento = ?, cert_sujeto = ?, estado_dgii = 'inscrito'
                 WHERE id = ?
-            `).run(filePath, passEncriptada, ambiente || 'certificacion', req.session.negocioId);
+            `).run(filePath, passEncriptada, ambiente || 'certificacion', 
+                   certInfo.vencimiento, certInfo.sujeto, req.session.negocioId);
             
-            res.json({ success: true, message: 'Certificado guardado correctamente' });
+            res.json({ 
+                success: true, 
+                message: 'Certificado guardado correctamente',
+                certificado: {
+                    sujeto: certInfo.sujeto,
+                    vencimiento: certInfo.vencimiento
+                }
+            });
         });
     } catch (error) {
         console.error('Error subiendo certificado:', error);

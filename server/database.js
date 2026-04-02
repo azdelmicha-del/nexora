@@ -318,6 +318,14 @@ function initDatabase() {
         db.exec("ALTER TABLE negocios ADD COLUMN ambiente_dgii TEXT DEFAULT 'certificacion'");
         console.log('Columna ambiente_dgii agregada a negocios.');
     }
+    if (!negociosColNames.includes('cert_vencimiento')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN cert_vencimiento TEXT");
+        console.log('Columna cert_vencimiento agregada a negocios.');
+    }
+    if (!negociosColNames.includes('cert_sujeto')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN cert_sujeto TEXT");
+        console.log('Columna cert_sujeto agregada a negocios.');
+    }
     
     // Migración: Agregar documento y tipo_documento a clientes
     const clientesCols = db.prepare("PRAGMA table_info(clientes)").all();
