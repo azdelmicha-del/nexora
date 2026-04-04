@@ -54,6 +54,7 @@
                         <td>${(b.tamano / 1024 / 1024).toFixed(2)} MB</td>
                         <td>${formatDate(b.fecha)}</td>
                         <td>
+                            <button class="btn btn-secondary btn-sm" onclick="descargarBackup('${escapeHtml(b.nombre)}')" style="margin-right:0.25rem;">⬇ Descargar</button>
                             <button class="btn btn-warning btn-sm" onclick="restaurarBackup('${escapeHtml(b.nombre)}')">Restaurar</button>
                             <button class="btn btn-danger btn-sm" onclick="eliminarBackup('${escapeHtml(b.nombre)}')">Eliminar</button>
                         </td>
@@ -67,6 +68,14 @@
                 showToast('Backup creado: ' + r.nombre, 'success');
                 await loadBackups();
             } catch (e) { showToast(e.message, 'error'); }
+        }
+        async function descargarBackup(nombre) {
+            const a = document.createElement('a');
+            a.href = `/api/backup/download/${encodeURIComponent(nombre)}`;
+            a.download = nombre;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
         }
         async function restaurarBackup(nombre) {
             if (!confirm('Restaurar "' + nombre + '"? Deberas reiniciar el servidor despues.')) return;

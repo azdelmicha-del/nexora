@@ -34,6 +34,13 @@ function requireNegocio(req, res, next) {
     next();
 }
 
+function requireSuperAdmin(req, res, next) {
+    if (!req.session.superAdminId) {
+        return res.status(403).json({ error: 'Acceso denegado. Se requiere super administrador.' });
+    }
+    next();
+}
+
 function requireActiveLicense(req, res, next) {
     const url = req.originalUrl || req.url;
     
@@ -79,4 +86,4 @@ function requireActiveLicense(req, res, next) {
     }
 }
 
-module.exports = { requireAuth, requireAdmin, requireNegocio, requireActiveLicense };
+module.exports = { requireAuth, requireAdmin, requireNegocio, requireActiveLicense, requireSuperAdmin };

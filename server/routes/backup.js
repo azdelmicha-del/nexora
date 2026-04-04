@@ -1,6 +1,6 @@
 const express = require('express');
 const { getDb } = require('../database');
-const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { requireAuth, requireSuperAdmin } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
 
@@ -13,7 +13,7 @@ if (!fs.existsSync(BACKUP_DIR)) {
 }
 
 // GET /api/backup — Listar backups disponibles
-router.get('/', requireAdmin, (req, res) => {
+router.get('/', requireSuperAdmin, (req, res) => {
     try {
         const files = fs.readdirSync(BACKUP_DIR)
             .filter(f => f.endsWith('.db') || f.endsWith('.sqlite'))
@@ -35,7 +35,7 @@ router.get('/', requireAdmin, (req, res) => {
 });
 
 // POST /api/backup — Crear backup
-router.post('/', requireAdmin, (req, res) => {
+router.post('/', requireSuperAdmin, (req, res) => {
     try {
         const db = getDb();
         const dbPath = db.prepare("PRAGMA database_list").get().file;
@@ -53,7 +53,7 @@ router.post('/', requireAdmin, (req, res) => {
 });
 
 // POST /api/backup/restore — Restaurar backup
-router.post('/restore', requireAdmin, (req, res) => {
+router.post('/restore', requireSuperAdmin, (req, res) => {
     try {
         const { nombre } = req.body;
         if (!nombre || !nombre.endsWith('.db')) {
@@ -79,7 +79,7 @@ router.post('/restore', requireAdmin, (req, res) => {
 });
 
 // DELETE /api/backup/:nombre — Eliminar backup
-router.delete('/:nombre', requireAdmin, (req, res) => {
+router.delete('/:nombre', requireSuperAdmin, (req, res) => {
     try {
         const nombre = req.params.nombre;
         if (!nombre || !nombre.endsWith('.db')) {
@@ -96,6 +96,26 @@ router.delete('/:nombre', requireAdmin, (req, res) => {
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Error al eliminar backup' });
+    }
+});
+
+// GET /api/backup/download/:nombre — Descargar backup
+router.get('/download/:nombre', requireSuperAdmin, (req, res) => {
+    try {
+        const nombre = req.params.nombre;
+        if (!nombre || !nombre.endsWith('.db')) {
+            return res.status(400).json({ error: 'Nombre invalido' });
+        }
+
+        const backupPath = path.join(BACKUP_DIR, nombre);
+        if (!fs.existsSync(backupPath)) {
+            return res.status(404).json({ error: 'Backup no encontrado' });
+        }
+
+        res.download(backupPath, nombre);
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Error al descargar backup' });
     }
 });
 
