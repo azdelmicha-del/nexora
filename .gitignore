@@ -56,5 +56,5 @@ PROMPT_MAESTRO.md
 # Backup de superadmin
 public/superadmin.backup.html
 
-# Render
-render.yaml
+# Render secrets (no incluir credenciales reales)
+# render.yaml SI se incluye en el repo

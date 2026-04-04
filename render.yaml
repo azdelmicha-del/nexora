@@ -1,0 +1,41 @@
+services:
+  - type: web
+    name: nexora
+    env: node
+    region: oregon
+    plan: starter
+    buildCommand: npm install
+    startCommand: node server/index.js
+    disk:
+      name: nexora-data
+      mountPath: /opt/render/project/src/server/db
+      sizeGB: 1
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: PORT
+        value: 3000
+      - key: OWNER_EMAIL
+        sync: false
+      - key: LICENSE_MASTER_KEY
+        sync: false
+      - key: SUPERADMIN_UNLOCK_CODE
+        sync: false
+      - key: EMAIL_HOST
+        value: smtp.gmail.com
+      - key: EMAIL_PORT
+        value: 587
+      - key: EMAIL_USER
+        sync: false
+      - key: EMAIL_PASS
+        sync: false
+      - key: EMAIL_FROM
+        value: Nexora <no-reply@nexora.do>
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: WHATSAPP_PHONE_NUMBER_ID
+        sync: false
+      - key: WHATSAPP_VERIFY_TOKEN
+        generateValue: true
