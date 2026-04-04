@@ -155,6 +155,8 @@ router.post('/login', async (req, res) => {
 
         const db = getDb();
         
+        const emailLower = email.toLowerCase().trim();
+        
         const user = db.prepare(`
             SELECT u.id, u.nombre, u.email, u.password, u.rol, u.negocio_id, u.estado, u.last_login, u.fecha_creacion,
                    u.login_attempts, u.last_attempt,
@@ -162,7 +164,7 @@ router.post('/login', async (req, res) => {
             FROM usuarios u
             JOIN negocios n ON u.negocio_id = n.id
             WHERE u.email = ?
-        `).get(email);
+        `).get(emailLower);
 
         if (!user) {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
