@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Menu Digital</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; background:#f8f9fa; min-height:100vh; }
+        .header { background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; padding:1.5rem 1rem; text-align:center; }
+        .header h1 { font-size:1.5rem; margin-bottom:0.25rem; }
+        .header p { opacity:0.85; font-size:0.85rem; }
+        .content { padding:1rem; max-width:800px; margin:0 auto; padding-bottom:100px; }
+        .menu-tabs { display:flex; gap:0.5rem; margin-bottom:1rem; overflow-x:auto; padding-bottom:0.5rem; }
+        .menu-tab { padding:0.5rem 1rem; border:none; background:#fff; cursor:pointer; font-weight:600; color:#6b7280; border-radius:20px; white-space:nowrap; font-size:0.82rem; box-shadow:0 1px 3px rgba(0,0,0,0.06); transition:all 0.2s; }
+        .menu-tab.active { background:#667eea; color:#fff; }
+        .menu-section { margin-bottom:1.5rem; }
+        .menu-section h3 { font-size:1rem; margin-bottom:0.75rem; color:#1f2937; font-weight:700; padding-left:0.25rem; }
+        .menu-grid { display:grid !important; grid-template-columns:repeat(3,1fr) !important; gap:0.5rem !important; }
+        .menu-item {
+            background:#fff;
+            border-radius:16px;
+            overflow:hidden;
+            box-shadow:0 2px 10px rgba(0,0,0,0.06);
+            cursor:pointer;
+            transition:all 0.2s;
+            border:3px solid transparent;
+            position:relative;
+            display:flex !important;
+            flex-direction:column !important;
+            flex-shrink:0 !important;
+        }
+        .menu-item.selected { border-color:#667eea; box-shadow:0 4px 16px rgba(102,126,234,0.3); }
+        .menu-item-img {
+            width:100%;
+            height:100px;
+            background:#f3f4f6;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            font-size:2rem;
+        }
+        .menu-item-img img { width:100%; height:100%; object-fit:cover; }
+        .menu-item-info { padding:0.5rem; }
+        .menu-item-info h4 { font-size:0.78rem; font-weight:600; margin-bottom:0.1rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .menu-item-info p { font-size:0.6rem; color:#9ca3af; margin-bottom:0.2rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .menu-item-bottom { display:flex; justify-content:space-between; align-items:center; }
+        .menu-item-info .price { font-weight:800; color:#10b981; font-size:0.85rem; }
+        .menu-item-badge {
+            position:absolute;
+            top:6px;
+            right:6px;
+            background:rgba(102,126,234,0.9);
+            color:#fff;
+            font-size:0.55rem;
+            font-weight:700;
+            padding:2px 5px;
+            border-radius:20px;
+            display:none;
+            z-index:2;
+        }
+        .menu-item.selected .menu-item-badge { display:block; }
+        .cart-bar { position:fixed; bottom:0; left:0; right:0; background:#fff; border-top:1px solid #e5e7eb; padding:1rem; box-shadow:0 -2px 10px rgba(0,0,0,0.1); z-index:100; }
+        .cart-bar-inner { max-width:800px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; }
+        .cart-total { font-size:1.1rem; font-weight:700; }
+        .btn-order { background:linear-gradient(135deg,#10b981,#059669); color:#fff; border:none; padding:0.75rem 1.5rem; border-radius:12px; font-size:1rem; font-weight:700; cursor:pointer; }
+        .btn-order:disabled { opacity:0.5; cursor:not-allowed; }
+        .qty-control { display:flex; align-items:center; gap:0.3rem; }
+        .qty-btn { width:24px; height:24px; border-radius:50%; border:1px solid #d1d5db; background:#fff; display:flex; align-items:center; justify-content:center; font-size:0.8rem; cursor:pointer; }
+        .qty-num { font-weight:700; min-width:16px; text-align:center; font-size:0.85rem; }
+        .form-group { margin-bottom:1rem; }
+        .form-group label { display:block; font-size:0.82rem; font-weight:600; color:#374151; margin-bottom:0.3rem; }
+        .form-group input, .form-group textarea, .form-group select { width:100%; padding:0.75rem; border:1px solid #d1d5db; border-radius:8px; font-size:0.9rem; }
+        .delivery-options { display:flex; gap:0.5rem; margin-bottom:1rem; }
+        .delivery-opt { flex:1; padding:1rem; border:2px solid #e5e7eb; border-radius:12px; text-align:center; cursor:pointer; transition:all 0.2s; }
+        .delivery-opt.active { border-color:#667eea; background:#f0f0ff; }
+        .delivery-opt .icon { font-size:1.5rem; margin-bottom:0.3rem; }
+        .delivery-opt .label { font-size:0.82rem; font-weight:600; }
+    </style>
+</head>
+<body>
+    <div class="header" id="header">
+        <h1 id="negocioNombre">Cargando...</h1>
+        <p id="negocioInfo"></p>
+    </div>
+
+    <div class="content" id="content"></div>
+
+    <div class="cart-bar" id="cartBar" style="display:none;">
+        <div class="cart-bar-inner">
+            <div>
+                <div style="font-size:0.75rem;color:#6b7280;" id="cartCount">0 items</div>
+                <div class="cart-total" id="cartTotal">RD$0.00</div>
+            </div>
+            <button class="btn-order" id="btnOrder" onclick="checkout()">🛒 Ver Pedido</button>
+        </div>
+    </div>
+
+    <script>
+        let menuData = null;
+        let cart = [];
+        let deliveryType = 'domicilio';
+        let currentView = 'menu';
+        let negocioSlug = window.location.pathname.split('/').pop();
+
+        async function init() {
+            try {
+                const res = await fetch(`/api/pedidos/public/${negocioSlug}/menu`);
+                if (!res.ok) { document.getElementById('content').innerHTML = '<p style="text-align:center;padding:2rem;">Menu no disponible</p>'; return; }
+                menuData = await res.json();
+                document.getElementById('negocioNombre').textContent = menuData.negocio.nombre;
+                document.getElementById('negocioInfo').textContent = menuData.negocio.delivery_activo ? 'Delivery disponible · ' + formatCurrency(menuData.negocio.delivery_costo) + ' envio' : 'Retiro en local';
+                renderMenu();
+            } catch(e) { document.getElementById('content').innerHTML = '<p style="text-align:center;padding:2rem;">Error al cargar el menu</p>'; }
+        }
+
+        function renderMenu() {
+            currentView = 'menu';
+            const content = document.getElementById('content');
+            const cats = menuData.categorias.filter(c => c.activa);
+            if (!cats.length) { content.innerHTML = '<p style="text-align:center;padding:2rem;color:#9ca3af;">Menu no disponible</p>'; return; }
+
+            let html = '<div class="menu-tabs">';
+            html += `<button class="menu-tab active" onclick="scrollToSection('all',this)">Todos</button>`;
+            cats.forEach(c => { html += `<button class="menu-tab" onclick="scrollToSection('cat-'+c.id,this)">${esc(c.nombre)}</button>`; });
+            html += '</div>';
+
+            cats.forEach(cat => {
+                const catItems = menuData.items.filter(i => i.categoria_id === cat.id && i.disponible);
+                if (catItems.length === 0) return;
+                html += `<div class="menu-section" id="cat-${cat.id}"><h3>${esc(cat.nombre)}</h3><div class="menu-grid">`;
+                catItems.forEach(item => {
+                    const inCart = cart.find(c => c.menu_item_id === item.id);
+                    html += `
+                        <div class="menu-item ${inCart?'selected':''}" onclick="toggleItem(${item.id})">
+                            <span class="menu-item-badge">✓ ${inCart ? inCart.cantidad : ''}</span>
+                            <div class="menu-item-img">${item.imagen ? `<img src="${item.imagen}" onerror="this.parentElement.innerHTML='🍽️'">` : '🍽️'}</div>
+                            <div class="menu-item-info">
+                                <h4>${esc(item.nombre)}</h4>
+                                ${item.descripcion ? `<p>${esc(item.descripcion)}</p>` : ''}
+                                <div class="menu-item-bottom">
+                                    <span class="price">${formatCurrency(item.precio)}</span>
+                                    ${inCart ? `<div class="qty-control"><button class="qty-btn" onclick="event.stopPropagation();changeQty(${item.id},-1)">−</button><span class="qty-num">${inCart.cantidad}</span><button class="qty-btn" onclick="event.stopPropagation();changeQty(${item.id},1)">+</button></div>` : '<span style="color:#667eea;font-size:0.75rem;font-weight:600;">+ Agregar</span>'}
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                html += '</div></div>';
+            });
+
+            content.innerHTML = html;
+            updateCartBar();
+        }
+
+        function scrollToSection(id, btn) {
+            document.querySelectorAll('.menu-tab').forEach(t => t.classList.remove('active'));
+            if (btn) btn.classList.add('active');
+            if (id === 'all') { window.scrollTo({top:0,behavior:'smooth'}); }
+            else { const el = document.getElementById(id); if(el) el.scrollIntoView({behavior:'smooth',block:'start'}); }
+        }
+
+        function toggleItem(id) {
+            const item = menuData.items.find(i => i.id === id);
+            if (!item) return;
+            const idx = cart.findIndex(c => c.menu_item_id === id);
+            if (idx >= 0) { cart.splice(idx, 1); }
+            else { cart.push({ menu_item_id: id, nombre: item.nombre, precio: item.precio, cantidad: 1 }); }
+            renderMenu();
+        }
+
+        function changeQty(id, delta) {
+            const item = cart.find(c => c.menu_item_id === id);
+            if (!item) return;
+            item.cantidad += delta;
+            if (item.cantidad <= 0) { cart = cart.filter(c => c.menu_item_id !== id); }
+            renderMenu();
+        }
+
+        function updateCartBar() {
+            const bar = document.getElementById('cartBar');
+            if (currentView !== 'menu') { bar.style.display = 'none'; return; }
+            const total = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
+            const count = cart.reduce((s, i) => s + i.cantidad, 0);
+            document.getElementById('cartCount').textContent = count + ' items';
+            document.getElementById('cartTotal').textContent = formatCurrency(total);
+            bar.style.display = count > 0 ? 'block' : 'none';
+        }
+
+        function checkout() {
+            currentView = 'checkout';
+            const content = document.getElementById('content');
+            const subtotal = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
+            const costoEnvio = deliveryType === 'domicilio' ? (menuData.negocio.delivery_costo || 0) : 0;
+            const total = subtotal + costoEnvio;
+
+            content.innerHTML = `
+                <div style="margin-bottom:1rem;">
+                    <button onclick="renderMenu()" style="background:none;border:none;color:#667eea;font-size:0.9rem;font-weight:600;cursor:pointer;">← Volver al menu</button>
+                </div>
+                <div style="background:#fff;border-radius:16px;padding:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);margin-bottom:1rem;">
+                    <h3 style="margin-bottom:1rem;">Tu Pedido</h3>
+                    ${cart.map(i => `<div style="display:flex;justify-content:space-between;padding:0.5rem 0;border-bottom:1px solid #f3f4f6;"><span>${esc(i.nombre)} × ${i.cantidad}</span><span style="font-weight:600;">${formatCurrency(i.precio * i.cantidad)}</span></div>`).join('')}
+                    ${costoEnvio > 0 ? `<div style="display:flex;justify-content:space-between;padding:0.5rem 0;color:#6b7280;"><span>Envio</span><span>${formatCurrency(costoEnvio)}</span></div>` : ''}
+                    <div style="display:flex;justify-content:space-between;padding-top:0.75rem;border-top:2px solid #e5e7eb;margin-top:0.5rem;"><strong style="font-size:1.1rem;">Total</strong><strong style="font-size:1.2rem;color:#10b981;">${formatCurrency(total)}</strong></div>
+                </div>
+                <div style="background:#fff;border-radius:16px;padding:1.5rem;box-shadow:0 1px 4px rgba(0,0,0,0.06);">
+                    <h3 style="margin-bottom:1rem;">Datos de Entrega</h3>
+                    <div class="delivery-options">
+                        ${menuData.negocio.delivery_activo ? `<div class="delivery-opt ${deliveryType==='domicilio'?'active':''}" onclick="setDelivery('domicilio')"><div class="icon">🏠</div><div class="label">A Domicilio</div></div>` : ''}
+                        <div class="delivery-opt ${deliveryType==='retiro'?'active':''}" onclick="setDelivery('retiro')"><div class="icon">🏪</div><div class="label">Retiro en Local</div></div>
+                    </div>
+                    <div class="form-group"><label>Tu Nombre *</label><input type="text" id="clienteNombre" placeholder="Nombre completo"></div>
+                    <div class="form-group"><label>Telefono / WhatsApp *</label><input type="tel" id="clienteTelefono" placeholder="+1 (809) 555-1234"></div>
+                    ${deliveryType === 'domicilio' ? `
+                        <div class="form-group"><label>Direccion de Entrega *</label><textarea id="clienteDireccion" rows="2" placeholder="Calle, numero, referencia..."></textarea></div>
+                        <div class="form-group"><button onclick="getUbicacion()" style="width:100%;padding:0.75rem;background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;color:#1d4ed8;font-weight:600;cursor:pointer;">📍 Enviar mi ubicacion actual</button><input type="hidden" id="clienteUbicacion"></div>
+                    ` : ''}
+                    <div class="form-group"><label>Notas (opcional)</label><textarea id="clienteNotas" rows="2" placeholder="Sin cebolla, extra salsa..."></textarea></div>
+                    <button onclick="enviarPedido()" style="width:100%;padding:1rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:12px;font-size:1.1rem;font-weight:700;cursor:pointer;margin-top:0.5rem;">📱 Enviar Pedido</button>
+                </div>
+            `;
+            document.getElementById('cartBar').style.display = 'none';
+        }
+
+        function setDelivery(type) {
+            deliveryType = type;
+            checkout();
+        }
+
+        async function getUbicacion() {
+            if (!navigator.geolocation) { alert('Tu navegador no soporta geolocalizacion'); return; }
+            navigator.geolocation.getCurrentPosition(pos => {
+                document.getElementById('clienteUbicacion').value = pos.coords.latitude + ',' + pos.coords.longitude;
+                alert('Ubicacion capturada ✓');
+            }, () => alert('No se pudo obtener la ubicacion'));
+        }
+
+        async function enviarPedido() {
+            const nombre = document.getElementById('clienteNombre')?.value?.trim();
+            const telefono = document.getElementById('clienteTelefono')?.value?.trim();
+            if (!nombre || !telefono) { alert('Nombre y telefono son requeridos'); return; }
+            if (deliveryType === 'domicilio' && !document.getElementById('clienteDireccion')?.value?.trim()) { alert('La direccion es requerida para domicilio'); return; }
+            if (cart.length === 0) { alert('Agrega al menos un item'); return; }
+
+            const btn = document.querySelector('.btn-order, button[onclick="enviarPedido()"]');
+            if (btn) { btn.disabled = true; btn.textContent = 'Enviando...'; }
+
+            try {
+                const body = {
+                    cliente_nombre: nombre,
+                    cliente_telefono: telefono,
+                    cliente_direccion: document.getElementById('clienteDireccion')?.value?.trim() || null,
+                    cliente_ubicacion: document.getElementById('clienteUbicacion')?.value || null,
+                    tipo_entrega: deliveryType,
+                    notas: document.getElementById('clienteNotas')?.value?.trim() || null,
+                    items: cart.map(i => ({ menu_item_id: i.menu_item_id, nombre: i.nombre, cantidad: i.cantidad }))
+                };
+
+                const res = await fetch(`/api/pedidos/public/${negocioSlug}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'Error al enviar pedido');
+
+                const itemsText = cart.map(i => `• ${i.nombre} x${i.cantidad} = ${formatCurrency(i.precio * i.cantidad)}`).join('\n');
+                const deliveryText = deliveryType === 'domicilio' ? `🏠 Domicilio\n📍 ${body.cliente_direccion || 'Sin direccion'}` : '🏪 Retiro en local';
+                const waMsg = `🍽️ *Nuevo Pedido*\n\n${itemsText}\n\n${deliveryText}\n\n💰 *Total: ${formatCurrency(data.total)}*\n\n👤 ${nombre}\n📱 ${telefono}`;
+                const waUrl = `https://wa.me/?text=${encodeURIComponent(waMsg)}`;
+
+                document.getElementById('content').innerHTML = `
+                    <div style="text-align:center;padding:3rem 1rem;">
+                        <div style="font-size:4rem;margin-bottom:1rem;">✅</div>
+                        <h2 style="margin-bottom:0.5rem;">¡Pedido Enviado!</h2>
+                        <p style="color:#6b7280;margin-bottom:1.5rem;">Tu pedido #${data.pedido_id} ha sido recibido. Total: <strong>${formatCurrency(data.total)}</strong></p>
+                        <a href="${waUrl}" target="_blank" style="display:inline-block;padding:1rem 2rem;background:#25D366;color:#fff;border-radius:12px;font-weight:700;text-decoration:none;font-size:1rem;">📱 Enviar por WhatsApp</a>
+                        <p style="margin-top:1rem;font-size:0.82rem;color:#9ca3af;">O espera a que el restaurante te contacte</p>
+                        <button onclick="cart=[];renderMenu();" style="margin-top:1rem;padding:0.75rem 1.5rem;background:none;border:1px solid #d1d5db;border-radius:8px;color:#6b7280;font-weight:600;cursor:pointer;">Hacer otro pedido</button>
+                    </div>
+                `;
+                document.getElementById('cartBar').style.display = 'none';
+            } catch(e) {
+                alert(e.message);
+                if (btn) { btn.disabled = false; btn.textContent = '📱 Enviar Pedido'; }
+            }
+        }
+
+        function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+        function formatCurrency(a) { return 'RD$' + Number(a||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+
+        init();
+    </script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora - Pedidos</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .pedido-tabs { display:flex; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap; }
+        .pedido-tab { padding:0.5rem 1rem; border:2px solid var(--gray-200); border-radius:20px; background:white; cursor:pointer; font-size:0.82rem; font-weight:600; transition:all 0.2s; }
+        .pedido-tab.active { border-color:#667eea; background:#667eea; color:#fff; }
+        .pedido-tab .count { background:rgba(255,255,255,0.3); padding:1px 6px; border-radius:10px; font-size:0.72rem; }
+        .pedido-tab:not(.active) .count { background:var(--gray-200); }
+        .pedido-card { background:white; border-radius:16px; padding:1.25rem; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:1rem; border-left:4px solid #667eea; }
+        .pedido-card.estado-confirmado { border-left-color:#3b82f6; }
+        .pedido-card.estado-preparando { border-left-color:#f59e0b; }
+        .pedido-card.estado-listo { border-left-color:#10b981; }
+        .pedido-card.estado-entregado { border-left-color:#8b5cf6; }
+        .pedido-card.estado-cancelado { border-left-color:#ef4444; opacity:0.7; }
+        .pedido-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem; }
+        .pedido-items { background:var(--gray-50); border-radius:8px; padding:0.75rem; margin:0.75rem 0; }
+        .pedido-item-row { display:flex; justify-content:space-between; padding:0.25rem 0; font-size:0.85rem; }
+        .pedido-actions { display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.75rem; }
+        .estado-badge { padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:700; text-transform:uppercase; }
+        .estado-pendiente { background:#fef3c7; color:#92400e; }
+        .estado-confirmado { background:#dbeafe; color:#1e40af; }
+        .estado-preparando { background:#fef3c7; color:#92400e; }
+        .estado-listo { background:#d1fae5; color:#065f46; }
+        .estado-entregado { background:#ede9fe; color:#5b21b6; }
+        .estado-cancelado { background:#fee2e2; color:#991b1b; }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Pedidos de Comida</h1>
+            </div>
+            <div class="pedido-tabs" id="estadoTabs"></div>
+            <div id="pedidosList"></div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="modalPedido">
+        <div class="modal" style="max-width:500px;">
+            <div class="modal-header"><h3 id="modalPedidoTitle">Detalle del Pedido</h3><button class="modal-close" onclick="document.getElementById('modalPedido').classList.remove('active')"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
+            <div class="modal-body" id="modalPedidoBody"></div>
+            <div class="modal-footer" id="modalPedidoFooter"></div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        let todosPedidos = [];
+        const estados = [
+            { key: '', label: 'Todos', color: '#667eea' },
+            { key: 'pendiente', label: 'Pendientes', color: '#f59e0b' },
+            { key: 'confirmado', label: 'Confirmados', color: '#3b82f6' },
+            { key: 'preparando', label: 'Preparando', color: '#f59e0b' },
+            { key: 'listo', label: 'Listos', color: '#10b981' },
+            { key: 'entregado', label: 'Entregados', color: '#8b5cf6' },
+            { key: 'cancelado', label: 'Cancelados', color: '#ef4444' }
+        ];
+        let filtroActual = '';
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const ok = await requireLicense(); if (!ok) return;
+            const s = await checkSession(); if (!s || !s.authenticated) { window.location.href = '/'; return; }
+            renderTabs();
+            await loadPedidos();
+        });
+
+        function renderTabs() {
+            const container = document.getElementById('estadoTabs');
+            container.innerHTML = estados.map(e => {
+                const count = e.key ? todosPedidos.filter(p => p.estado === e.key).length : todosPedidos.length;
+                return `<button class="pedido-tab ${filtroActual===e.key?'active':''}" onclick="setFiltro('${e.key}')" style="${filtroActual===e.key?`border-color:${e.color};background:${e.color};`:''}">${e.label} <span class="count">${count}</span></button>`;
+            }).join('');
+        }
+
+        function setFiltro(key) {
+            filtroActual = key;
+            renderTabs();
+            renderPedidos();
+        }
+
+        async function loadPedidos() {
+            try {
+                todosPedidos = await apiCall('/pedidos');
+                renderTabs();
+                renderPedidos();
+            } catch(e) {
+                document.getElementById('pedidosList').innerHTML = '<p style="text-align:center;padding:2rem;color:#ef4444;">Error al cargar pedidos</p>';
+            }
+        }
+
+        function renderPedidos() {
+            const container = document.getElementById('pedidosList');
+            const filtrados = filtroActual ? todosPedidos.filter(p => p.estado === filtroActual) : todosPedidos;
+            if (!filtrados.length) { container.innerHTML = '<p style="text-align:center;padding:3rem;color:var(--gray-400);">No hay pedidos</p>'; return; }
+            container.innerHTML = filtrados.map(p => `
+                <div class="pedido-card ${p.estado ? 'estado-'+p.estado : ''}">
+                    <div class="pedido-header">
+                        <div>
+                            <strong style="font-size:1rem;">Pedido #${p.id}</strong>
+                            <span style="margin-left:0.5rem;font-size:0.78rem;color:var(--gray-500);">${fmtDate(p.fecha_creacion)}</span>
+                        </div>
+                        <span class="estado-badge estado-${p.estado}">${p.estado}</span>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.82rem;margin-bottom:0.5rem;">
+                        <div><strong>Cliente:</strong> ${esc(p.cliente_nombre)}</div>
+                        <div><strong>Teléfono:</strong> ${esc(p.cliente_telefono || '—')}</div>
+                        <div><strong>Entrega:</strong> ${p.tipo_entrega === 'domicilio' ? '🏠 Domicilio' : '🏪 Retiro'}</div>
+                        <div><strong>Items:</strong> ${p.items_count}</div>
+                    </div>
+                    ${p.cliente_direccion ? `<div style="font-size:0.78rem;color:var(--gray-500);">📍 ${esc(p.cliente_direccion)}</div>` : ''}
+                    <div class="pedido-items">
+                        ${(p.items||[]).map(i => `<div class="pedido-item-row"><span>${i.nombre_item} × ${i.cantidad}</span><span style="font-weight:600;">${formatCurrency(i.subtotal)}</span></div>`).join('')}
+                        ${p.costo_envio > 0 ? `<div class="pedido-item-row" style="color:var(--gray-500);"><span>Envío</span><span>${formatCurrency(p.costo_envio)}</span></div>` : ''}
+                        <div class="pedido-item-row" style="border-top:2px solid var(--gray-200);padding-top:0.5rem;margin-top:0.25rem;"><strong>Total</strong><strong style="color:#10b981;font-size:1.1rem;">${formatCurrency(p.total)}</strong></div>
+                    </div>
+                    <div class="pedido-actions">
+                        ${p.estado === 'pendiente' ? `
+                            <button class="btn btn-sm" style="background:#3b82f6;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'confirmado')">✓ Confirmar</button>
+                            <button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'preparando')">🍳 Preparar</button>
+                            <button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'cancelado')">✕ Cancelar</button>
+                        ` : ''}
+                        ${p.estado === 'confirmado' ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'preparando')">🍳 Preparar</button>` : ''}
+                        ${p.estado === 'preparando' ? `<button class="btn btn-sm" style="background:#10b981;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'listo')">✓ Listo</button>` : ''}
+                        ${p.estado === 'listo' ? `<button class="btn btn-sm" style="background:#8b5cf6;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'entregado')">📦 Entregado</button>` : ''}
+                        ${p.estado !== 'cancelado' && !p.venta_id ? `<button class="btn btn-sm" style="background:#10b981;color:#fff;border:none;" onclick="facturarPedido(${p.id})">💰 Facturar</button>` : ''}
+                        <button class="btn btn-secondary btn-sm" onclick="verDetalle(${p.id})">👁️ Ver</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        async function cambiarEstado(id, estado) {
+            try {
+                await apiCall(`/pedidos/${id}/estado`, { method:'PUT', body:JSON.stringify({ estado }) });
+                showToast(`Pedido ${estado}`, 'success');
+                await loadPedidos();
+            } catch(e) { showToast(e.message, 'error'); }
+        }
+
+        async function facturarPedido(id) {
+            if (!confirm('Facturar este pedido? Se creara una venta con e-CF.')) return;
+            try {
+                const result = await apiCall(`/pedidos/${id}/facturar`, { method:'POST' });
+                showToast('Pedido facturado: ' + (result.venta?.secuencia_ecf || ''), 'success');
+                await loadPedidos();
+            } catch(e) { showToast(e.message, 'error'); }
+        }
+
+        function verDetalle(id) {
+            const p = todosPedidos.find(x => x.id === id);
+            if (!p) return;
+            document.getElementById('modalPedidoTitle').textContent = `Pedido #${p.id}`;
+            document.getElementById('modalPedidoBody').innerHTML = `
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
+                    <div class="detalle-campo"><div class="dc-label">Cliente</div><div class="dc-value">${esc(p.cliente_nombre)}</div></div>
+                    <div class="detalle-campo"><div class="dc-label">Telefono</div><div class="dc-value">${esc(p.cliente_telefono || '—')}</div></div>
+                    <div class="detalle-campo"><div class="dc-label">Entrega</div><div class="dc-value">${p.tipo_entrega === 'domicilio' ? '🏠 Domicilio' : '🏪 Retiro en local'}</div></div>
+                    <div class="detalle-campo"><div class="dc-label">Estado</div><div class="dc-value"><span class="estado-badge estado-${p.estado}">${p.estado}</span></div></div>
+                    ${p.cliente_direccion ? `<div class="detalle-campo" style="grid-column:1/-1;"><div class="dc-label">Direccion</div><div class="dc-value">${esc(p.cliente_direccion)}</div></div>` : ''}
+                    ${p.cliente_ubicacion ? `<div class="detalle-campo" style="grid-column:1/-1;"><div class="dc-label">Ubicacion GPS</div><div class="dc-value"><a href="https://maps.google.com/?q=${esc(p.cliente_ubicacion)}" target="_blank" style="color:#3b82f6;">Ver en Google Maps 📍</a></div></div>` : ''}
+                </div>
+                <div style="background:var(--gray-50);border-radius:8px;padding:0.75rem;">
+                    ${(p.items||[]).map(i => `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;font-size:0.85rem;"><span>${esc(i.nombre_item)} × ${i.cantidad}</span><span style="font-weight:600;">${formatCurrency(i.subtotal)}</span></div>`).join('')}
+                    ${p.costo_envio > 0 ? `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;color:var(--gray-500);"><span>Envio</span><span>${formatCurrency(p.costo_envio)}</span></div>` : ''}
+                    <div style="display:flex;justify-content:space-between;padding-top:0.5rem;border-top:2px solid var(--gray-200);margin-top:0.25rem;"><strong>Total</strong><strong style="color:#10b981;font-size:1.1rem;">${formatCurrency(p.total)}</strong></div>
+                </div>
+                ${p.notas ? `<div style="margin-top:0.75rem;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.75rem;font-size:0.85rem;">📝 ${esc(p.notas)}</div>` : ''}
+                ${p.venta_ecf ? `<div style="margin-top:0.75rem;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:0.75rem;font-size:0.85rem;">✅ Facturado: ${p.venta_ecf}</div>` : ''}
+            `;
+            document.getElementById('modalPedidoFooter').innerHTML = `
+                ${p.estado !== 'cancelado' && !p.venta_id ? `<button class="btn btn-sm" style="background:#10b981;color:#fff;border:none;" onclick="facturarPedido(${p.id});document.getElementById('modalPedido').classList.remove('active');">💰 Facturar</button>` : ''}
+                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('modalPedido').classList.remove('active')">Cerrar</button>
+            `;
+            document.getElementById('modalPedido').classList.add('active');
+        }
+
+        function esc(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+        function fmtDate(d){if(!d)return'';try{const p=d.replace('T',' ').split(/[- :]/);return new Date(p[0],p[1]-1,p[2]).toLocaleDateString('es-DO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return d;}}
+        function formatCurrency(a){return'RD$'+Number(a||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+    </script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/license-banner.js"></script>
+</body>
+</html>

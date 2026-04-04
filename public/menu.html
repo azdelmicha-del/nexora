@@ -1,0 +1,528 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora - Menu Digital</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <style>
+        .menu-tabs { display:flex; gap:0.5rem; margin-bottom:1rem; border-bottom:2px solid var(--gray-100); padding-bottom:0.5rem; }
+        .menu-tab { padding:0.5rem 1rem; border:none; background:none; cursor:pointer; font-weight:600; color:var(--gray-500); border-radius:8px; transition:all 0.2s; }
+        .menu-tab.active { background:#667eea; color:#fff; }
+        .menu-tab:hover:not(.active) { background:var(--gray-100); }
+        .menu-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(280px,1fr)); gap:1rem; }
+        .menu-item-card { background:white; border-radius:12px; overflow:hidden; box-shadow:0 2px 8px rgba(0,0,0,0.06); transition:all 0.2s; }
+        .menu-item-card:hover { transform:translateY(-2px); box-shadow:0 4px 16px rgba(0,0,0,0.1); }
+        .menu-item-img { width:100%; height:160px; object-fit:cover; background:var(--gray-100); display:flex; align-items:center; justify-content:center; color:var(--gray-400); font-size:2rem; }
+        .menu-item-img img { width:100%; height:100%; object-fit:cover; }
+        .menu-item-body { padding:1rem; }
+        .menu-item-body h4 { margin:0 0 0.25rem; font-size:0.95rem; }
+        .menu-item-body p { margin:0 0 0.5rem; font-size:0.78rem; color:var(--gray-500); }
+        .menu-item-footer { display:flex; justify-content:space-between; align-items:center; padding:0.75rem 1rem; border-top:1px solid var(--gray-100); }
+        .badge-disponible { background:#d1fae5; color:#065f46; padding:2px 8px; border-radius:20px; font-size:0.72rem; font-weight:600; }
+        .badge-no-disponible { background:#fee2e2; color:#991b1b; padding:2px 8px; border-radius:20px; font-size:0.72rem; font-weight:600; }
+        .cat-card { background:white; border-radius:12px; padding:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.06); display:flex; justify-content:space-between; align-items:center; }
+        .delivery-config {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            padding: 1.75rem;
+            color: #fff;
+            box-shadow: 0 8px 32px rgba(102,126,234,0.25);
+            margin-bottom: 1.5rem;
+            position: relative;
+            overflow: hidden;
+        }
+        .delivery-config::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            right: -20%;
+            width: 300px;
+            height: 300px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 50%;
+        }
+        .delivery-config::after {
+            content: '';
+            position: absolute;
+            bottom: -30%;
+            left: -10%;
+            width: 200px;
+            height: 200px;
+            background: rgba(255,255,255,0.04);
+            border-radius: 50%;
+        }
+        .delivery-config > * { position: relative; z-index: 1; }
+        .delivery-config h3 {
+            margin: 0 0 1.25rem;
+            font-size: 1.1rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .delivery-card {
+            background: rgba(255,255,255,0.12);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 14px;
+            padding: 1rem;
+        }
+        .delivery-card label {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.75);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            display: block;
+            margin-bottom: 0.4rem;
+        }
+        .delivery-card select,
+        .delivery-card input {
+            width: 100%;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 10px;
+            background: rgba(255,255,255,0.1);
+            color: #fff;
+            font-size: 0.95rem;
+            font-weight: 600;
+            outline: none;
+            transition: all 0.2s;
+        }
+        .delivery-card select:focus,
+        .delivery-card input:focus {
+            border-color: rgba(255,255,255,0.5);
+            background: rgba(255,255,255,0.18);
+        }
+        .delivery-card select option { color: #333; background: #fff; }
+        .delivery-card input::placeholder { color: rgba(255,255,255,0.4); }
+        .menu-link-section {
+            margin-top: 1.25rem;
+            padding-top: 1rem;
+            border-top: 1px solid rgba(255,255,255,0.15);
+        }
+        .menu-link-section label {
+            font-size: 0.72rem;
+            color: rgba(255,255,255,0.75);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+        .menu-link-row {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.4rem;
+        }
+        .menu-link-input {
+            flex: 1;
+            padding: 0.6rem 0.75rem;
+            border: 1px solid rgba(255,255,255,0.25);
+            border-radius: 10px;
+            background: rgba(0,0,0,0.15);
+            color: rgba(255,255,255,0.9);
+            font-size: 0.82rem;
+            font-family: monospace;
+            outline: none;
+        }
+        .copy-btn {
+            padding: 0.6rem 1rem;
+            background: rgba(255,255,255,0.2);
+            border: 1px solid rgba(255,255,255,0.3);
+            border-radius: 10px;
+            color: #fff;
+            font-size: 0.82rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+        .copy-btn:hover { background: rgba(255,255,255,0.3); }
+
+        /* Image upload styles */
+        .imagen-upload-container {
+            border: 2px dashed var(--gray-300);
+            border-radius: 12px;
+            padding: 1rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .imagen-upload-container:hover { border-color: var(--primary); background: #f0f0ff; }
+        .imagen-upload-container.has-image { border-style: solid; border-color: var(--primary); }
+        .imagen-input-hidden { display: none; }
+        .imagen-upload-placeholder { padding: 1rem; }
+        .imagen-upload-placeholder svg { color: var(--gray-400); margin-bottom: 0.5rem; }
+        .imagen-upload-placeholder p { color: var(--gray-400); font-size: 0.85rem; margin: 0; }
+        .imagen-preview {
+            max-width: 100%;
+            max-height: 200px;
+            border-radius: 8px;
+            display: block;
+            margin: 0 auto;
+        }
+        .imagen-remove-btn {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.6);
+            color: white;
+            border: none;
+            font-size: 1.2rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .imagen-remove-btn:hover { background: rgba(239,68,68,0.8); }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="layout">
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Menu Digital</h1>
+                <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-secondary" onclick="openCatModal()">+ Categoria</button>
+                    <button class="btn btn-primary" onclick="openItemModal()">+ Item del Menu</button>
+                </div>
+            </div>
+
+            <div class="delivery-config mb-4">
+                <h3>⚙️ Configuracion de Delivery</h3>
+                <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:0.75rem;">
+                    <div class="delivery-card">
+                        <label>Habilitar Delivery</label>
+                        <select id="deliveryActivo" onchange="saveConfig()">
+                            <option value="0">No</option>
+                            <option value="1">Si</option>
+                        </select>
+                    </div>
+                    <div class="delivery-card">
+                        <label>Costo de Envio (RD$)</label>
+                        <input type="number" id="deliveryCosto" min="0" step="0.01" onchange="saveConfig()">
+                    </div>
+                    <div class="delivery-card">
+                        <label>Tiempo estimado (min)</label>
+                        <input type="number" id="deliveryTiempo" min="5" onchange="saveConfig()">
+                    </div>
+                    <div class="delivery-card">
+                        <label>Pedido minimo (RD$)</label>
+                        <input type="number" id="deliveryMinimo" min="0" step="0.01" onchange="saveConfig()">
+                    </div>
+                </div>
+                <div class="menu-link-section">
+                    <label>Tu enlace de menu para clientes</label>
+                    <div class="menu-link-row">
+                        <input type="text" id="menuLink" readonly class="menu-link-input">
+                        <button class="copy-btn" onclick="copyMenuLink()">📋 Copiar</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="menu-tabs">
+                <button class="menu-tab active" onclick="showTab('items',this)">🍽️ Items del Menu</button>
+                <button class="menu-tab" onclick="showTab('categorias',this)">📂 Categorias</button>
+            </div>
+
+            <div id="tabItems">
+                <div class="menu-grid" id="menuItemsGrid"></div>
+            </div>
+            <div id="tabCategorias" style="display:none;">
+                <div style="display:grid;gap:0.75rem;" id="categoriasList"></div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal Categoria -->
+    <div class="modal-overlay" id="modalCat">
+        <div class="modal" style="max-width:400px;">
+            <div class="modal-header"><h3 id="catModalTitle">Nueva Categoria</h3><button class="modal-close" onclick="closeCatModal()"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
+            <form id="catForm">
+                <div class="modal-body">
+                    <input type="hidden" id="catId">
+                    <div class="form-group"><label>Nombre</label><input type="text" id="catNombre" class="form-input" required placeholder="Ej: Guarniciones, Proteinas, Bebidas"></div>
+                    <div class="form-group"><label>Orden</label><input type="number" id="catOrden" class="form-input" min="0" value="0"></div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeCatModal()">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Modal Item -->
+    <div class="modal-overlay" id="modalItem">
+        <div class="modal" style="max-width:500px;">
+            <div class="modal-header"><h3 id="itemModalTitle">Nuevo Item</h3><button class="modal-close" onclick="closeItemModal()"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
+            <form id="itemForm">
+                <div class="modal-body">
+                    <input type="hidden" id="itemId">
+                    <div class="form-group"><label>Nombre *</label><input type="text" id="itemNombre" class="form-input" required placeholder="Ej: Pollo Guisado"></div>
+                    <div class="form-group"><label>Descripcion</label><textarea id="itemDesc" class="form-input" rows="2" placeholder="Descripcion del plato..."></textarea></div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                        <div class="form-group"><label>Precio (RD$) *</label><input type="number" id="itemPrecio" class="form-input" step="0.01" min="0" required></div>
+                        <div class="form-group"><label>Categoria</label><select id="itemCategoria" class="form-select"><option value="">Sin categoria</option></select></div>
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                        <div class="form-group"><label>ITBIS (%)</label><select id="itemItbis" class="form-select"><option value="18">18%</option><option value="16">16%</option><option value="8">8%</option><option value="0">0% Exento</option></select></div>
+                        <div class="form-group"><label>Foto del plato</label>
+                            <div class="imagen-upload-container" id="itemImagenContainer" onclick="document.getElementById('itemImagenInput').click()">
+                                <input type="file" id="itemImagenInput" class="imagen-input-hidden" accept="image/*" onchange="handleItemImagen(this)">
+                                <div class="imagen-upload-placeholder" id="itemImagenPlaceholder">
+                                    <svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg>
+                                    <p>Subir foto</p>
+                                </div>
+                                <img id="itemImagenPreview" class="imagen-preview" style="display:none;" alt="Preview">
+                                <button type="button" class="imagen-remove-btn" id="itemImagenRemove" style="display:none;" onclick="event.stopPropagation(); removeItemImagen()">×</button>
+                            </div>
+                            <input type="hidden" id="itemImagen" value="">
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:1rem;margin-top:0.5rem;">
+                        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.85rem;"><input type="checkbox" id="itemDestacado"> Destacado</label>
+                        <label style="display:flex;align-items:center;gap:0.3rem;font-size:0.85rem;"><input type="checkbox" id="itemDisponible" checked> Disponible</label>
+                    </div>
+                </div>
+                <div class="modal-footer"><button type="button" class="btn btn-secondary" onclick="closeItemModal()">Cancelar</button><button type="submit" class="btn btn-primary">Guardar</button></div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        let categorias = [];
+        let items = [];
+        document.addEventListener('DOMContentLoaded', async () => {
+            const ok = await requireLicense(); if (!ok) return;
+            const s = await checkSession(); if (!s || !s.authenticated) { window.location.href = '/'; return; }
+            await Promise.all([loadCategorias(), loadItems(), loadConfig()]);
+            document.getElementById('catForm').addEventListener('submit', saveCat);
+            document.getElementById('itemForm').addEventListener('submit', saveItem);
+        });
+        async function loadConfig() {
+            try {
+                const cfg = await apiCall('/menu/config');
+                document.getElementById('deliveryActivo').value = cfg.delivery_activo ? '1' : '0';
+                document.getElementById('deliveryCosto').value = cfg.delivery_costo || 0;
+                document.getElementById('deliveryTiempo').value = cfg.delivery_tiempo || 30;
+                document.getElementById('deliveryMinimo').value = cfg.delivery_minimo || 0;
+                // Menu link
+                const session = JSON.parse(sessionStorage.getItem('session'));
+                const negocio = await apiCall('/config');
+                const slug = negocio.slug || 'mi-negocio';
+                document.getElementById('menuLink').value = `${window.location.origin}/menu/${slug}`;
+            } catch(e) {}
+        }
+        async function saveConfig() {
+            try {
+                await apiCall('/menu/config', { method:'PUT', body:JSON.stringify({
+                    delivery_activo: document.getElementById('deliveryActivo').value === '1',
+                    delivery_costo: parseFloat(document.getElementById('deliveryCosto').value)||0,
+                    delivery_tiempo: parseInt(document.getElementById('deliveryTiempo').value)||30,
+                    delivery_minimo: parseFloat(document.getElementById('deliveryMinimo').value)||0
+                })});
+            } catch(e) {}
+        }
+        function copyMenuLink() {
+            const input = document.getElementById('menuLink');
+            input.select();
+            document.execCommand('copy');
+            showToast('Enlace copiado', 'success');
+        }
+        async function loadCategorias() {
+            try {
+                categorias = await apiCall('/menu/categorias');
+                renderCategorias();
+                const sel = document.getElementById('itemCategoria');
+                sel.innerHTML = '<option value="">Sin categoria</option>' + categorias.map(c => `<option value="${c.id}">${c.nombre}</option>`).join('');
+            } catch(e) {}
+        }
+        async function loadItems() {
+            try { items = await apiCall('/menu/items'); renderItems(); } catch(e) {}
+        }
+        function renderItems() {
+            const grid = document.getElementById('menuItemsGrid');
+            if (!items.length) { grid.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--gray-400);grid-column:1/-1;">No hay items. Crea el primero.</p>'; return; }
+            grid.innerHTML = items.map(it => `
+                <div class="menu-item-card" style="${!it.disponible?'opacity:0.6;':''}">
+                    <div class="menu-item-img">${it.imagen ? `<img src="${it.imagen}" alt="${esc(it.nombre)}" onerror="this.parentElement.innerHTML='🍽️'">` : '🍽️'}</div>
+                    <div class="menu-item-body">
+                        <h4>${esc(it.nombre)} ${it.destacado ? '⭐' : ''}</h4>
+                        <p>${esc(it.descripcion || '')}</p>
+                        <span style="font-size:0.72rem;color:var(--gray-400);">${esc(it.categoria_nombre || '')}</span>
+                    </div>
+                    <div class="menu-item-footer">
+                        <span style="font-weight:700;color:#10b981;font-size:1.1rem;">${formatCurrency(it.precio)}</span>
+                        <div style="display:flex;gap:0.3rem;align-items:center;">
+                            <span class="${it.disponible?'badge-disponible':'badge-no-disponible'}">${it.disponible?'Disponible':'Agotado'}</span>
+                            <button class="btn btn-secondary btn-sm" onclick="editItem(${it.id})" style="padding:2px 6px;font-size:0.7rem;">✏️</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteItem(${it.id},'${esc(it.nombre)}')" style="padding:2px 6px;font-size:0.7rem;">🗑️</button>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+        function renderCategorias() {
+            const list = document.getElementById('categoriasList');
+            if (!categorias.length) { list.innerHTML = '<p style="text-align:center;padding:2rem;color:var(--gray-400);">Sin categorias</p>'; return; }
+            list.innerHTML = categorias.map(c => `
+                <div class="cat-card">
+                    <div><strong>${esc(c.nombre)}</strong> <span style="color:var(--gray-400);font-size:0.78rem;">(${c.items_count} items)</span></div>
+                    <div style="display:flex;gap:0.3rem;">
+                        <button class="btn btn-secondary btn-sm" onclick="editCat(${c.id})" style="padding:2px 8px;font-size:0.75rem;">Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteCat(${c.id})" style="padding:2px 8px;font-size:0.75rem;">Eliminar</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        // Image handling
+        function handleItemImagen(input) {
+            const file = input.files[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) { showToast('No es una imagen', 'error'); return; }
+            document.getElementById('itemImagenPlaceholder').innerHTML = `<div style="padding:1rem;"><div style="width:24px;height:24px;border:3px solid #667eea;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto;"></div></div>`;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const img = new Image();
+                img.onload = function() {
+                    try {
+                        let compressed = compressItemImage(img, 400, 0.6);
+                        if (compressed.length > 300000) compressed = compressItemImage(img, 300, 0.4);
+                        document.getElementById('itemImagen').value = compressed;
+                        document.getElementById('itemImagenPreview').src = compressed;
+                        document.getElementById('itemImagenPreview').style.display = 'block';
+                        document.getElementById('itemImagenPlaceholder').style.display = 'none';
+                        document.getElementById('itemImagenRemove').style.display = 'flex';
+                        document.getElementById('itemImagenContainer').classList.add('has-image');
+                    } catch(err) { showToast('Error al procesar imagen', 'error'); removeItemImagen(); }
+                };
+                img.onerror = function() { showToast('No se pudo cargar la imagen', 'error'); removeItemImagen(); };
+                img.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+        }
+        function compressItemImage(img, maxSize, quality) {
+            const canvas = document.createElement('canvas');
+            let w = img.width, h = img.height;
+            if (w > h) { if (w > maxSize) { h *= maxSize/w; w = maxSize; } }
+            else { if (h > maxSize) { w *= maxSize/h; h = maxSize; } }
+            canvas.width = Math.round(w); canvas.height = Math.round(h);
+            canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+            return canvas.toDataURL('image/jpeg', quality);
+        }
+        function removeItemImagen() {
+            document.getElementById('itemImagenInput').value = '';
+            document.getElementById('itemImagen').value = '';
+            document.getElementById('itemImagenPreview').style.display = 'none';
+            document.getElementById('itemImagenPreview').src = '';
+            document.getElementById('itemImagenPlaceholder').style.display = 'block';
+            document.getElementById('itemImagenPlaceholder').innerHTML = `<svg width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"></path></svg><p>Subir foto</p>`;
+            document.getElementById('itemImagenRemove').style.display = 'none';
+            document.getElementById('itemImagenContainer').classList.remove('has-image');
+        }
+        function showItemImagenPreview(base64) {
+            if (base64) {
+                document.getElementById('itemImagen').value = base64;
+                document.getElementById('itemImagenPreview').src = base64;
+                document.getElementById('itemImagenPreview').style.display = 'block';
+                document.getElementById('itemImagenPlaceholder').style.display = 'none';
+                document.getElementById('itemImagenRemove').style.display = 'flex';
+                document.getElementById('itemImagenContainer').classList.add('has-image');
+            } else { removeItemImagen(); }
+        }
+
+        function showTab(tab, btn) {
+            document.querySelectorAll('.menu-tab').forEach(t => t.classList.remove('active'));
+            btn.classList.add('active');
+            document.getElementById('tabItems').style.display = tab === 'items' ? '' : 'none';
+            document.getElementById('tabCategorias').style.display = tab === 'categorias' ? '' : 'none';
+        }
+        // Categorias
+        function openCatModal(id=null) {
+            document.getElementById('catId').value = '';
+            document.getElementById('catNombre').value = '';
+            document.getElementById('catOrden').value = '0';
+            document.getElementById('catModalTitle').textContent = 'Nueva Categoria';
+            if (id) { const c = categorias.find(x=>x.id===id); if(c){ document.getElementById('catId').value=c.id; document.getElementById('catNombre').value=c.nombre; document.getElementById('catOrden').value=c.orden; document.getElementById('catModalTitle').textContent='Editar Categoria'; } }
+            document.getElementById('modalCat').classList.add('active');
+        }
+        function closeCatModal() { document.getElementById('modalCat').classList.remove('active'); }
+        function editCat(id) { openCatModal(id); }
+        async function saveCat(e) {
+            e.preventDefault();
+            const id = document.getElementById('catId').value;
+            const data = { nombre: document.getElementById('catNombre').value, orden: parseInt(document.getElementById('catOrden').value)||0 };
+            try {
+                if (id) { await apiCall(`/menu/categorias/${id}`, {method:'PUT',body:JSON.stringify(data)}); }
+                else { await apiCall('/menu/categorias', {method:'POST',body:JSON.stringify(data)}); }
+                closeCatModal(); await loadCategorias();
+            } catch(err) { showToast(err.message,'error'); }
+        }
+        async function deleteCat(id) {
+            if (!confirm('Eliminar esta categoria?')) return;
+            try { await apiCall(`/menu/categorias/${id}`, {method:'DELETE'}); await loadCategorias(); } catch(e) { showToast(e.message,'error'); }
+        }
+        // Items
+        function openItemModal(id=null) {
+            document.getElementById('itemId').value = '';
+            document.getElementById('itemNombre').value = '';
+            document.getElementById('itemDesc').value = '';
+            document.getElementById('itemPrecio').value = '';
+            document.getElementById('itemCategoria').value = '';
+            document.getElementById('itemItbis').value = '18';
+            document.getElementById('itemImagen').value = '';
+            document.getElementById('itemDestacado').checked = false;
+            document.getElementById('itemDisponible').checked = true;
+            document.getElementById('itemModalTitle').textContent = 'Nuevo Item';
+            removeItemImagen();
+            if (id) { const it = items.find(x=>x.id===id); if(it){
+                document.getElementById('itemId').value=it.id;
+                document.getElementById('itemNombre').value=it.nombre;
+                document.getElementById('itemDesc').value=it.descripcion||'';
+                document.getElementById('itemPrecio').value=it.precio;
+                document.getElementById('itemCategoria').value=it.categoria_id||'';
+                document.getElementById('itemItbis').value=it.itbis_tasa||18;
+                document.getElementById('itemDestacado').checked=!!it.destacado;
+                document.getElementById('itemDisponible').checked=!!it.disponible;
+                document.getElementById('itemModalTitle').textContent='Editar Item';
+                if (it.imagen) showItemImagenPreview(it.imagen);
+            }}
+            document.getElementById('modalItem').classList.add('active');
+        }
+        function closeItemModal() { document.getElementById('modalItem').classList.remove('active'); }
+        function editItem(id) { openItemModal(id); }
+        async function saveItem(e) {
+            e.preventDefault();
+            const id = document.getElementById('itemId').value;
+            const data = {
+                nombre: document.getElementById('itemNombre').value,
+                descripcion: document.getElementById('itemDesc').value,
+                precio: parseFloat(document.getElementById('itemPrecio').value),
+                categoria_id: document.getElementById('itemCategoria').value || null,
+                itbis_tasa: parseInt(document.getElementById('itemItbis').value),
+                imagen: document.getElementById('itemImagen').value || null,
+                destacado: document.getElementById('itemDestacado').checked,
+                disponible: document.getElementById('itemDisponible').checked
+            };
+            try {
+                if (id) { await apiCall(`/menu/items/${id}`, {method:'PUT',body:JSON.stringify(data)}); }
+                else { await apiCall('/menu/items', {method:'POST',body:JSON.stringify(data)}); }
+                closeItemModal(); await loadItems();
+            } catch(err) { showToast(err.message,'error'); }
+        }
+        async function deleteItem(id, nombre) {
+            if (!confirm(`Eliminar "${nombre}"?`)) return;
+            try { await apiCall(`/menu/items/${id}`, {method:'DELETE'}); await loadItems(); } catch(e) { showToast(e.message,'error'); }
+        }
+        function esc(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+        function formatCurrency(a){return'RD$'+Number(a||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+    </script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/license-banner.js"></script>
+</body>
+</html>

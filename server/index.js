@@ -36,6 +36,8 @@ const backupRoutes = require('./routes/backup');
 const notesRoutes = require('./routes/notes');
 const loyaltyRoutes = require('./routes/loyalty');
 const whatsappRoutes = require('./routes/whatsapp');
+const menuRoutes = require('./routes/menu');
+const pedidosRoutes = require('./routes/pedidos');
 
 const crypto = require('crypto');
 
@@ -146,6 +148,8 @@ app.use('/api/backup', requireActiveLicense, backupRoutes);
 app.use('/api/notes', requireActiveLicense, notesRoutes);
 app.use('/api/loyalty', requireActiveLicense, loyaltyRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
+app.use('/api/menu', requireActiveLicense, menuRoutes);
+app.use('/api/pedidos', pedidosRoutes);
 
 // Rutas de debug y test: solo disponibles en desarrollo
 if (process.env.NODE_ENV !== 'production') {
@@ -225,6 +229,18 @@ app.get('/backup', requireAuth, requireActiveLicense, (req, res) => {
 
 app.get('/empleados-reporte', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'empleados-reporte.html'));
+});
+
+app.get('/menu', requireAuth, requireActiveLicense, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'menu.html'));
+});
+
+app.get('/pedidos', requireAuth, requireActiveLicense, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'pedidos.html'));
+});
+
+app.get('/menu/:slug', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'menu-cliente.html'));
 });
 
 app.get('/clientes', requireAuth, requireActiveLicense, (req, res) => {

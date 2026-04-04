@@ -706,6 +706,111 @@ function initDatabase() {
         console.log('Columna nivel_lealtad agregada a clientes.');
     }
 
+    // ── Migracion v6: Menu Digital y Pedidos ────────────────────────────────
+    const menuCatCols = db.prepare("PRAGMA table_info(menu_categorias)").all();
+    if (menuCatCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS menu_categorias (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                nombre TEXT NOT NULL,
+                orden INTEGER DEFAULT 0,
+                activa INTEGER DEFAULT 1,
+                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+            )
+        `);
+        console.log('Tabla menu_categorias creada.');
+    }
+
+    const menuItemCols = db.prepare("PRAGMA table_info(menu_items)").all();
+    if (menuItemCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS menu_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                categoria_id INTEGER NOT NULL,
+                nombre TEXT NOT NULL,
+                descripcion TEXT,
+                precio REAL NOT NULL,
+                imagen TEXT,
+                disponible INTEGER DEFAULT 1,
+                destacado INTEGER DEFAULT 0,
+                itbis_tasa INTEGER DEFAULT 18,
+                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+                FOREIGN KEY (categoria_id) REFERENCES menu_categorias(id)
+            )
+        `);
+        console.log('Tabla menu_items creada.');
+    }
+
+    const pedidoCols = db.prepare("PRAGMA table_info(pedidos)").all();
+    if (pedidoCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS pedidos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                cliente_nombre TEXT NOT NULL,
+                cliente_telefono TEXT,
+                cliente_direccion TEXT,
+                cliente_ubicacion TEXT,
+                tipo_entrega TEXT DEFAULT 'domicilio' CHECK(tipo_entrega IN ('domicilio', 'retiro')),
+                costo_envio REAL DEFAULT 0,
+                subtotal REAL NOT NULL,
+                descuento REAL DEFAULT 0,
+                itbis REAL DEFAULT 0,
+                total REAL NOT NULL,
+                estado TEXT DEFAULT 'pendiente' CHECK(estado IN ('pendiente', 'confirmado', 'preparando', 'listo', 'entregado', 'cancelado')),
+                notas TEXT,
+                venta_id INTEGER,
+                fecha TEXT DEFAULT CURRENT_TIMESTAMP,
+                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+                FOREIGN KEY (venta_id) REFERENCES ventas(id)
+            )
+        `);
+        console.log('Tabla pedidos creada.');
+    }
+
+    const pedidoItemCols = db.prepare("PRAGMA table_info(pedidos_items)").all();
+    if (pedidoItemCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS pedidos_items (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                pedido_id INTEGER NOT NULL,
+                menu_item_id INTEGER NOT NULL,
+                nombre_item TEXT NOT NULL,
+                cantidad INTEGER NOT NULL DEFAULT 1,
+                precio REAL NOT NULL,
+                subtotal REAL NOT NULL,
+                FOREIGN KEY (pedido_id) REFERENCES pedidos(id),
+                FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
+            )
+        `);
+        console.log('Tabla pedidos_items creada.');
+    }
+
+    // Config delivery en negocios
+    const negDeliveryCols = db.prepare("PRAGMA table_info(negocios)").all();
+    const negDeliveryColNames = negDeliveryCols.map(c => c.name);
+    if (!negDeliveryColNames.includes('delivery_activo')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN delivery_activo INTEGER DEFAULT 0");
+        console.log('Columna delivery_activo agregada a negocios.');
+    }
+    if (!negDeliveryColNames.includes('delivery_costo')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN delivery_costo REAL DEFAULT 0");
+        console.log('Columna delivery_costo agregada a negocios.');
+    }
+    if (!negDeliveryColNames.includes('delivery_tiempo')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN delivery_tiempo INTEGER DEFAULT 30");
+        console.log('Columna delivery_tiempo agregada a negocios.');
+    }
+    if (!negDeliveryColNames.includes('delivery_minimo')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN delivery_minimo REAL DEFAULT 0");
+        console.log('Columna delivery_minimo agregada a negocios.');
+    }
+
     // ── Migracion v5: negocios.logo ─────────────────────────────────────────
     const negCols = db.prepare("PRAGMA table_info(negocios)").all();
     const negColNames = negCols.map(c => c.name);
