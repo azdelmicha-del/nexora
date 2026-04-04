@@ -165,6 +165,31 @@
                         <label>Notas</label>
                         <textarea id="itemNotas" class="form-input" rows="2" placeholder="Notas adicionales"></textarea>
                     </div>
+                    <!-- Seccion Fiscal para compensacion de ITBIS (DGII) -->
+                    <div style="margin-top:1rem;padding-top:1rem;border-top:2px dashed var(--gray-200);">
+                        <div style="font-size:0.72rem;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--gray-400);margin-bottom:0.75rem;">Datos Fiscales (DGII)</div>
+                        <div class="form-group">
+                            <label>NCF Suplidor</label>
+                            <input type="text" id="itemNCF" class="form-input" placeholder="Ej: B0100000001 o E310000000001"
+                                   title="NCF de la factura del proveedor para deducir ITBIS">
+                        </div>
+                        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;">
+                            <div class="form-group">
+                                <label>ITBIS Pagado al Suplidor</label>
+                                <input type="number" id="itemItbisPagado" class="form-input" step="0.01" min="0" placeholder="0.00"
+                                       title="ITBIS que pagaste al proveedor — se resta del ITBIS cobrado">
+                            </div>
+                            <div class="form-group">
+                                <label>Tipo de Gasto</label>
+                                <select id="itemTipoGasto" class="form-select">
+                                    <option value="">Sin clasificar</option>
+                                    <option value="insumo">Insumo (materiales)</option>
+                                    <option value="fijo">Gasto Fijo (alquiler, luz, etc.)</option>
+                                    <option value="personal">Personal (nomina)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
                 </form>
             </div>
             <div class="modal-footer">
@@ -560,6 +585,10 @@
             document.getElementById('itemFecha').value = item.fecha;
             document.getElementById('itemMetodoPago').value = item.metodo_pago || 'efectivo';
             document.getElementById('itemNotas').value = item.notas || '';
+            // Cargar campos fiscales
+            document.getElementById('itemNCF').value = item.ncf_suplidor || '';
+            document.getElementById('itemItbisPagado').value = item.itbis_pagado || '';
+            document.getElementById('itemTipoGasto').value = item.tipo_gasto || '';
             
             document.getElementById('modalItem').classList.add('active');
         }
@@ -588,7 +617,11 @@
                 monto: monto,
                 metodo_pago: document.getElementById('itemMetodoPago').value,
                 fecha: document.getElementById('itemFecha').value,
-                notas: capitalizeFirst(document.getElementById('itemNotas').value) || null
+                notas: capitalizeFirst(document.getElementById('itemNotas').value) || null,
+                // Campos fiscales para compensacion de ITBIS
+                ncf_suplidor: document.getElementById('itemNCF').value.trim() || null,
+                itbis_pagado: parseFloat(document.getElementById('itemItbisPagado').value) || 0,
+                tipo_gasto: document.getElementById('itemTipoGasto').value || null
             };
             
             try {

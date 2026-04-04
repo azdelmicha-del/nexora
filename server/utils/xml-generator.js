@@ -45,9 +45,15 @@ function generarXMLConsumo(datos) {
         const descuentoItem = round2(proporcionDescuento * descuento);
         const montoNeto = round2(montoBruto - descuentoItem);
         
-        // ITBIS sobre el monto neto (con descuento aplicado)
-        const itbisItem = item.excento ? 0 : round2(montoNeto * 0.18);
-        const tasaITBIS = item.excento ? '0' : '18';
+        // ITBIS sobre el monto neto usando la tasa individual del servicio
+        const tasaITBIS = item.itbis_tasa !== null && item.itbis_tasa !== undefined
+            ? String(item.itbis_tasa)
+            : (item.excento ? '0' : '18');
+        const itbisItem = tasaITBIS === '0' ? 0 : round2(montoNeto * (parseInt(tasaITBIS, 10) / 100));
+        const indicadorFacturacion = tasaITBIS === '0' ? 2 : 1;
+
+        // Nodo ITBIS correcto segun tasa
+        const itbisNodeName = tasaITBIS === '16' ? 'ITBIS16' : tasaITBIS === '8' ? 'ITBIS8' : 'ITBIS18';
 
         return `
         <DetalleLiquidacion>
@@ -56,9 +62,9 @@ function generarXMLConsumo(datos) {
             <CantidadItem>${item.cantidad}</CantidadItem>
             <PrecioUnitarioItem>${formatAmountXML(precioUnitario)}</PrecioUnitarioItem>
             <MontoItem>${formatAmountXML(montoBruto)}</MontoItem>
-            <IndicadorFacturacion>${item.excento ? 2 : 1}</IndicadorFacturacion>
+            <IndicadorFacturacion>${indicadorFacturacion}</IndicadorFacturacion>
             <TasaITBIS>${tasaITBIS}</TasaITBIS>
-            <ITBIS18>${formatAmountXML(itbisItem)}</ITBIS18>
+            <${itbisNodeName}>${formatAmountXML(itbisItem)}</${itbisNodeName}>
             <MontoITBIS>${formatAmountXML(itbisItem)}</MontoITBIS>
         </DetalleLiquidacion>`;
     }).join('');
@@ -170,7 +176,8 @@ function generarXMLVenta(venta, negocio, cliente, detalles) {
         nombre: d.servicio || d.nombre || 'Servicio',
         cantidad: d.cantidad || 1,
         precio: d.precio || 0,
-        excento: false
+        excento: false,
+        itbis_tasa: d.itbis_tasa !== null && d.itbis_tasa !== undefined ? d.itbis_tasa : 18
     }));
 
     // Usar SIEMPRE los valores exactos de la DB

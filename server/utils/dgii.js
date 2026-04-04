@@ -184,6 +184,149 @@ function generarCodigoSeguridad() {
     return code;
 }
 
+/**
+ * Calcula los totales de una venta procesando el ITBIS ítem por ítem.
+ *
+ * En lugar de aplicar un 18% plano sobre el total, esta función consulta
+ * la `itbis_tasa` de cada servicio en la DB y calcula el impuesto de forma
+ * individual, lo que permite mezclar en una misma venta servicios gravados,
+ * con tasa reducida o exentos sin distorsionar el ITBIS reportado a la DGII.
+ *
+ * @param {Array<{ servicio_id: number, cantidad: number }>} items
+ *   Lista de ítems enviados desde el POS. Cada ítem debe tener `servicio_id`
+ *   y opcionalmente `cantidad` (default 1).
+ * @param {import('better-sqlite3').Database} db
+ *   Instancia activa de la base de datos (obtenida con getDb()).
+ * @param {number} negocioId
+ *   ID del negocio — garantiza que solo se lean servicios del tenant correcto.
+ * @param {number} [descuento=0]
+ *   Descuento global en monto absoluto (RD$). Se distribuye proporcionalmente
+ *   entre las líneas antes de calcular el ITBIS de cada una.
+ *
+ * @returns {{
+ *   lineas:        Array<{
+ *                    servicio_id: number,
+ *                    nombre:      string,
+ *                    precio:      number,
+ *                    cantidad:    number,
+ *                    itbis_tasa:  number,
+ *                    subtotal:    number,
+ *                    itbis_monto: number,
+ *                    total_linea: number
+ *                  }>,
+ *   subtotal:      number,   // suma de (precio × cantidad) sin ITBIS ni descuento
+ *   descuento:     number,   // descuento aplicado (igual al parámetro recibido)
+ *   base_imponible:number,   // subtotal − descuento (base para el ITBIS)
+ *   total_itbis:   number,   // suma de itbis_monto de todas las líneas
+ *   total_general: number    // base_imponible + total_itbis
+ * }}
+ *
+ * @throws {Error} Si un `servicio_id` no existe o no pertenece al negocio.
+ */
+function calcularTotalesVenta(items, db, negocioId, descuento = 0) {
+    if (!items || items.length === 0) {
+        throw new Error('calcularTotalesVenta: el array de items no puede estar vacío');
+    }
+
+    const stmtServicio = db.prepare(`
+        SELECT id, nombre, precio, itbis_tasa, 'servicio' as tipo_item
+        FROM   servicios
+        WHERE  id = ? AND negocio_id = ? AND estado = 'activo'
+    `);
+    const stmtProducto = db.prepare(`
+        SELECT id, nombre, precio, itbis_tasa, 'producto' as tipo_item
+        FROM   productos
+        WHERE  id = ? AND negocio_id = ? AND estado = 'activo'
+    `);
+
+    const lineasCrudas = items.map((item) => {
+        const cantidad = Math.max(1, parseInt(item.cantidad, 10) || 1);
+        let entidad = null;
+
+        if (item.servicio_id) {
+            entidad = stmtServicio.get(parseInt(item.servicio_id, 10), negocioId);
+            if (!entidad) {
+                throw new Error(`Servicio ID ${item.servicio_id} no válido para el negocio ${negocioId}`);
+            }
+        } else if (item.producto_id) {
+            entidad = stmtProducto.get(parseInt(item.producto_id, 10), negocioId);
+            if (!entidad) {
+                throw new Error(`Producto ID ${item.producto_id} no válido para el negocio ${negocioId}`);
+            }
+        } else {
+            throw new Error('Cada item debe tener servicio_id o producto_id');
+        }
+
+        const tasa = (entidad.itbis_tasa !== null && entidad.itbis_tasa !== undefined)
+            ? entidad.itbis_tasa
+            : 18;
+        const precio = round2(entidad.precio);
+        const subtotal = multiplySafe(precio, cantidad);
+
+        return {
+            servicio_id: entidad.tipo_item === 'servicio' ? entidad.id : null,
+            producto_id: entidad.tipo_item === 'producto' ? entidad.id : null,
+            tipo_item:   entidad.tipo_item,
+            nombre:      entidad.nombre,
+            precio,
+            cantidad,
+            itbis_tasa:  tasa,
+            subtotal,
+            _precio_original: precio
+        };
+    });
+
+    // ── 2. Calcular subtotal bruto y validar el descuento ────────────────────
+    const subtotalBruto  = round2(lineasCrudas.reduce((acc, l) => acc + l.subtotal, 0));
+    const descuentoFinal = round2(Math.min(Math.max(parseFloat(descuento) || 0, 0), subtotalBruto));
+    const baseImponible  = round2(subtotalBruto - descuentoFinal);
+
+    // ── 3. Distribuir el descuento proporcionalmente y calcular ITBIS por línea
+    //    Fórmula de prorrateo:
+    //      descuento_linea = descuento_total × (subtotal_linea / subtotal_bruto)
+    //    Si subtotalBruto es 0 (borde imposible pero defensivo) no hay descuento.
+    let totalITBIS       = 0;
+    let sumaSubtotales   = 0;   // acumulador para ajuste de redondeo en última línea
+
+    const lineas = lineasCrudas.map((linea, idx) => {
+        // Descuento proporcional a esta línea
+        const descuentoLinea = (subtotalBruto > 0)
+            ? round2(descuentoFinal * (linea.subtotal / subtotalBruto))
+            : 0;
+
+        const baseLinea    = round2(linea.subtotal - descuentoLinea);
+        const itbis_monto  = round2(baseLinea * (linea.itbis_tasa / 100));
+        const total_linea  = round2(baseLinea + itbis_monto);
+
+        totalITBIS     = round2(totalITBIS + itbis_monto);
+        sumaSubtotales = round2(sumaSubtotales + linea.subtotal);
+
+        return {
+            servicio_id: linea.servicio_id,
+            producto_id: linea.producto_id,
+            tipo_item:   linea.tipo_item,
+            nombre:      linea.nombre,
+            precio:      linea.precio,
+            cantidad:    linea.cantidad,
+            itbis_tasa:  linea.itbis_tasa,
+            subtotal:    linea.subtotal,
+            itbis_monto,
+            total_linea
+        };
+    });
+
+    const totalGeneral = round2(baseImponible + totalITBIS);
+
+    return {
+        lineas,
+        subtotal:       subtotalBruto,
+        descuento:      descuentoFinal,
+        base_imponible: baseImponible,
+        total_itbis:    totalITBIS,
+        total_general:  totalGeneral
+    };
+}
+
 module.exports = {
     round2,
     sumSafe,
@@ -198,5 +341,6 @@ module.exports = {
     formatDateXML,
     generarSecuenciaECF,
     generarCodigoSeguridad,
-    TIPOS_ECF
+    TIPOS_ECF,
+    calcularTotalesVenta
 };

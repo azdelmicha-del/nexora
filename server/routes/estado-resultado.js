@@ -34,8 +34,11 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
         const items = db.prepare(query).all(...params);
         
         // Obtener ventas automáticas del POS
+        // venta_id = id real de la venta para cargar detalles desde /api/sales/:id
         let ventasQuery = `
-            SELECT id, total as monto, fecha, metodo_pago, 'venta_pos' as categoria, 'ingreso' as tipo, 
+            SELECT id, id as venta_id, total as monto, subtotal, itbis, descuento,
+                   fecha, metodo_pago, secuencia_ecf,
+                   'venta_pos' as categoria, 'ingreso' as tipo,
                    'Venta #' || id as descripcion, 'ingreso' as subtipo
             FROM ventas 
             WHERE negocio_id = ?
@@ -124,7 +127,12 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
 // Agregar item al estado de resultado
 router.post('/', requireAuth, requireAdmin, (req, res) => {
     try {
-        const { tipo, subtipo, categoria, descripcion, subtotal, itbis, descuento, monto, fecha, notas, metodo_pago } = req.body;
+        const {
+            tipo, subtipo, categoria, descripcion,
+            subtotal, itbis, descuento, monto, fecha, notas, metodo_pago,
+            // Campos fiscales para compensacion de ITBIS
+            ncf_suplidor, itbis_pagado, tipo_gasto
+        } = req.body;
         
         if (!tipo || !categoria || !descripcion || !monto || !fecha) {
             return res.status(400).json({ error: 'Todos los campos son requeridos' });
@@ -141,6 +149,32 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
         
         if (monto <= 0) {
             return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
+        }
+
+        // Validar NCF suplidor si se provee.
+        // Formato RD: NCF fisico (B + 2 digitos tipo + 8 digitos seq)
+        //             e-CF      (E + 2 digitos tipo + 10 digitos seq)
+        if (ncf_suplidor) {
+            const NCF_REGEX = /^[BE]\d{2}\d{8,10}$/;
+            if (!NCF_REGEX.test(ncf_suplidor.trim())) {
+                return res.status(400).json({
+                    error: 'Formato de NCF suplidor inválido. Ejemplos válidos: B0100000001 (físico), E310000000001 (e-CF)'
+                });
+            }
+        }
+
+        // Validar tipo_gasto si se provee
+        const TIPOS_GASTO_VALIDOS = ['insumo', 'fijo', 'personal'];
+        if (tipo_gasto && !TIPOS_GASTO_VALIDOS.includes(tipo_gasto)) {
+            return res.status(400).json({
+                error: 'tipo_gasto debe ser uno de: insumo, fijo, personal'
+            });
+        }
+
+        // itbis_pagado debe ser un numero no negativo si se provee
+        const itbisPagadoFinal = parseFloat(itbis_pagado) || 0;
+        if (itbisPagadoFinal < 0) {
+            return res.status(400).json({ error: 'itbis_pagado no puede ser negativo' });
         }
         
         // Determinar subtipo automáticamente según la categoría
@@ -162,8 +196,13 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
         const db = getDb();
         
         const result = db.prepare(`
-            INSERT INTO estado_resultado_items (negocio_id, tipo, subtipo, categoria, descripcion, subtotal, itbis, descuento, monto, metodo_pago, fecha, hora, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO estado_resultado_items (
+                negocio_id, tipo, subtipo, categoria, descripcion,
+                subtotal, itbis, descuento, monto, metodo_pago,
+                fecha, hora, notas,
+                ncf_suplidor, itbis_pagado, tipo_gasto
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             req.session.negocioId,
             tipo,
@@ -177,7 +216,10 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
             metodoPago,
             fecha,
             horaActual,
-            notas ? notas.trim() : null
+            notas ? notas.trim() : null,
+            ncf_suplidor ? ncf_suplidor.trim().toUpperCase() : null,
+            itbisPagadoFinal,
+            tipo_gasto || null
         );
         
         const item = db.prepare('SELECT * FROM estado_resultado_items WHERE id = ?').get(result.lastInsertRowid);
@@ -192,7 +234,12 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
 // Actualizar item
 router.put('/:id', requireAuth, requireAdmin, (req, res) => {
     try {
-        const { tipo, categoria, descripcion, subtotal, itbis, descuento, monto, fecha, notas, metodo_pago } = req.body;
+        const {
+            tipo, categoria, descripcion,
+            subtotal, itbis, descuento, monto, fecha, notas, metodo_pago,
+            // Campos fiscales para compensacion de ITBIS
+            ncf_suplidor, itbis_pagado, tipo_gasto
+        } = req.body;
         const itemId = req.params.id;
         
         const db = getDb();
@@ -254,7 +301,47 @@ router.put('/:id', requireAuth, requireAdmin, (req, res) => {
             updates.push('notas = ?');
             values.push(notas ? notas.trim() : null);
         }
-        
+
+        // Campos fiscales — opcionales en cada PUT
+        if (ncf_suplidor !== undefined) {
+            if (ncf_suplidor !== null && ncf_suplidor !== '') {
+                const NCF_REGEX = /^[BE]\d{2}\d{8,10}$/;
+                if (!NCF_REGEX.test(ncf_suplidor.trim())) {
+                    return res.status(400).json({
+                        error: 'Formato de NCF suplidor inválido. Ejemplos válidos: B0100000001 (físico), E310000000001 (e-CF)'
+                    });
+                }
+                updates.push('ncf_suplidor = ?');
+                values.push(ncf_suplidor.trim().toUpperCase());
+            } else {
+                updates.push('ncf_suplidor = ?');
+                values.push(null);
+            }
+        }
+        if (itbis_pagado !== undefined) {
+            const itbisPagadoPUT = parseFloat(itbis_pagado) || 0;
+            if (itbisPagadoPUT < 0) {
+                return res.status(400).json({ error: 'itbis_pagado no puede ser negativo' });
+            }
+            updates.push('itbis_pagado = ?');
+            values.push(itbisPagadoPUT);
+        }
+        if (tipo_gasto !== undefined) {
+            if (tipo_gasto !== null && tipo_gasto !== '') {
+                const TIPOS_GASTO_VALIDOS = ['insumo', 'fijo', 'personal'];
+                if (!TIPOS_GASTO_VALIDOS.includes(tipo_gasto)) {
+                    return res.status(400).json({
+                        error: 'tipo_gasto debe ser uno de: insumo, fijo, personal'
+                    });
+                }
+                updates.push('tipo_gasto = ?');
+                values.push(tipo_gasto);
+            } else {
+                updates.push('tipo_gasto = ?');
+                values.push(null);
+            }
+        }
+
         if (updates.length === 0) {
             return res.status(400).json({ error: 'No hay campos para actualizar' });
         }

@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora - Backup</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Backup y Restauracion</h1>
+                <button class="btn btn-primary" onclick="crearBackup()">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"/></svg>
+                    Crear Backup
+                </button>
+            </div>
+            <div class="card">
+                <div class="card-body">
+                    <div style="background:#fef3c7;border-radius:12px;padding:1rem;margin-bottom:1.5rem;display:flex;align-items:center;gap:0.75rem;">
+                        <span style="font-size:1.5rem;">⚠️</span>
+                        <div>
+                            <strong style="color:#92400e;">Importante</strong>
+                            <p style="margin:0;font-size:0.85rem;color:#a16207;">Al restaurar un backup, deberas reiniciar el servidor para que los cambios surtan efecto.</p>
+                        </div>
+                    </div>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Archivo</th><th>Tamano</th><th>Fecha</th><th>Acciones</th></tr></thead>
+                            <tbody id="backupTable"><tr><td colspan="4"><div class="spinner"></div></td></tr></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const ok = await requireLicense(); if (!ok) return;
+            const s = await checkSession(); if (!s || !s.authenticated) { window.location.href = '/'; return; }
+            await loadBackups();
+        });
+        async function loadBackups() {
+            const tbody = document.getElementById('backupTable');
+            tbody.innerHTML = '<tr><td colspan="4"><div class="spinner"></div></td></tr>';
+            try {
+                const backups = await apiCall('/backup');
+                if (!backups.length) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--gray-400);">Sin backups. Crea el primero.</td></tr>'; return; }
+                tbody.innerHTML = backups.map(b => `
+                    <tr>
+                        <td style="font-family:monospace;font-size:0.82rem;">${escapeHtml(b.nombre)}</td>
+                        <td>${(b.tamano / 1024 / 1024).toFixed(2)} MB</td>
+                        <td>${formatDate(b.fecha)}</td>
+                        <td>
+                            <button class="btn btn-warning btn-sm" onclick="restaurarBackup('${escapeHtml(b.nombre)}')">Restaurar</button>
+                            <button class="btn btn-danger btn-sm" onclick="eliminarBackup('${escapeHtml(b.nombre)}')">Eliminar</button>
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="4" style="text-align:center;padding:2rem;color:#ef4444;">Error</td></tr>'; }
+        }
+        async function crearBackup() {
+            try {
+                const r = await apiCall('/backup', { method: 'POST' });
+                showToast('Backup creado: ' + r.nombre, 'success');
+                await loadBackups();
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+        async function restaurarBackup(nombre) {
+            if (!confirm('Restaurar "' + nombre + '"? Deberas reiniciar el servidor despues.')) return;
+            try {
+                await apiCall('/backup/restore', { method: 'POST', body: JSON.stringify({ nombre }) });
+                showToast('Backup restaurado. Reinicia el servidor.', 'success');
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+        async function eliminarBackup(nombre) {
+            if (!confirm('Eliminar "' + nombre + '"?')) return;
+            try {
+                await apiCall('/backup/' + encodeURIComponent(nombre), { method: 'DELETE' });
+                showToast('Backup eliminado', 'success');
+                await loadBackups();
+            } catch (e) { showToast(e.message, 'error'); }
+        }
+        function escapeHtml(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+        function formatDate(d){if(!d)return'';try{return new Date(d).toLocaleDateString('es-DO',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'});}catch(e){return d;}}
+    </script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/license-banner.js"></script>
+</body>
+</html>

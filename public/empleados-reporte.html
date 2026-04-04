@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora - Reporte por Empleado</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Reporte por Empleado</h1>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                    <input type="date" id="desde" style="padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;">
+                    <input type="date" id="hasta" style="padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;">
+                    <select id="filtroEmpleado" style="padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;">
+                        <option value="">Todos los empleados</option>
+                    </select>
+                    <button class="btn btn-primary btn-sm" onclick="loadReporte()">Filtrar</button>
+                </div>
+            </div>
+
+            <div class="dashboard-grid" id="kpiEmpleado" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;margin-bottom:1.5rem;"></div>
+
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h3 style="margin:0 0 1rem;font-size:0.95rem;">Rendimiento por Empleado</h3>
+                    <div id="tablaRendimiento"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-body">
+                    <h3 style="margin:0 0 1rem;font-size:0.95rem;">Detalle de Ventas por Empleado</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead><tr><th>Empleado</th><th>Cliente</th><th>Fecha</th><th>Servicios</th><th>Total</th><th>Comision</th></tr></thead>
+                            <tbody id="detalleVentas"></tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const ok = await requireLicense(); if (!ok) return;
+            const s = await checkSession(); if (!s || !s.authenticated) { window.location.href = '/'; return; }
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            const today = now.toISOString().split('T')[0];
+            document.getElementById('desde').value = firstDay;
+            document.getElementById('hasta').value = today;
+            await loadEmpleados();
+            await loadReporte();
+        });
+
+        async function loadEmpleados() {
+            try {
+                const users = await apiCall('/users');
+                const select = document.getElementById('filtroEmpleado');
+                users.filter(u => u.rol !== 'admin' || true).forEach(u => {
+                    select.innerHTML += `<option value="${u.id}">${u.nombre}</option>`;
+                });
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadReporte() {
+            const desde = document.getElementById('desde').value;
+            const hasta = document.getElementById('hasta').value;
+            const userId = document.getElementById('filtroEmpleado').value;
+
+            try {
+                const [ventasData, comData] = await Promise.all([
+                    apiCall(`/reports/ventas?desde=${desde}&hasta=${hasta}`),
+                    apiCall(`/commissions?desde=${desde}&hasta=${hasta}`).catch(() => ({ porEmpleado: [], comisiones: [] }))
+                ]);
+
+                // Filtrar ventas por empleado
+                let ventasFiltradas = ventasData.ultimasVentas || [];
+                if (userId) {
+                    ventasFiltradas = ventasFiltradas.filter(v => v.user_id == userId);
+                }
+
+                // Agrupar por empleado
+                const porEmpleado = {};
+                ventasFiltradas.forEach(v => {
+                    const uid = v.user_id || 0;
+                    if (!porEmpleado[uid]) {
+                        porEmpleado[uid] = { nombre: v.vendedor || 'Sin asignar', ventas: 0, total: 0, servicios: [] };
+                    }
+                    porEmpleado[uid].ventas++;
+                    porEmpleado[uid].total += v.total || 0;
+                });
+
+                // KPIs
+                const totalVentas = Object.values(porEmpleado).reduce((s, e) => s + e.ventas, 0);
+                const totalMonto = Object.values(porEmpleado).reduce((s, e) => s + e.total, 0);
+                const totalComisiones = (comData.porEmpleado || []).reduce((s, e) => s + (e.total_comision || 0), 0);
+
+                document.getElementById('kpiEmpleado').innerHTML = `
+                    <div class="kpi-card" style="background:white;border-radius:16px;padding:1.25rem;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                        <div style="font-size:1.5rem;margin-bottom:0.5rem;">📊</div>
+                        <div style="font-size:1.5rem;font-weight:800;">${totalVentas}</div>
+                        <div style="font-size:0.78rem;color:var(--gray-500);">Total Ventas</div>
+                    </div>
+                    <div class="kpi-card" style="background:white;border-radius:16px;padding:1.25rem;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                        <div style="font-size:1.5rem;margin-bottom:0.5rem;">💰</div>
+                        <div style="font-size:1.5rem;font-weight:800;color:#10b981;">${formatCurrency(totalMonto)}</div>
+                        <div style="font-size:0.78rem;color:var(--gray-500);">Monto Total</div>
+                    </div>
+                    <div class="kpi-card" style="background:white;border-radius:16px;padding:1.25rem;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                        <div style="font-size:1.5rem;margin-bottom:0.5rem;">💼</div>
+                        <div style="font-size:1.5rem;font-weight:800;color:#8b5cf6;">${formatCurrency(totalComisiones)}</div>
+                        <div style="font-size:0.78rem;color:var(--gray-500);">Comisiones Pendientes</div>
+                    </div>
+                    <div class="kpi-card" style="background:white;border-radius:16px;padding:1.25rem;box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                        <div style="font-size:1.5rem;margin-bottom:0.5rem;">👥</div>
+                        <div style="font-size:1.5rem;font-weight:800;">${Object.keys(porEmpleado).length}</div>
+                        <div style="font-size:0.78rem;color:var(--gray-500);">Empleados Activos</div>
+                    </div>
+                `;
+
+                // Tabla rendimiento
+                const empArray = Object.entries(porEmpleado).sort((a, b) => b[1].total - a[1].total);
+                if (empArray.length > 0) {
+                    document.getElementById('tablaRendimiento').innerHTML = `
+                        <table class="dash-table" style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                            <thead><tr><th>Empleado</th><th style="text-align:right;">Ventas</th><th style="text-align:right;">Monto</th><th style="text-align:right;">Promedio</th><th style="text-align:right;">% del Total</th></tr></thead>
+                            <tbody>
+                                ${empArray.map(([uid, e]) => `
+                                    <tr>
+                                        <td><strong>${escapeHtml(e.nombre)}</strong></td>
+                                        <td style="text-align:right;">${e.ventas}</td>
+                                        <td style="text-align:right;font-weight:700;color:#10b981;">${formatCurrency(e.total)}</td>
+                                        <td style="text-align:right;">${formatCurrency(e.ventas > 0 ? e.total / e.ventas : 0)}</td>
+                                        <td style="text-align:right;">${totalMonto > 0 ? ((e.total / totalMonto) * 100).toFixed(1) : 0}%</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>
+                    `;
+                }
+
+                // Detalle ventas
+                const detalleTbody = document.getElementById('detalleVentas');
+                if (ventasFiltradas.length > 0) {
+                    detalleTbody.innerHTML = ventasFiltradas.slice(0, 50).map(v => {
+                        const comision = (comData.comisiones || []).find(c => c.venta_id === v.id);
+                        return `
+                            <tr>
+                                <td>${escapeHtml(v.vendedor || 'Sin asignar')}</td>
+                                <td>${escapeHtml(v.cliente || 'Consumidor final')}</td>
+                                <td style="font-size:0.78rem;color:var(--gray-500);">${fmtDate(v.fecha)}</td>
+                                <td style="font-size:0.78rem;">${v.detalles || '—'}</td>
+                                <td style="font-weight:700;">${formatCurrency(v.total)}</td>
+                                <td>${comision ? `<span style="color:#8b5cf6;font-weight:600;">${formatCurrency(comision.monto_comision)}</span>` : '<span style="color:var(--gray-300);">—</span>'}</td>
+                            </tr>
+                        `;
+                    }).join('');
+                } else {
+                    detalleTbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:2rem;color:var(--gray-400);">Sin ventas en este periodo</td></tr>';
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+            }
+        }
+
+        function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+        function fmtDate(d) { if (!d) return ''; try { const p = d.replace('T',' ').split(/[- :]/); return new Date(p[0],p[1]-1,p[2]).toLocaleDateString('es-DO',{day:'2-digit',month:'short'}); } catch(e) { return d; } }
+        function formatCurrency(a) { return 'RD$' + Number(a||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+    </script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/license-banner.js"></script>
+</body>
+</html>

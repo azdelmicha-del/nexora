@@ -104,6 +104,8 @@
                                 <th>Nombre</th>
                                 <th>Precio</th>
                                 <th>Duración</th>
+                                <th>Comisión</th>
+                                <th>ITBIS</th>
                                 <th>Categoría</th>
                                 <th>Estado</th>
                                 <th>Acciones</th>
@@ -164,6 +166,32 @@
                                 <option value="270">4 horas 30 minutos</option>
                                 <option value="300">5 horas</option>
                             </select>
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="itbis_tasa">ITBIS (%)</label>
+                            <select id="itbis_tasa">
+                                <option value="18" selected>18% — General</option>
+                                <option value="16">16% — Tasa reducida</option>
+                                <option value="8">8% — Tasa especial</option>
+                                <option value="0">0% — Exento</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="costo_insumo_estimado">Costo de Insumos</label>
+                            <input type="number" id="costo_insumo_estimado" step="0.01" min="0" placeholder="0.00"
+                                   title="Costo estimado de insumos consumidos al prestar este servicio">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="comision_porcentaje">Comision del Empleado (%)</label>
+                            <input type="number" id="comision_porcentaje" step="0.5" min="0" max="100" value="0" placeholder="0"
+                                   title="Porcentaje de comision que recibe el empleado por este servicio">
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;">
+                            <small style="color:var(--gray-400);font-size:0.72rem;">0% = sin comision. Ej: 10% = el empleado recibe 10% del subtotal</small>
                         </div>
                     </div>
                     <div class="form-group">
@@ -384,6 +412,8 @@
                         <td><strong>${imgThumb}${escapeHtml(s.nombre)}</strong></td>
                         <td>${formatCurrency(s.precio)}</td>
                         <td>${formatDuracion(s.duracion)}</td>
+                        <td>${s.comision_porcentaje > 0 ? '<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;">'+s.comision_porcentaje+'%</span>' : '<span class="text-muted">—</span>'}</td>
+                        <td><span style="font-size:0.78rem;color:#8b5cf6;">${s.itbis_tasa || 18}%</span></td>
                         <td>${s.categoria || '<span class="text-muted">-</span>'}</td>
                         <td><span class="badge badge-${s.estado === 'activo' ? 'success' : 'danger'}">${s.estado}</span></td>
                         <td class="actions">
@@ -403,6 +433,28 @@
             }
         }
         
+        async function loadServicio(id) {
+            try {
+                const s = await apiCall(`/services/${id}`);
+                document.getElementById('servicioId').value = s.id;
+                document.getElementById('nombre').value = s.nombre;
+                document.getElementById('precio').value = s.precio;
+                document.getElementById('duracion').value = s.duracion;
+                document.getElementById('categoria_id').value = s.categoria_id || '';
+                document.getElementById('descripcion').value = s.descripcion || '';
+                document.getElementById('estado').value = s.estado;
+                document.getElementById('itbis_tasa').value = (s.itbis_tasa !== null && s.itbis_tasa !== undefined) ? String(s.itbis_tasa) : '18';
+                document.getElementById('costo_insumo_estimado').value = parseFloat(s.costo_insumo_estimado || 0).toFixed(2);
+                document.getElementById('comision_porcentaje').value = parseFloat(s.comision_porcentaje || 0).toFixed(1);
+                if (s.imagen) {
+                    document.getElementById('imagenData').value = s.imagen;
+                    showImagenPreview(s.imagen);
+                }
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
         function openModal(id = null) {
             editingId = id;
             document.getElementById('modalTitle').textContent = id ? 'Editar Servicio' : 'Nuevo Servicio';
@@ -445,6 +497,13 @@
                 document.getElementById('categoria_id').value = servicio.categoria_id || '';
                 document.getElementById('descripcion').value = servicio.descripcion || '';
                 document.getElementById('estado').value = servicio.estado;
+                // Campos fiscales — itbis_tasa default 18 si el backend devuelve null
+                const tasaGuardada = (servicio.itbis_tasa !== null && servicio.itbis_tasa !== undefined)
+                    ? String(servicio.itbis_tasa)
+                    : '18';
+                document.getElementById('itbis_tasa').value = tasaGuardada;
+                document.getElementById('costo_insumo_estimado').value =
+                    parseFloat(servicio.costo_insumo_estimado || 0).toFixed(2);
                 showImagenPreview(servicio.imagen);
             } catch (error) {
                 showToast(error.message, 'error');
@@ -480,7 +539,12 @@
                 categoria_id: document.getElementById('categoria_id').value || null,
                 descripcion: capitalizeFirst(document.getElementById('descripcion').value) || null,
                 estado: document.getElementById('estado').value,
-                imagen: document.getElementById('imagenData').value || null
+                imagen: document.getElementById('imagenData').value || null,
+                // Campos fiscales
+                itbis_tasa: parseInt(document.getElementById('itbis_tasa').value, 10),
+                costo_insumo_estimado: parseFloat(document.getElementById('costo_insumo_estimado').value) || 0,
+                // Comision por servicio
+                comision_porcentaje: parseFloat(document.getElementById('comision_porcentaje').value) || 0
             };
             
             try {

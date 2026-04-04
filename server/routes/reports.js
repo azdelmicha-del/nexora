@@ -31,11 +31,30 @@ router.get('/ventas', requireAuth, (req, res) => {
         const resumen = db.prepare(`
             SELECT 
                 COUNT(*) as total_ventas,
-                COALESCE(SUM(v.total), 0) as monto_total,
-                COALESCE(AVG(v.total), 0) as promedio_venta
+                COALESCE(SUM(v.total), 0)     as monto_total,
+                COALESCE(SUM(v.subtotal), 0)  as subtotal_total,
+                COALESCE(SUM(v.itbis), 0)     as itbis_total,
+                COALESCE(SUM(v.descuento), 0) as descuento_total,
+                COALESCE(AVG(v.total), 0)     as promedio_venta
             FROM ventas v
             ${where}
         `).get(...params);
+
+        // ITBIS real desde venta_detalles.itbis_monto (calculado por servicio en Paso 3)
+        // Es mas preciso que el campo itbis de ventas (ventas antiguas tienen itbis=0)
+        const itbisDetalles = db.prepare(`
+            SELECT COALESCE(SUM(vd.itbis_monto), 0) as itbis_real
+            FROM venta_detalles vd
+            JOIN ventas v ON vd.venta_id = v.id
+            ${where}
+        `).get(...params);
+
+        // Usar el mayor de los dos valores (itbis_monto es correcto para ventas nuevas,
+        // itbis_total puede tener datos de ventas antiguas calculadas manualmente)
+        resumen.itbis_cobrado_real = Math.max(
+            itbisDetalles.itbis_real || 0,
+            resumen.itbis_total || 0
+        );
 
         const porMetodo = db.prepare(`
             SELECT 
@@ -60,7 +79,9 @@ router.get('/ventas', requireAuth, (req, res) => {
         `).all(...params);
 
         const ultimasVentas = db.prepare(`
-            SELECT v.id, v.total, v.metodo_pago, v.banco, v.fecha, c.nombre as cliente
+            SELECT v.id, v.total, v.subtotal, v.itbis, v.descuento,
+                   v.metodo_pago, v.banco, v.fecha, v.secuencia_ecf,
+                   c.nombre as cliente
             FROM ventas v
             LEFT JOIN clientes c ON v.cliente_id = c.id
             ${where}
@@ -78,6 +99,418 @@ router.get('/ventas', requireAuth, (req, res) => {
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Error al obtener reporte de ventas' });
+    }
+});
+
+// ── Reporte Fiscal ITBIS ────────────────────────────────────────────────────
+// Calcula la compensacion ITBIS (cobrado en ventas vs. pagado a suplidores)
+// Fuentes de verdad:
+//   ITBIS cobrado → SUM(venta_detalles.itbis_monto) [por servicio, Paso 3]
+//                   con fallback a SUM(ventas.itbis) para ventas antiguas
+//   ITBIS pagado  → SUM(estado_resultado_items.itbis) [campo del formulario]
+//                   + SUM(estado_resultado_items.itbis_pagado) [campo NCF especifico]
+router.get('/fiscal', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const negocioId = req.session.negocioId;
+        const { desde, hasta } = req.query;
+
+        let whereVentas = 'WHERE v.negocio_id = ?';
+        let whereEgresos = 'WHERE negocio_id = ? AND tipo = \'gasto\'';
+        const paramsV = [negocioId];
+        const paramsE = [negocioId];
+
+        if (desde) {
+            whereVentas  += ' AND DATE(v.fecha) >= ?';
+            whereEgresos += ' AND DATE(fecha) >= ?';
+            paramsV.push(desde);
+            paramsE.push(desde);
+        }
+        if (hasta) {
+            whereVentas  += ' AND DATE(v.fecha) <= ?';
+            whereEgresos += ' AND DATE(fecha) <= ?';
+            paramsV.push(hasta);
+            paramsE.push(hasta);
+        }
+
+        // ── ITBIS cobrado en ventas ─────────────────────────────────────────
+        // Prioridad 1: suma desde venta_detalles.itbis_monto (ventas nuevas, Paso 3)
+        const itbisDetalles = db.prepare(`
+            SELECT COALESCE(SUM(vd.itbis_monto), 0) as total
+            FROM venta_detalles vd
+            JOIN ventas v ON vd.venta_id = v.id
+            ${whereVentas}
+        `).get(...paramsV);
+
+        // Prioridad 2: suma desde ventas.itbis (ventas antiguas calculadas manualmente)
+        const itbisVentas = db.prepare(`
+            SELECT COALESCE(SUM(v.itbis), 0) as total
+            FROM ventas v
+            ${whereVentas}
+        `).get(...paramsV);
+
+        // Usar el mayor: ventas nuevas tienen itbis_monto correcto,
+        // ventas viejas tienen itbis en el header de la venta
+        const itbisCobrado = Math.max(
+            parseFloat(itbisDetalles.total) || 0,
+            parseFloat(itbisVentas.total)   || 0
+        );
+
+        // ── ITBIS pagado a suplidores ───────────────────────────────────────
+        // Campo 'itbis' = ITBIS del formulario de egresos (lo que el usuario ingresa)
+        // Campo 'itbis_pagado' = ITBIS especifico del NCF (campo nuevo)
+        // Se suman ambos para no perder ningun dato
+        const itbisEgresos = db.prepare(`
+            SELECT
+                COALESCE(SUM(itbis), 0)        as total_itbis_formulario,
+                COALESCE(SUM(itbis_pagado), 0) as total_itbis_ncf,
+                COUNT(*) as total_egresos
+            FROM estado_resultado_items
+            ${whereEgresos}
+        `).get(...paramsE);
+
+        // Evitar doble conteo: si itbis_pagado > 0 y itbis > 0 en el mismo egreso,
+        // usamos el maximo por fila (el usuario puede haber llenado ambos)
+        const itbisPorEgreso = db.prepare(`
+            SELECT id, descripcion, monto, itbis, itbis_pagado, ncf_suplidor,
+                   tipo_gasto, categoria, metodo_pago, fecha,
+                   MAX(COALESCE(itbis, 0), COALESCE(itbis_pagado, 0)) as itbis_efectivo
+            FROM estado_resultado_items
+            ${whereEgresos}
+            ORDER BY fecha DESC
+        `).all(...paramsE);
+
+        const itbisPagado = itbisPorEgreso.reduce(
+            (sum, e) => sum + (parseFloat(e.itbis_efectivo) || 0), 0
+        );
+
+        // ── Desglose por tasa de servicios vendidos ─────────────────────────
+        const porTasa = db.prepare(`
+            SELECT
+                s.itbis_tasa,
+                COUNT(vd.id)                    as veces,
+                COALESCE(SUM(vd.subtotal), 0)   as subtotal_total,
+                COALESCE(SUM(vd.itbis_monto), 0) as itbis_total
+            FROM venta_detalles vd
+            JOIN servicios s ON vd.servicio_id = s.id AND s.negocio_id = ?
+            JOIN ventas v ON vd.venta_id = v.id
+            ${whereVentas}
+            GROUP BY s.itbis_tasa
+            ORDER BY s.itbis_tasa DESC
+        `).all(negocioId, ...paramsV);
+
+        // ── Ventas con desglose ITBIS por linea ─────────────────────────────
+        const ventasDetalle = db.prepare(`
+            SELECT v.id, v.fecha, v.metodo_pago, v.banco, v.total,
+                   v.subtotal, v.itbis, v.descuento, v.secuencia_ecf,
+                   c.nombre as cliente,
+                   COALESCE(SUM(vd.itbis_monto), 0) as itbis_monto_real
+            FROM ventas v
+            LEFT JOIN clientes c ON v.cliente_id = c.id
+            LEFT JOIN venta_detalles vd ON vd.venta_id = v.id
+            ${whereVentas}
+            GROUP BY v.id
+            ORDER BY v.fecha DESC
+            LIMIT 50
+        `).all(...paramsV);
+
+        res.json({
+            itbisCobrado:       Math.round(itbisCobrado * 100) / 100,
+            itbisPagado:        Math.round(itbisPagado * 100) / 100,
+            itbisNeto:          Math.round((itbisCobrado - itbisPagado) * 100) / 100,
+            porTasa,
+            egresos:            itbisPorEgreso,
+            ventas:             ventasDetalle,
+            meta: {
+                itbis_de_detalles:  parseFloat(itbisDetalles.total) || 0,
+                itbis_de_ventas:    parseFloat(itbisVentas.total)   || 0,
+                itbis_formulario:   parseFloat(itbisEgresos.total_itbis_formulario) || 0,
+                itbis_ncf:          parseFloat(itbisEgresos.total_itbis_ncf) || 0,
+                total_egresos:      itbisEgresos.total_egresos
+            }
+        });
+    } catch (error) {
+        console.error('Error en reporte fiscal:', error);
+        res.status(500).json({ error: 'Error al obtener reporte fiscal: ' + error.message });
+    }
+});
+
+// ── Reporte 606 (Compras) — Registro de Compras para DGII ───────────────────
+// Formato oficial 606: NCF, fecha, RNC suplidor, monto, ITBIS, tipo gasto
+router.get('/606', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const negocioId = req.session.negocioId;
+        const { mes, anio } = req.query;
+
+        // Default: mes actual
+        const now = new Date();
+        const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
+        const anioFilt = anio ? parseInt(anio) : now.getFullYear();
+
+        const egresos = db.prepare(`
+            SELECT
+                ncf_suplidor as NCF_Documento,
+                CASE tipo_gasto
+                    WHEN 'insumo' THEN '01'
+                    WHEN 'fijo' THEN '02'
+                    WHEN 'personal' THEN '03'
+                    ELSE '04'
+                END as Tipo_Gasto,
+                fecha as Fecha_Comprobante,
+                COALESCE(ncf_suplidor, 'N/A') as RNC_Suplidor,
+                descripcion as Detalle,
+                subtotal as Monto_Sin_ITBIS,
+                COALESCE(itbis, 0) as ITBIS,
+                COALESCE(descuento, 0) as Descuento,
+                monto as Total
+            FROM estado_resultado_items
+            WHERE negocio_id = ?
+              AND tipo = 'gasto'
+              AND ncf_suplidor IS NOT NULL
+              AND strftime('%m', fecha) = ?
+              AND strftime('%Y', fecha) = ?
+            ORDER BY fecha ASC
+        `).all(negocioId, String(mesFilt).padStart(2, '0'), String(anioFilt));
+
+        res.json({
+            tipo: '606',
+            mes: mesFilt,
+            anio: anioFilt,
+            registros: egresos,
+            totales: {
+                monto_sin_itbis: egresos.reduce((s, e) => s + (e.Monto_Sin_ITBIS || 0), 0),
+                itbis: egresos.reduce((s, e) => s + (e.ITBIS || 0), 0),
+                descuento: egresos.reduce((s, e) => s + (e.Descuento || 0), 0),
+                total: egresos.reduce((s, e) => s + (e.Total || 0), 0)
+            }
+        });
+    } catch (error) {
+        console.error('Error en 606:', error);
+        res.status(500).json({ error: 'Error al generar reporte 606' });
+    }
+});
+
+// ── Reporte 607 (Ventas) — Registro de Ventas para DGII ─────────────────────
+// Formato oficial 607: NCF, fecha, RNC cliente, monto, ITBIS, tipo
+router.get('/607', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const negocioId = req.session.negocioId;
+        const { mes, anio } = req.query;
+
+        const now = new Date();
+        const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
+        const anioFilt = anio ? parseInt(anio) : now.getFullYear();
+
+        const ventas = db.prepare(`
+            SELECT
+                v.secuencia_ecf as NCF,
+                v.fecha as Fecha_Comprobante,
+                COALESCE(c.documento, '') as RNC_Cedula,
+                COALESCE(c.nombre, 'CONSUMIDOR FINAL') as Nombre_Cliente,
+                v.subtotal as Monto_Sin_ITBIS,
+                COALESCE(v.itbis, 0) as ITBIS,
+                COALESCE(v.descuento, 0) as Descuento,
+                v.total as Total,
+                CASE v.tipo_ecf
+                    WHEN '31' THEN '01'
+                    WHEN '32' THEN '02'
+                    WHEN '33' THEN '03'
+                    WHEN '34' THEN '04'
+                    ELSE '02'
+                END as Tipo_Ingresos
+            FROM ventas v
+            LEFT JOIN clientes c ON v.cliente_id = c.id
+            WHERE v.negocio_id = ?
+              AND strftime('%m', v.fecha) = ?
+              AND strftime('%Y', v.fecha) = ?
+              AND v.estado_dgii != 'anulada'
+            ORDER BY v.fecha ASC
+        `).all(negocioId, String(mesFilt).padStart(2, '0'), String(anioFilt));
+
+        res.json({
+            tipo: '607',
+            mes: mesFilt,
+            anio: anioFilt,
+            registros: ventas,
+            totales: {
+                monto_sin_itbis: ventas.reduce((s, v) => s + (v.Monto_Sin_ITBIS || 0), 0),
+                itbis: ventas.reduce((s, v) => s + (v.ITBIS || 0), 0),
+                descuento: ventas.reduce((s, v) => s + (v.Descuento || 0), 0),
+                total: ventas.reduce((s, v) => s + (v.Total || 0), 0)
+            }
+        });
+    } catch (error) {
+        console.error('Error en 607:', error);
+        res.status(500).json({ error: 'Error al generar reporte 607' });
+    }
+});
+
+// ── Exportar Ventas a CSV ───────────────────────────────────────────────────
+router.get('/export/ventas', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const negocioId = req.session.negocioId;
+        const { desde, hasta } = req.query;
+
+        let where = 'WHERE v.negocio_id = ?';
+        const params = [negocioId];
+        if (desde) { where += ' AND DATE(v.fecha) >= ?'; params.push(desde); }
+        if (hasta) { where += ' AND DATE(v.fecha) <= ?'; params.push(hasta); }
+
+        const ventas = db.prepare(`
+            SELECT v.id, v.fecha, v.total, v.subtotal, v.itbis, v.descuento,
+                   v.metodo_pago, v.banco, v.tipo_ecf, v.secuencia_ecf,
+                   c.nombre as cliente, c.documento as cliente_doc,
+                   u.nombre as vendedor
+            FROM ventas v
+            LEFT JOIN clientes c ON v.cliente_id = c.id
+            LEFT JOIN usuarios u ON v.user_id = u.id
+            ${where}
+            ORDER BY v.fecha DESC
+        `).all(...params);
+
+        const headers = ['ID','Fecha','Cliente','Documento','Vendedor','Metodo Pago','Banco','Tipo ECF','NCF','Subtotal','ITBIS','Descuento','Total'];
+        const rows = ventas.map(v => [
+            v.id, v.fecha, v.cliente || 'Consumidor Final', v.cliente_doc || '',
+            v.vendedor || '', v.metodo_pago, v.banco || '', v.tipo_ecf, v.secuencia_ecf || '',
+            v.subtotal, v.itbis, v.descuento, v.total
+        ]);
+
+        let csv = '\uFEFF' + headers.join(';') + '\n';
+        rows.forEach(r => {
+            csv += r.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(';') + '\n';
+        });
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="ventas_${desde || 'todo'}_${hasta || 'hoy'}.csv"`);
+        res.send(csv);
+    } catch (error) {
+        console.error('Error export CSV:', error);
+        res.status(500).json({ error: 'Error al exportar' });
+    }
+});
+
+// ── Exportar Egresos a CSV ──────────────────────────────────────────────────
+router.get('/export/egresos', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const negocioId = req.session.negocioId;
+        const { desde, hasta } = req.query;
+
+        let where = 'WHERE negocio_id = ? AND tipo = ?';
+        const params = [negocioId, 'gasto'];
+        if (desde) { where += ' AND DATE(fecha) >= ?'; params.push(desde); }
+        if (hasta) { where += ' AND DATE(fecha) <= ?'; params.push(hasta); }
+
+        const egresos = db.prepare(`
+            SELECT id, fecha, categoria, subtipo, descripcion, subtotal, itbis,
+                   descuento, monto, metodo_pago, ncf_suplidor, itbis_pagado, tipo_gasto, notas
+            FROM estado_resultado_items
+            ${where}
+            ORDER BY fecha DESC
+        `).all(...params);
+
+        const headers = ['ID','Fecha','Categoria','Subtipo','Descripcion','Subtotal','ITBIS','Descuento','Total','Metodo Pago','NCF Suplidor','ITBIS Pagado','Tipo Gasto','Notas'];
+        const rows = egresos.map(e => [
+            e.id, e.fecha, e.categoria, e.subtipo || '', e.descripcion,
+            e.subtotal, e.itbis, e.descuento, e.monto, e.metodo_pago,
+            e.ncf_suplidor || '', e.itbis_pagado || 0, e.tipo_gasto || '', e.notas || ''
+        ]);
+
+        let csv = '\uFEFF' + headers.join(';') + '\n';
+        rows.forEach(r => {
+            csv += r.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(';') + '\n';
+        });
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="egresos_${desde || 'todo'}_${hasta || 'hoy'}.csv"`);
+        res.send(csv);
+    } catch (error) {
+        console.error('Error export CSV:', error);
+        res.status(500).json({ error: 'Error al exportar' });
+    }
+});
+
+// ── Exportar 606 a CSV ──────────────────────────────────────────────────────
+router.get('/export/606', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const negocioId = req.session.negocioId;
+        const { mes, anio } = req.query;
+        const now = new Date();
+        const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
+        const anioFilt = anio ? parseInt(anio) : now.getFullYear();
+
+        const egresos = db.prepare(`
+            SELECT ncf_suplidor, tipo_gasto, fecha, descripcion, subtotal, itbis, descuento, monto
+            FROM estado_resultado_items
+            WHERE negocio_id = ? AND tipo = 'gasto' AND ncf_suplidor IS NOT NULL
+              AND strftime('%m', fecha) = ? AND strftime('%Y', fecha) = ?
+            ORDER BY fecha ASC
+        `).all(negocioId, String(mesFilt).padStart(2, '0'), String(anioFilt));
+
+        const headers = ['NCF_Documento','Tipo_Gasto','Fecha_Comprobante','Detalle','Monto_Sin_ITBIS','ITBIS','Descuento','Total'];
+        const rows = egresos.map(e => [
+            e.ncf_suplidor,
+            { insumo: '01', fijo: '02', personal: '03' }[e.tipo_gasto] || '04',
+            e.fecha, e.descripcion, e.subtotal, e.itbis, e.descuento, e.monto
+        ]);
+
+        let csv = '\uFEFF' + headers.join(';') + '\n';
+        rows.forEach(r => {
+            csv += r.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(';') + '\n';
+        });
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="606_${anioFilt}_${String(mesFilt).padStart(2,'0')}.csv"`);
+        res.send(csv);
+    } catch (error) {
+        console.error('Error export 606:', error);
+        res.status(500).json({ error: 'Error al exportar 606' });
+    }
+});
+
+// ── Exportar 607 a CSV ──────────────────────────────────────────────────────
+router.get('/export/607', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const negocioId = req.session.negocioId;
+        const { mes, anio } = req.query;
+        const now = new Date();
+        const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
+        const anioFilt = anio ? parseInt(anio) : now.getFullYear();
+
+        const ventas = db.prepare(`
+            SELECT v.secuencia_ecf, v.fecha, v.subtotal, v.itbis, v.descuento, v.total,
+                   v.tipo_ecf, c.documento, c.nombre
+            FROM ventas v
+            LEFT JOIN clientes c ON v.cliente_id = c.id
+            WHERE v.negocio_id = ?
+              AND strftime('%m', v.fecha) = ? AND strftime('%Y', v.fecha) = ?
+              AND v.estado_dgii != 'anulada'
+            ORDER BY v.fecha ASC
+        `).all(negocioId, String(mesFilt).padStart(2, '0'), String(anioFilt));
+
+        const headers = ['NCF','Fecha_Comprobante','RNC_Cedula','Nombre_Cliente','Monto_Sin_ITBIS','ITBIS','Descuento','Total','Tipo_Ingresos'];
+        const rows = ventas.map(v => [
+            v.secuencia_ecf, v.fecha, v.documento || '', v.nombre || 'CONSUMIDOR FINAL',
+            v.subtotal, v.itbis, v.descuento, v.total,
+            { '31': '01', '32': '02', '33': '03', '34': '04' }[v.tipo_ecf] || '02'
+        ]);
+
+        let csv = '\uFEFF' + headers.join(';') + '\n';
+        rows.forEach(r => {
+            csv += r.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(';') + '\n';
+        });
+
+        res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+        res.setHeader('Content-Disposition', `attachment; filename="607_${anioFilt}_${String(mesFilt).padStart(2,'0')}.csv"`);
+        res.send(csv);
+    } catch (error) {
+        console.error('Error export 607:', error);
+        res.status(500).json({ error: 'Error al exportar 607' });
     }
 });
 
@@ -199,9 +632,21 @@ router.get('/clientes', requireAuth, (req, res) => {
             LIMIT 10
         `).all(negocioId, negocioId);
 
+        const ultimosRegistrados = db.prepare(`
+            SELECT c.id, c.nombre, c.telefono, c.fecha_registro,
+                   COUNT(v.id) as total_compras
+            FROM clientes c
+            LEFT JOIN ventas v ON c.id = v.cliente_id AND v.negocio_id = ?
+            WHERE c.negocio_id = ?
+            GROUP BY c.id
+            ORDER BY c.fecha_registro DESC
+            LIMIT 10
+        `).all(negocioId, negocioId);
+
         res.json({
             resumen,
-            masFrecuentes
+            masFrecuentes,
+            ultimosRegistrados
         });
     } catch (error) {
         console.error('Error:', error);
@@ -340,9 +785,17 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
             SELECT COALESCE(SUM(monto), 0) as total_egresos,
                    COUNT(*) as cantidad,
                    COALESCE(SUM(CASE WHEN metodo_pago = 'efectivo' THEN monto ELSE 0 END), 0) as efectivo,
-                   COALESCE(SUM(CASE WHEN metodo_pago = 'transferencia' THEN monto ELSE 0 END), 0) as transferencia
+                   COALESCE(SUM(CASE WHEN metodo_pago = 'transferencia' THEN monto ELSE 0 END), 0) as transferencia,
+                   COALESCE(SUM(itbis_pagado), 0) as itbis_pagado_total
             FROM estado_resultado_items
             WHERE negocio_id = ? AND tipo = 'gasto' AND cuadre_id IS NULL
+        `).get(req.session.negocioId);
+
+        // ITBIS cobrado en ventas del turno (suma real de campo itbis)
+        const itbisCobrado = db.prepare(`
+            SELECT COALESCE(SUM(itbis), 0) as itbis_cobrado
+            FROM ventas
+            WHERE negocio_id = ? AND cuadre_id IS NULL
         `).get(req.session.negocioId);
 
         const listaEgresosTurno = db.prepare(`
@@ -380,6 +833,9 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
             egresosTurno,
             listaEgresosTurno,
             efectivoNeto,
+            itbisCobrado: itbisCobrado.itbis_cobrado,
+            itbisPagado: egresosTurno.itbis_pagado_total,
+            itbisNeto: (itbisCobrado.itbis_cobrado || 0) - (egresosTurno.itbis_pagado_total || 0),
             fecha: hoy,
             caja_cerrada: cajaCerrada,
             negocio: negocio || { nombre: 'Mi Negocio', direccion: '', telefono: '' }

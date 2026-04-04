@@ -354,7 +354,400 @@ function initDatabase() {
             UNIQUE(negocio_id, tipo_comprobante)
         )
     `);
-    
+
+    // ── Migracion Fiscal v1: estado_resultado_items (egresos) ────────────────
+    // ncf_suplidor : NCF del proveedor — permite compensar ITBIS en compras.
+    // itbis_pagado : ITBIS real pagado al suplidor (distinto del campo 'itbis'
+    //               que ya existia y refleja el ITBIS del documento completo).
+    // tipo_gasto   : Clasifica el egreso para reportes de compensacion DGII.
+    //               Valores validos: 'insumo' | 'fijo' | 'personal'
+    //               (CHECK aplicado en capa de rutas; SQLite no admite CHECK en ALTER TABLE)
+    const erFiscalCols = db.prepare("PRAGMA table_info(estado_resultado_items)").all();
+    const erFiscalColNames = erFiscalCols.map(c => c.name);
+
+    if (!erFiscalColNames.includes('ncf_suplidor')) {
+        db.exec("ALTER TABLE estado_resultado_items ADD COLUMN ncf_suplidor TEXT DEFAULT NULL");
+        console.log('Columna ncf_suplidor agregada a estado_resultado_items.');
+    }
+    if (!erFiscalColNames.includes('itbis_pagado')) {
+        db.exec("ALTER TABLE estado_resultado_items ADD COLUMN itbis_pagado REAL DEFAULT 0");
+        console.log('Columna itbis_pagado agregada a estado_resultado_items.');
+    }
+    if (!erFiscalColNames.includes('tipo_gasto')) {
+        db.exec("ALTER TABLE estado_resultado_items ADD COLUMN tipo_gasto TEXT DEFAULT NULL");
+        console.log('Columna tipo_gasto agregada a estado_resultado_items.');
+    }
+
+    // ── Migracion Fiscal v1: servicios ───────────────────────────────────────
+    // itbis_tasa           : Tasa ITBIS especifica del servicio (default 18).
+    //                        Permite servicios exentos (0) o con tasa reducida (16).
+    // costo_insumo_estimado: Costo estimado de insumos consumidos al prestar
+    //                        el servicio — base para calcular margen real.
+    const serviciosFiscalCols = db.prepare("PRAGMA table_info(servicios)").all();
+    const serviciosFiscalColNames = serviciosFiscalCols.map(c => c.name);
+
+    if (!serviciosFiscalColNames.includes('itbis_tasa')) {
+        db.exec("ALTER TABLE servicios ADD COLUMN itbis_tasa INTEGER DEFAULT 18");
+        console.log('Columna itbis_tasa agregada a servicios.');
+    }
+    if (!serviciosFiscalColNames.includes('costo_insumo_estimado')) {
+        db.exec("ALTER TABLE servicios ADD COLUMN costo_insumo_estimado REAL DEFAULT 0");
+        console.log('Columna costo_insumo_estimado agregada a servicios.');
+    }
+
+    // ── Migracion Fiscal v1: venta_detalles ──────────────────────────────────
+    // itbis_monto: ITBIS calculado y congelado por linea en el momento exacto
+    //             de la venta. Si la tasa del servicio cambia en el futuro,
+    //             las facturas historicas conservan el valor original.
+    const ventaDetFiscalCols = db.prepare("PRAGMA table_info(venta_detalles)").all();
+    const ventaDetFiscalColNames = ventaDetFiscalCols.map(c => c.name);
+
+    if (!ventaDetFiscalColNames.includes('itbis_monto')) {
+        db.exec("ALTER TABLE venta_detalles ADD COLUMN itbis_monto REAL DEFAULT 0");
+        console.log('Columna itbis_monto agregada a venta_detalles.');
+    }
+
+    // ── Migracion Fiscal v2: notas_credito ──────────────────────────────────
+    // Tabla para Notas de Credito (34) y Debito (33) referenciando ventas originales
+    const notasCols = db.prepare("PRAGMA table_info(notas_credito)").all();
+    if (notasCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS notas_credito (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                user_id INTEGER,
+                venta_original_id INTEGER NOT NULL,
+                tipo_nota TEXT NOT NULL CHECK(tipo_nota IN ('33', '34')),
+                secuencia_ecf TEXT NOT NULL,
+                codigo_seguridad TEXT NOT NULL,
+                monto REAL NOT NULL,
+                motivo TEXT NOT NULL,
+                estado_dgii TEXT DEFAULT 'pendiente',
+                xml_path TEXT,
+                fecha TEXT NOT NULL,
+                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+                FOREIGN KEY (venta_original_id) REFERENCES ventas(id)
+            )
+        `);
+        console.log('Tabla notas_credito creada.');
+    }
+
+    // ── Migracion v3: productos (inventario) ────────────────────────────────
+    const prodCols = db.prepare("PRAGMA table_info(productos)").all();
+    if (prodCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS productos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                nombre TEXT NOT NULL,
+                descripcion TEXT,
+                precio REAL NOT NULL,
+                costo REAL DEFAULT 0,
+                stock INTEGER DEFAULT 0,
+                stock_minimo INTEGER DEFAULT 5,
+                codigo_barras TEXT,
+                categoria TEXT,
+                itbis_tasa INTEGER DEFAULT 18,
+                estado TEXT DEFAULT 'activo',
+                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+            )
+        `);
+        console.log('Tabla productos creada.');
+    }
+
+    // ── Migracion v3: movimientos_inventario ────────────────────────────────
+    const movCols = db.prepare("PRAGMA table_info(movimientos_inventario)").all();
+    if (movCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS movimientos_inventario (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                producto_id INTEGER NOT NULL,
+                tipo TEXT NOT NULL CHECK(tipo IN ('entrada', 'salida', 'ajuste', 'venta')),
+                cantidad INTEGER NOT NULL,
+                costo_unitario REAL DEFAULT 0,
+                referencia TEXT,
+                user_id INTEGER,
+                fecha TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+                FOREIGN KEY (producto_id) REFERENCES productos(id)
+            )
+        `);
+        console.log('Tabla movimientos_inventario creada.');
+    }
+
+    // ── Migracion v3: venta_detalles puede incluir productos ────────────────
+    const vdProdCols = db.prepare("PRAGMA table_info(venta_detalles)").all();
+    const vdProdColNames = vdProdCols.map(c => c.name);
+
+    // Rebuild table to remove NOT NULL on servicio_id and add new columns
+    const needsRebuild = vdProdColNames.includes('producto_id')
+        ? db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='venta_detalles'").get()
+        : null;
+    const hasOldConstraint = needsRebuild && needsRebuild.sql && needsRebuild.sql.includes('servicio_id INTEGER NOT NULL');
+
+    if (hasOldConstraint) {
+        db.exec(`
+            CREATE TABLE venta_detalles_new (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                venta_id INTEGER NOT NULL,
+                servicio_id INTEGER DEFAULT NULL,
+                producto_id INTEGER DEFAULT NULL,
+                tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto')),
+                cantidad INTEGER DEFAULT 1,
+                precio REAL NOT NULL,
+                subtotal REAL NOT NULL,
+                itbis_monto REAL DEFAULT 0,
+                FOREIGN KEY (venta_id) REFERENCES ventas(id),
+                FOREIGN KEY (servicio_id) REFERENCES servicios(id),
+                FOREIGN KEY (producto_id) REFERENCES productos(id)
+            )
+        `);
+        db.exec(`
+            INSERT INTO venta_detalles_new (id, venta_id, servicio_id, cantidad, precio, subtotal, itbis_monto)
+            SELECT id, venta_id, servicio_id, cantidad, precio, subtotal, itbis_monto
+            FROM venta_detalles
+        `);
+        db.exec('DROP TABLE venta_detalles');
+        db.exec('ALTER TABLE venta_detalles_new RENAME TO venta_detalles');
+        console.log('Tabla venta_detalles reconstruida (servicio_id nullable).');
+    } else if (!vdProdColNames.includes('producto_id')) {
+        db.exec("ALTER TABLE venta_detalles ADD COLUMN producto_id INTEGER REFERENCES productos(id)");
+        console.log('Columna producto_id agregada a venta_detalles.');
+    }
+    if (!vdProdColNames.includes('tipo_item')) {
+        db.exec("ALTER TABLE venta_detalles ADD COLUMN tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto'))");
+        console.log('Columna tipo_item agregada a venta_detalles.');
+    }
+
+    // ── Migracion v3: comisiones ────────────────────────────────────────────
+    const comCols = db.prepare("PRAGMA table_info(comisiones)").all();
+    if (comCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS comisiones (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                user_id INTEGER NOT NULL,
+                venta_id INTEGER,
+                monto_base REAL NOT NULL,
+                porcentaje REAL NOT NULL,
+                monto_comision REAL NOT NULL,
+                fecha TEXT NOT NULL,
+                estado TEXT DEFAULT 'pendiente' CHECK(estado IN ('pendiente', 'pagada')),
+                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+                FOREIGN KEY (user_id) REFERENCES usuarios(id)
+            )
+        `);
+        console.log('Tabla comisiones creada.');
+    }
+
+    // ── Migracion v3: chatbot ───────────────────────────────────────────────
+    const chatCols = db.prepare("PRAGMA table_info(chatbot_reglas)").all();
+    if (chatCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS chatbot_reglas (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                palabra_clave TEXT NOT NULL,
+                respuesta TEXT NOT NULL,
+                activa INTEGER DEFAULT 1,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+            )
+        `);
+        console.log('Tabla chatbot_reglas creada.');
+    }
+    const chatMsgCols = db.prepare("PRAGMA table_info(chatbot_mensajes)").all();
+    if (chatMsgCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS chatbot_mensajes (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                cliente_id INTEGER,
+                mensaje TEXT NOT NULL,
+                origen TEXT DEFAULT 'cliente' CHECK(origen IN ('cliente', 'bot')),
+                regla_id INTEGER,
+                fecha TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+                FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+            )
+        `);
+        console.log('Tabla chatbot_mensajes creada.');
+    }
+
+    // ── Migracion v5: log_auditoria ─────────────────────────────────────────
+    const auditCols = db.prepare("PRAGMA table_info(log_auditoria)").all();
+    if (auditCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS log_auditoria (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                user_id INTEGER,
+                accion TEXT NOT NULL,
+                tabla TEXT,
+                registro_id INTEGER,
+                detalle TEXT,
+                ip TEXT,
+                user_agent TEXT,
+                fecha TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+                FOREIGN KEY (user_id) REFERENCES usuarios(id)
+            )
+        `);
+        console.log('Tabla log_auditoria creada.');
+    }
+
+    // ── Migracion v5: puntos_lealtad ────────────────────────────────────────
+    const loyaltyCols = db.prepare("PRAGMA table_info(puntos_lealtad)").all();
+    if (loyaltyCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS puntos_lealtad (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                cliente_id INTEGER NOT NULL,
+                puntos INTEGER DEFAULT 0,
+                nivel TEXT DEFAULT 'bronce' CHECK(nivel IN ('bronce', 'plata', 'oro', 'platino')),
+                ultima_actividad TEXT,
+                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+                FOREIGN KEY (cliente_id) REFERENCES clientes(id),
+                UNIQUE(negocio_id, cliente_id)
+            )
+        `);
+        console.log('Tabla puntos_lealtad creada.');
+    }
+
+    // ── Migracion v5: historial_puntos ──────────────────────────────────────
+    const histPtsCols = db.prepare("PRAGMA table_info(historial_puntos)").all();
+    if (histPtsCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS historial_puntos (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                cliente_id INTEGER NOT NULL,
+                puntos INTEGER NOT NULL,
+                tipo TEXT NOT NULL CHECK(tipo IN ('ganado', 'canjeado', 'ajuste')),
+                referencia TEXT,
+                fecha TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
+                FOREIGN KEY (cliente_id) REFERENCES clientes(id)
+            )
+        `);
+        console.log('Tabla historial_puntos creada.');
+    }
+
+    // ── Migracion v5: horario_negocio ───────────────────────────────────────
+    const horarioCols = db.prepare("PRAGMA table_info(horario_negocio)").all();
+    if (horarioCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS horario_negocio (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL UNIQUE,
+                lunes_apertura TEXT DEFAULT '09:00',
+                lunes_cierre TEXT DEFAULT '18:00',
+                lunes_activo INTEGER DEFAULT 1,
+                martes_apertura TEXT DEFAULT '09:00',
+                martes_cierre TEXT DEFAULT '18:00',
+                martes_activo INTEGER DEFAULT 1,
+                miercoles_apertura TEXT DEFAULT '09:00',
+                miercoles_cierre TEXT DEFAULT '18:00',
+                miercoles_activo INTEGER DEFAULT 1,
+                jueves_apertura TEXT DEFAULT '09:00',
+                jueves_cierre TEXT DEFAULT '18:00',
+                jueves_activo INTEGER DEFAULT 1,
+                viernes_apertura TEXT DEFAULT '09:00',
+                viernes_cierre TEXT DEFAULT '18:00',
+                viernes_activo INTEGER DEFAULT 1,
+                sabado_apertura TEXT DEFAULT '09:00',
+                sabado_cierre TEXT DEFAULT '18:00',
+                sabado_activo INTEGER DEFAULT 1,
+                domingo_apertura TEXT DEFAULT '09:00',
+                domingo_cierre TEXT DEFAULT '18:00',
+                domingo_activo INTEGER DEFAULT 0,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+            )
+        `);
+        console.log('Tabla horario_negocio creada.');
+    }
+
+    // ── Migracion v5: sucursales ────────────────────────────────────────────
+    const sucCols = db.prepare("PRAGMA table_info(sucursales)").all();
+    if (sucCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS sucursales (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL,
+                nombre TEXT NOT NULL,
+                direccion TEXT,
+                telefono TEXT,
+                activa INTEGER DEFAULT 1,
+                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+            )
+        `);
+        console.log('Tabla sucursales creada.');
+    }
+
+    // ── Migracion v5: clientes.sucursal_id y clientes.puntos ────────────────
+    const cliNewCols = db.prepare("PRAGMA table_info(clientes)").all();
+    const cliNewColNames = cliNewCols.map(c => c.name);
+    if (!cliNewColNames.includes('sucursal_id')) {
+        db.exec("ALTER TABLE clientes ADD COLUMN sucursal_id INTEGER REFERENCES sucursales(id)");
+        console.log('Columna sucursal_id agregada a clientes.');
+    }
+    if (!cliNewColNames.includes('puntos')) {
+        db.exec("ALTER TABLE clientes ADD COLUMN puntos INTEGER DEFAULT 0");
+        console.log('Columna puntos agregada a clientes.');
+    }
+    if (!cliNewColNames.includes('nivel_lealtad')) {
+        db.exec("ALTER TABLE clientes ADD COLUMN nivel_lealtad TEXT DEFAULT 'bronce'");
+        console.log('Columna nivel_lealtad agregada a clientes.');
+    }
+
+    // ── Migracion v5: negocios.logo ─────────────────────────────────────────
+    const negCols = db.prepare("PRAGMA table_info(negocios)").all();
+    const negColNames = negCols.map(c => c.name);
+    if (!negColNames.includes('logo')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN logo TEXT");
+        console.log('Columna logo agregada a negocios.');
+    }
+
+    // ── Migracion v3: whatsapp_config ───────────────────────────────────────
+    const waCols = db.prepare("PRAGMA table_info(whatsapp_config)").all();
+    if (waCols.length === 0) {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS whatsapp_config (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                negocio_id INTEGER NOT NULL UNIQUE,
+                token TEXT,
+                phone_number_id TEXT,
+                activo INTEGER DEFAULT 0,
+                plantilla_recordatorio TEXT DEFAULT 'recordatorio_cita',
+                plantilla_confirmacion TEXT DEFAULT 'confirmacion_cita',
+                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
+            )
+        `);
+        console.log('Tabla whatsapp_config creada.');
+    }
+
+    // ── Migracion v3: usuarios.comision_porcentaje ──────────────────────────
+    const userComCols = db.prepare("PRAGMA table_info(usuarios)").all();
+    const userComColNames = userComCols.map(c => c.name);
+    if (!userComColNames.includes('comision_porcentaje')) {
+        db.exec("ALTER TABLE usuarios ADD COLUMN comision_porcentaje REAL DEFAULT 0");
+        console.log('Columna comision_porcentaje agregada a usuarios.');
+    }
+
+    // ── Migracion v4: servicios.comision_porcentaje ─────────────────────────
+    const svcComCols = db.prepare("PRAGMA table_info(servicios)").all();
+    const svcComColNames = svcComCols.map(c => c.name);
+    if (!svcComColNames.includes('comision_porcentaje')) {
+        db.exec("ALTER TABLE servicios ADD COLUMN comision_porcentaje REAL DEFAULT 0");
+        console.log('Columna comision_porcentaje agregada a servicios.');
+    }
+
     console.log('Base de datos inicializada');
     return db;
 }
@@ -535,7 +928,7 @@ function getNextNCF(negocioId, tipoComprobante) {
         `);
         
         // Prefijos por tipo
-        const prefijos = { '31': 'E31', '32': 'E32' };
+        const prefijos = { '31': 'E31', '32': 'E32', '33': 'E33', '34': 'E34' };
         const prefijo = prefijos[tipoComprobante] || 'E31';
         
         // Verificar si existe la secuencia

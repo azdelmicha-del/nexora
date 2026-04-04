@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora - Comisiones</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Comisiones de Empleados</h1>
+                <div style="display:flex;gap:0.5rem;">
+                    <button class="btn btn-primary" onclick="calcularComisiones()">
+                        <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        Calcular Comisiones
+                    </button>
+                </div>
+            </div>
+
+            <!-- Resumen por empleado -->
+            <div class="card mb-4">
+                <div class="card-body">
+                    <h3 style="margin-bottom:1rem;font-size:1rem;">Resumen por Empleado</h3>
+                    <div class="filtros-rapidos" style="margin-bottom:1rem;">
+                        <input type="date" id="desde" style="padding:0.5rem;border:1px solid var(--gray-200);border-radius:8px;">
+                        <input type="date" id="hasta" style="padding:0.5rem;border:1px solid var(--gray-200);border-radius:8px;">
+                        <button class="filtro-btn" onclick="loadComisiones()">Filtrar</button>
+                    </div>
+                    <div id="resumenEmpleados"></div>
+                </div>
+            </div>
+
+            <!-- Detalle de comisiones -->
+            <div class="card">
+                <div class="card-body">
+                    <h3 style="margin-bottom:1rem;font-size:1rem;">Historial de Comisiones</h3>
+                    <div class="table-container">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Empleado</th>
+                                    <th>Venta</th>
+                                    <th>Fecha</th>
+                                    <th>Base</th>
+                                    <th>%</th>
+                                    <th>Comision</th>
+                                    <th>Estado</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="comisionesTable">
+                                <tr><td colspan="8"><div class="spinner"></div></td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- Modal calcular comisiones -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" style="max-width:420px;">
+            <div class="modal-header">
+                <h3>Calcular Comisiones</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <p style="color:var(--gray-600);font-size:0.88rem;margin-bottom:1rem;">
+                    Se calcularan comisiones para las ventas del periodo seleccionado usando el % configurado en cada empleado.
+                </p>
+                <div class="form-group">
+                    <label>Desde</label>
+                    <input type="date" id="calcDesde">
+                </div>
+                <div class="form-group">
+                    <label>Hasta</label>
+                    <input type="date" id="calcHasta">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                <button class="btn btn-primary" onclick="ejecutarCalculo()">Calcular</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const licenseOk = await requireLicense();
+            if (!licenseOk) return;
+            const session = await checkSession();
+            if (!session || !session.authenticated) { window.location.href = '/'; return; }
+
+            // Default dates: this month
+            const now = new Date();
+            const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            const today = now.toISOString().split('T')[0];
+            document.getElementById('desde').value = firstDay;
+            document.getElementById('hasta').value = today;
+            document.getElementById('calcDesde').value = firstDay;
+            document.getElementById('calcHasta').value = today;
+
+            await loadComisiones();
+        });
+
+        async function loadComisiones() {
+            const desde = document.getElementById('desde').value;
+            const hasta = document.getElementById('hasta').value;
+            const tbody = document.getElementById('comisionesTable');
+            const resumen = document.getElementById('resumenEmpleados');
+
+            tbody.innerHTML = '<tr><td colspan="8"><div class="spinner"></div></td></tr>';
+            resumen.innerHTML = '<div class="spinner"></div>';
+
+            try {
+                const data = await apiCall(`/commissions?desde=${desde}&hasta=${hasta}`);
+
+                // Resumen por empleado
+                if (data.porEmpleado && data.porEmpleado.length > 0) {
+                    resumen.innerHTML = `
+                        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1rem;">
+                            ${data.porEmpleado.map(e => `
+                                <div style="background:linear-gradient(135deg,#667eea20,#764ba220);border:1px solid #667eea30;border-radius:16px;padding:1.25rem;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.75rem;">
+                                        <h4 style="margin:0;font-size:1rem;color:var(--gray-800);">${escapeHtml(e.nombre)}</h4>
+                                        <span style="background:#667eea;color:#fff;padding:2px 8px;border-radius:10px;font-size:0.75rem;font-weight:700;">${e.porcentaje}%</span>
+                                    </div>
+                                    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:0.5rem;text-align:center;">
+                                        <div>
+                                            <div style="font-size:1.1rem;font-weight:800;color:#10b981;">${formatCurrency(e.total_comision)}</div>
+                                            <div style="font-size:0.68rem;color:var(--gray-400);">Total</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size:1.1rem;font-weight:800;color:#f59e0b;">${formatCurrency(e.comision_pendiente)}</div>
+                                            <div style="font-size:0.68rem;color:var(--gray-400);">Pendiente</div>
+                                        </div>
+                                        <div>
+                                            <div style="font-size:1.1rem;font-weight:800;color:#8b5cf6;">${formatCurrency(e.comision_pagada)}</div>
+                                            <div style="font-size:0.68rem;color:var(--gray-400);">Pagada</div>
+                                        </div>
+                                    </div>
+                                    <div style="margin-top:0.75rem;text-align:right;">
+                                        <button class="btn btn-sm" style="background:#10b981;color:#fff;border:none;padding:4px 12px;border-radius:8px;font-size:0.75rem;font-weight:600;cursor:pointer;"
+                                            onclick="pagarTodas(${e.user_id})">
+                                            Pagar Todo Pendiente
+                                        </button>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>`;
+                } else {
+                    resumen.innerHTML = '<p style="color:var(--gray-400);text-align:center;padding:1rem;">Sin comisiones en este periodo</p>';
+                }
+
+                // Tabla de comisiones
+                if (data.comisiones && data.comisiones.length > 0) {
+                    tbody.innerHTML = data.comisiones.map(c => `
+                        <tr>
+                            <td><strong>${escapeHtml(c.empleado)}</strong></td>
+                            <td style="font-family:monospace;font-size:0.78rem;">#${c.venta_id}</td>
+                            <td>${formatDate(c.fecha)}</td>
+                            <td>${formatCurrency(c.monto_base)}</td>
+                            <td><span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;">${c.porcentaje}%</span></td>
+                            <td style="font-weight:700;color:#10b981;">${formatCurrency(c.monto_comision)}</td>
+                            <td><span class="badge badge-${c.estado === 'pagada' ? 'success' : 'warning'}">${c.estado}</span></td>
+                            <td>
+                                ${c.estado === 'pendiente' ? `<button class="btn btn-secondary btn-sm" onclick="pagarComision(${c.id})">Pagar</button>` : '—'}
+                            </td>
+                        </tr>
+                    `).join('');
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--gray-400);">Sin comisiones registradas.<br><small>Ve a Servicios y asigna un % de comision a cada servicio.</small></td></tr>';
+                }
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#ef4444;">Error al cargar comisiones</td></tr>';
+                resumen.innerHTML = '';
+            }
+        }
+
+        function calcularComisiones() {
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        async function ejecutarCalculo() {
+            const desde = document.getElementById('calcDesde').value;
+            const hasta = document.getElementById('calcHasta').value;
+            if (!desde || !hasta) { showToast('Selecciona un periodo', 'error'); return; }
+
+            try {
+                const result = await apiCall('/commissions/calcular', {
+                    method: 'POST',
+                    body: JSON.stringify({ desde, hasta })
+                });
+                showToast(`${result.comisiones_creadas} comisiones creadas de ${result.total_ventas} ventas`, 'success');
+                closeModal();
+                await loadComisiones();
+            } catch (error) {
+                showToast(error.message, 'error');
+            }
+        }
+
+        async function pagarComision(id) {
+            if (!confirm('Marcar esta comision como pagada?')) return;
+            try {
+                await apiCall(`/commissions/${id}/pagar`, { method: 'PUT' });
+                showToast('Comision marcada como pagada', 'success');
+                await loadComisiones();
+            } catch (error) { showToast(error.message, 'error'); }
+        }
+
+        async function pagarTodas(userId) {
+            if (!confirm('Pagar TODAS las comisiones pendientes de este empleado?')) return;
+            try {
+                const result = await apiCall('/commissions/pagar-todas', {
+                    method: 'PUT',
+                    body: JSON.stringify({ user_id: userId })
+                });
+                showToast(`${result.pagadas} comisiones pagadas`, 'success');
+                await loadComisiones();
+            } catch (error) { showToast(error.message, 'error'); }
+        }
+
+        function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        function formatDate(dateStr) { if (!dateStr) return ''; try { const d = new Date(dateStr.replace('T',' ').split(/[- :]/).slice(0,3).join('-')); return d.toLocaleDateString('es-DO',{day:'2-digit',month:'short'}); } catch(e) { return dateStr; } }
+        function formatCurrency(amount) { return 'RD$' + Number(amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+    </script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/license-banner.js"></script>
+</body>
+</html>

@@ -83,6 +83,9 @@ CREATE TABLE IF NOT EXISTS servicios (
     descripcion TEXT,
     estado TEXT DEFAULT 'activo',
     fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
+    -- Campos fiscales: tasa ITBIS especifica y costo de insumos por servicio
+    itbis_tasa INTEGER DEFAULT 18,
+    costo_insumo_estimado REAL DEFAULT 0,
     FOREIGN KEY (negocio_id) REFERENCES negocios(id),
     FOREIGN KEY (categoria_id) REFERENCES categorias(id)
 );
@@ -159,6 +162,9 @@ CREATE TABLE IF NOT EXISTS venta_detalles (
     cantidad INTEGER DEFAULT 1,
     precio REAL NOT NULL,
     subtotal REAL NOT NULL,
+    -- ITBIS calculado y congelado por linea en el momento de la venta.
+    -- Inmutable ante futuros cambios de tasa en el servicio.
+    itbis_monto REAL DEFAULT 0,
     FOREIGN KEY (venta_id) REFERENCES ventas(id),
     FOREIGN KEY (servicio_id) REFERENCES servicios(id)
 );
@@ -242,6 +248,10 @@ CREATE TABLE IF NOT EXISTS estado_resultado_items (
     hora TEXT,
     notas TEXT,
     created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    -- Campos fiscales para compensacion de ITBIS (DGII)
+    ncf_suplidor TEXT DEFAULT NULL,
+    itbis_pagado REAL DEFAULT 0,
+    tipo_gasto TEXT DEFAULT NULL CHECK(tipo_gasto IN ('insumo', 'fijo', 'personal')),
     FOREIGN KEY (negocio_id) REFERENCES negocios(id)
 );
 

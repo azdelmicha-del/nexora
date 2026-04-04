@@ -106,9 +106,8 @@
         /* Cards de resumen */
         .resumen-tres {
             display: grid;
-            grid-template-columns: repeat(4, 1fr);
-            gap: 1rem;
-            margin-bottom: 1.5rem;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 0.75rem;
         }
         
         .resumen-card {
@@ -306,10 +305,365 @@
         .formula-bar .val.positivo { color: #10b981; }
         .formula-bar .val.negativo { color: #ef4444; }
         
+        /* ── Tabs de seccion ───────────────────────────────────────────────── */
+        .tab-btn {
+            display: flex;
+            align-items: center;
+            gap: 0.3rem;
+            padding: 0.55rem 0.9rem;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-family: inherit;
+            font-size: 0.78rem;
+            font-weight: 600;
+            white-space: nowrap;
+            transition: all 0.18s;
+            flex-shrink: 0;
+            margin: 0.35rem;
+        }
+
+        .tab-btn[data-tab="ventas"]   { background: #ecfdf5; color: #065f46; }
+        .tab-btn[data-tab="costos"]   { background: #fffbeb; color: #92400e; }
+        .tab-btn[data-tab="gastosOp"] { background: #f5f3ff; color: #5b21b6; }
+        .tab-btn[data-tab="otros"]    { background: #fefce8; color: #854d0e; }
+        .tab-btn[data-tab="gastos"]   { background: #fef2f2; color: #991b1b; }
+
+        .tab-btn:hover { filter: brightness(0.95); }
+
+        .tab-btn.tab-activo {
+            box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+            transform: translateY(-1px);
+        }
+
+        .tab-btn.tab-activo[data-tab="ventas"]   { background: #10b981; color: #fff; }
+        .tab-btn.tab-activo[data-tab="costos"]   { background: #f59e0b; color: #fff; }
+        .tab-btn.tab-activo[data-tab="gastosOp"] { background: #8b5cf6; color: #fff; }
+        .tab-btn.tab-activo[data-tab="otros"]    { background: #f59e0b; color: #fff; }
+        .tab-btn.tab-activo[data-tab="gastos"]   { background: #ef4444; color: #fff; }
+
+        .tab-icono { font-size: 1rem; }
+
+        .tab-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 22px;
+            height: 22px;
+            padding: 0 6px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+        }
+
+        .tab-badge-ventas   { background: #10b981; color: #fff; }
+        .tab-badge-costos   { background: #f59e0b; color: #fff; }
+        .tab-badge-gastosOp { background: #8b5cf6; color: #fff; }
+        .tab-badge-otros    { background: #f59e0b; color: #fff; }
+        .tab-badge-gastos   { background: #ef4444; color: #fff; }
+
+        .tab-panel { display: none; }
+        .tab-panel.tab-panel-activo { display: block; }
+
+        /* acento de color en la tabla segun tab activo */
+        .tab-btn.tab-activo[data-tab="ventas"]   { background: #10b981; color: #fff; box-shadow: 0 2px 8px rgba(16,185,129,0.3); }
+        .tab-btn.tab-activo[data-tab="costos"]   { background: #f59e0b; color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,0.3); }
+        .tab-btn.tab-activo[data-tab="gastosOp"] { background: #8b5cf6; color: #fff; box-shadow: 0 2px 8px rgba(139,92,246,0.3); }
+        .tab-btn.tab-activo[data-tab="otros"]    { background: #f59e0b; color: #fff; box-shadow: 0 2px 8px rgba(245,158,11,0.3); }
+        .tab-btn.tab-activo[data-tab="gastos"]   { background: #ef4444; color: #fff; box-shadow: 0 2px 8px rgba(239,68,68,0.3); }
+
+        /* ── Tabla compacta dentro de cada seccion ─────────────────────────── */
+        .seccion-tabla {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.8rem;
+        }
+
+        .seccion-tabla thead tr {
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .seccion-tabla thead th {
+            padding: 0.5rem 0.75rem;
+            font-size: 0.68rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--gray-500);
+            font-weight: 600;
+            text-align: left;
+        }
+
+        .seccion-tabla thead th:last-child { text-align: right; }
+
+        .seccion-tabla tbody tr {
+            border-bottom: 1px solid var(--gray-100);
+            transition: background 0.12s;
+        }
+
+        .seccion-tabla tbody tr:last-child { border-bottom: none; }
+        .seccion-tabla tbody tr:hover { background: var(--gray-50); }
+
+        .seccion-tabla td {
+            padding: 0.55rem 0.75rem;
+            color: var(--gray-700);
+            vertical-align: middle;
+        }
+
+        .seccion-tabla td.td-desc {
+            max-width: 130px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            font-weight: 500;
+        }
+
+        .seccion-tabla td.td-fecha {
+            color: var(--gray-400);
+            white-space: nowrap;
+            font-size: 0.75rem;
+        }
+
+        .seccion-tabla td.td-monto {
+            text-align: right;
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            white-space: nowrap;
+        }
+
+        .seccion-tabla td.td-accion { text-align: right; padding-right: 0.5rem; }
+
+        .seccion.ventas  .seccion-tabla td.td-monto { color: #10b981; }
+        .seccion.costos  .seccion-tabla td.td-monto { color: #f59e0b; }
+        .seccion.gastos  .seccion-tabla td.td-monto { color: #ef4444; }
+
+        /* btn ver detalle */
+        .btn-ver {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 3px 8px;
+            border: 1px solid var(--gray-200);
+            border-radius: 6px;
+            background: white;
+            color: var(--gray-500);
+            font-size: 0.7rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+            white-space: nowrap;
+        }
+
+        .btn-ver:hover {
+            border-color: #667eea;
+            color: #667eea;
+            background: #f0f4ff;
+        }
+
+        /* cabecera de categoria dentro de la tabla */
+        .cat-header-row td {
+            padding: 0.3rem 0.75rem;
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            background: var(--gray-50);
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        /* ── Modal de detalle ───────────────────────────────────────────────── */
+        .detalle-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.45);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+        }
+
+        .detalle-overlay.active { display: flex; }
+
+        .detalle-modal {
+            background: white;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 520px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+            overflow: hidden;
+            animation: slideUp 0.2s ease;
+        }
+
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .detalle-header {
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            border-bottom: 1px solid var(--gray-100);
+        }
+
+        .detalle-header .dh-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: var(--gray-800);
+        }
+
+        .detalle-header .dh-sub {
+            font-size: 0.78rem;
+            color: var(--gray-500);
+            margin-top: 2px;
+        }
+
+        .detalle-close {
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: var(--gray-400);
+            padding: 2px;
+            border-radius: 6px;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .detalle-close:hover { background: var(--gray-100); color: var(--gray-700); }
+
+        .detalle-body {
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            max-height: 65vh;
+            overflow-y: auto;
+        }
+
+        .detalle-seccion-titulo {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--gray-400);
+            margin-bottom: 0.5rem;
+        }
+
+        .detalle-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+
+        .detalle-grid.cols-1 { grid-template-columns: 1fr; }
+
+        .detalle-campo {
+            background: var(--gray-50);
+            border-radius: 10px;
+            padding: 0.65rem 0.9rem;
+        }
+
+        .detalle-campo .dc-label {
+            font-size: 0.68rem;
+            color: var(--gray-400);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 3px;
+        }
+
+        .detalle-campo .dc-value {
+            font-size: 0.88rem;
+            color: var(--gray-800);
+            font-weight: 600;
+            word-break: break-word;
+        }
+
+        .detalle-campo .dc-value.verde  { color: #10b981; }
+        .detalle-campo .dc-value.rojo   { color: #ef4444; }
+        .detalle-campo .dc-value.morado { color: #8b5cf6; }
+        .detalle-campo .dc-value.azul   { color: #3b82f6; }
+        .detalle-campo .dc-value.grande {
+            font-size: 1.15rem;
+            font-weight: 800;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .detalle-badge-ncf {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 4px 10px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #1d4ed8;
+            letter-spacing: 0.5px;
+            font-family: monospace;
+        }
+
+        .detalle-notas {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            border-radius: 10px;
+            padding: 0.75rem 0.9rem;
+            font-size: 0.85rem;
+            color: var(--gray-700);
+            line-height: 1.5;
+            max-height: 120px;
+            overflow-y: auto;
+        }
+
+        .detalle-tipo-badge {
+            display: inline-block;
+            padding: 3px 10px;
+            border-radius: 20px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .detalle-tipo-badge.insumo   { background: #d1fae5; color: #065f46; }
+        .detalle-tipo-badge.fijo     { background: #ede9fe; color: #5b21b6; }
+        .detalle-tipo-badge.personal { background: #fee2e2; color: #991b1b; }
+        .detalle-tipo-badge.ingreso  { background: #d1fae5; color: #065f46; }
+        .detalle-tipo-badge.sin      { background: var(--gray-100); color: var(--gray-500); }
+
+        /* formula-bar valores clicables */
+        .formula-clickable {
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 6px;
+            transition: background 0.15s;
+        }
+
+        .formula-clickable:hover { background: var(--gray-100); }
+
+        /* itbis compensacion row en formula */
+        .formula-bar .itbis-row {
+            width: 100%;
+            text-align: center;
+            font-size: 0.75rem;
+            color: var(--gray-400);
+            padding-top: 0.25rem;
+            border-top: 1px dashed var(--gray-200);
+            margin-top: 0.25rem;
+        }
+
         @media (max-width: 900px) {
-            .resumen-tres { grid-template-columns: 1fr; }
+            .resumen-tres { grid-template-columns: repeat(3, 1fr); }
             .secciones { grid-template-columns: 1fr; }
             .resultado-valor { font-size: 2rem; }
+            .detalle-grid { grid-template-columns: 1fr; }
+        }
+        @media (max-width: 600px) {
+            .resumen-tres { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
 </head>
@@ -364,6 +718,11 @@
                     <div class="titulo">Gastos Fijos</div>
                     <div class="monto" id="totalGastosOp" style="color:#8b5cf6;">RD$0.00</div>
                 </div>
+                <div class="resumen-card" style="--accent:#f59e0b;">
+                    <div class="icono" style="background:#fef3c7;">📋</div>
+                    <div class="titulo">Otros Gastos</div>
+                    <div class="monto" id="totalOtros" style="color:#f59e0b;">RD$0.00</div>
+                </div>
                 <div class="resumen-card gastos">
                     <div class="icono">💸</div>
                     <div class="titulo">Gastos Personales</div>
@@ -371,58 +730,85 @@
                 </div>
             </div>
             
-            <!-- Cuatro columnas de detalle -->
-            <div class="secciones" style="grid-template-columns: repeat(4, 1fr);">
-                <!-- VENTAS -->
-                <div class="seccion ventas">
-                    <div class="seccion-header">
-                        <span class="titulo">📈 Ventas Facturadas</span>
-                        <span class="badge" id="badgeVentas">0</span>
-                    </div>
-                    <div class="seccion-body" id="listaVentas"></div>
+            <!-- Tabs de detalle -->
+            <div style="background:white; border-radius:16px; box-shadow:0 2px 12px rgba(0,0,0,0.06); overflow:hidden;">
+
+                <!-- Barra de tabs -->
+                <div style="display:flex; padding:0.25rem; overflow-x:auto;">
+                    <button class="tab-btn tab-activo" data-tab="ventas" onclick="switchTab('ventas', this)">
+                        <span class="tab-icono">📈</span>
+                        <span class="tab-label">Ventas Facturadas</span>
+                        <span class="tab-badge tab-badge-ventas" id="badgeVentas">0</span>
+                    </button>
+                    <button class="tab-btn" data-tab="costos" onclick="switchTab('costos', this)">
+                        <span class="tab-icono">📦</span>
+                        <span class="tab-label">Costo de Ventas</span>
+                        <span class="tab-badge tab-badge-costos" id="badgeCostos">0</span>
+                    </button>
+                    <button class="tab-btn" data-tab="gastosOp" onclick="switchTab('gastosOp', this)">
+                        <span class="tab-icono">🏢</span>
+                        <span class="tab-label">Gastos Fijos</span>
+                        <span class="tab-badge tab-badge-gastosOp" id="badgeGastosOp">0</span>
+                    </button>
+                    <button class="tab-btn" data-tab="otros" onclick="switchTab('otros', this)">
+                        <span class="tab-icono">📋</span>
+                        <span class="tab-label">Otros Gastos</span>
+                        <span class="tab-badge tab-badge-otros" id="badgeOtros">0</span>
+                    </button>
+                    <button class="tab-btn" data-tab="gastos" onclick="switchTab('gastos', this)">
+                        <span class="tab-icono">💸</span>
+                        <span class="tab-label">Gastos Personales</span>
+                        <span class="tab-badge tab-badge-gastos" id="badgeGastos">0</span>
+                    </button>
                 </div>
-                
-                <!-- COSTOS -->
-                <div class="seccion costos">
-                    <div class="seccion-header">
-                        <span class="titulo">📦 Costo de Ventas y otros</span>
-                        <span class="badge" id="badgeCostos">0</span>
-                    </div>
-                    <div class="seccion-body" id="listaCostos"></div>
-                </div>
-                
-                <!-- GASTOS OPERATIVOS -->
-                <div class="seccion" style="border-top: 4px solid #8b5cf6;">
-                    <div class="seccion-header">
-                        <span class="titulo">🏢 Gastos Fijos</span>
-                        <span class="badge" style="background:#ede9fe; color:#5b21b6;" id="badgeGastosOp">0</span>
-                    </div>
-                    <div class="seccion-body" id="listaGastosOp"></div>
-                </div>
-                
-                <!-- GASTOS -->
-                <div class="seccion gastos">
-                    <div class="seccion-header">
-                        <span class="titulo">💸 Gastos Personales</span>
-                        <span class="badge" id="badgeGastos">0</span>
-                    </div>
-                    <div class="seccion-body" id="listaGastos"></div>
+
+                <!-- Panel unico con scroll -->
+                <div style="min-height:260px; max-height:480px; overflow-y:auto;">
+                    <div id="panelVentas"   class="tab-panel tab-panel-activo"><div id="listaVentas"></div></div>
+                    <div id="panelCostos"   class="tab-panel"><div id="listaCostos"></div></div>
+                    <div id="panelGastosOp" class="tab-panel"><div id="listaGastosOp"></div></div>
+                    <div id="panelOtros"    class="tab-panel"><div id="listaOtros"></div></div>
+                    <div id="panelGastos"   class="tab-panel"><div id="listaGastos"></div></div>
                 </div>
             </div>
             
             <!-- Fórmula -->
-            <div class="formula-bar">
-                <span class="val positivo" id="formulaVentas">RD$0</span>
+            <div class="formula-bar" style="flex-wrap:wrap;">
+                <span class="val positivo formula-clickable" id="formulaVentas"
+                      title="Ventas totales">RD$0</span>
                 <span class="op">−</span>
-                <span class="val negativo" id="formulaCostos">RD$0</span>
+                <span class="val negativo formula-clickable" id="formulaCostos"
+                      title="Costos totales">RD$0</span>
                 <span class="op">−</span>
-                <span class="val negativo" id="formulaGastos">RD$0</span>
+                <span class="val negativo formula-clickable" id="formulaGastos"
+                      title="Gastos operativos + personales">RD$0</span>
                 <span class="op">=</span>
                 <span class="val" id="formulaResultado">RD$0</span>
+                <div class="itbis-row" id="formulaItbisRow" style="display:none;"></div>
             </div>
         </main>
     </div>
     
+    <!-- ── Modal de Detalle de Item ──────────────────────────────────────── -->
+    <div class="detalle-overlay" id="detalleOverlay" onclick="cerrarDetalle(event)">
+        <div class="detalle-modal" id="detalleModal">
+            <div class="detalle-header">
+                <div>
+                    <div class="dh-title" id="detalleTitulo">Detalle</div>
+                    <div class="dh-sub" id="detalleSubtitulo"></div>
+                </div>
+                <button class="detalle-close" onclick="cerrarDetalleBtn()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
+                </button>
+            </div>
+            <div class="detalle-body" id="detalleBody">
+                <!-- contenido dinamico -->
+            </div>
+        </div>
+    </div>
+
     <script src="/js/api.js"></script>
     <script src="/js/sidebar.js"></script>
     <script>
@@ -467,130 +853,307 @@
         async function cargarDatos() {
             const desde = document.getElementById('fechaDesde').value;
             const hasta = document.getElementById('fechaHasta').value;
-            
+
             if (!desde || !hasta) return;
-            
+
             try {
                 const data = await apiCall(`/estado-resultado?desde=${desde}&hasta=${hasta}`);
-                renderTodo(data);
+                await renderTodo(data);
             } catch (error) {
                 console.error('Error:', error);
                 showToast(error.message, 'error');
             }
         }
-        
-        function renderTodo(data) {
+
+        async function renderTodo(data) {
             const items = data.items;
-            
-            // Separar items en 4 grupos
-            const ventas = items.filter(i => i.tipo === 'ingreso');
-            const costos = items.filter(i => i.tipo === 'gasto' && (i.subtipo === 'costo' || !i.subtipo) && i.categoria !== 'gastos_operativos');
-            const gastosOp = items.filter(i => i.categoria === 'gastos_operativos');
-            const gastos = items.filter(i => i.tipo === 'gasto' && i.subtipo === 'gasto');
-            
-            const totalVentas = ventas.reduce((s, i) => s + i.monto, 0);
-            const totalCostos = costos.reduce((s, i) => s + i.monto, 0);
+
+            // Separar items en 5 grupos
+            const ventas    = items.filter(i => i.tipo === 'ingreso');
+            const costos    = items.filter(i => i.tipo === 'gasto' && (i.subtipo === 'costo' || !i.subtipo) && i.categoria !== 'gastos_operativos' && i.categoria !== 'otros_gastos');
+            const gastosOp  = items.filter(i => i.categoria === 'gastos_operativos');
+            const otros     = items.filter(i => i.categoria === 'otros_gastos');
+            const gastos    = items.filter(i => i.tipo === 'gasto' && i.subtipo === 'gasto');
+
+            const totalVentas   = ventas.reduce((s, i) => s + i.monto, 0);
+            const totalCostos   = costos.reduce((s, i) => s + i.monto, 0);
             const totalGastosOp = gastosOp.reduce((s, i) => s + i.monto, 0);
-            const totalGastos = gastos.reduce((s, i) => s + i.monto, 0);
-            const resultado = totalVentas - totalCostos - totalGastosOp - totalGastos;
-            
+            const totalOtros    = otros.reduce((s, i) => s + i.monto, 0);
+            const totalGastos   = gastos.reduce((s, i) => s + i.monto, 0);
+
+            // ── Calculo ITBIS para compensacion ─────────────────────────────
+            // ITBIS cobrado en ventas: suma del campo itbis de las ventas POS
+            const itbisCobrado = ventas
+                .filter(i => i.categoria === 'venta_pos')
+                .reduce((s, i) => s + (parseFloat(i.itbis) || 0), 0);
+
+            // ITBIS pagado a suplidores: suma del campo itbis_pagado en egresos
+            const itbisPagado = [...costos, ...gastosOp, ...gastos]
+                .reduce((s, i) => s + (parseFloat(i.itbis_pagado) || 0), 0);
+
+            const itbisNeto = itbisCobrado - itbisPagado;
+
+            // Resultado neto contable
+            const resultado = totalVentas - totalCostos - totalGastosOp - totalOtros - totalGastos;
+
             // Resultado Hero
             const hero = document.getElementById('resultadoHero');
             hero.className = 'resultado-hero ' + (resultado >= 0 ? 'positivo' : 'negativo');
             document.getElementById('resultadoValor').textContent = (resultado >= 0 ? '+' : '') + formatCurrency(resultado);
-            document.getElementById('resultadoStatus').textContent = resultado >= 0 ? 'Ganancia en este período' : 'Pérdida en este período';
-            
+            document.getElementById('resultadoStatus').textContent =
+                resultado >= 0 ? 'Ganancia en este período' : 'Pérdida en este período';
+
             // Cards resumen
-            document.getElementById('totalVentas').textContent = formatCurrency(totalVentas);
-            document.getElementById('totalCostos').textContent = formatCurrency(totalCostos);
+            document.getElementById('totalVentas').textContent   = formatCurrency(totalVentas);
+            document.getElementById('totalCostos').textContent   = formatCurrency(totalCostos);
             document.getElementById('totalGastosOp').textContent = formatCurrency(totalGastosOp);
-            document.getElementById('totalGastos').textContent = formatCurrency(totalGastos);
-            
+            document.getElementById('totalOtros').textContent    = formatCurrency(totalOtros);
+            document.getElementById('totalGastos').textContent   = formatCurrency(totalGastos);
+
             // Badges
-            document.getElementById('badgeVentas').textContent = ventas.length;
-            document.getElementById('badgeCostos').textContent = costos.length;
+            document.getElementById('badgeVentas').textContent   = ventas.length;
+            document.getElementById('badgeCostos').textContent   = costos.length;
             document.getElementById('badgeGastosOp').textContent = gastosOp.length;
-            document.getElementById('badgeGastos').textContent = gastos.length;
-            
+            document.getElementById('badgeOtros').textContent    = otros.length;
+            document.getElementById('badgeGastos').textContent   = gastos.length;
+
+            // ── Cargar detalles de ventas POS en paralelo ────────────────
+            // Usa venta_id (ID real en tabla ventas) para evitar colisiones
+            // con los IDs de estado_resultado_items
+            const ventasPOS = ventas.filter(i => i.categoria === 'venta_pos');
+            const detallesMap = {};
+            await Promise.all(
+                ventasPOS.map(async (v) => {
+                    const vid = v.venta_id || v.id;
+                    try {
+                        const d = await apiCall(`/sales/${vid}`);
+                        detallesMap[vid] = d;
+                    } catch (e) {
+                        detallesMap[vid] = null;
+                    }
+                })
+            );
+
             // Listas
-            renderLista('listaVentas', ventas);
-            renderLista('listaCostos', costos);
+            renderLista('listaVentas',   ventas,   detallesMap);
+            renderLista('listaCostos',   costos);
             renderLista('listaGastosOp', gastosOp);
-            renderLista('listaGastos', gastos);
-            
-            // Fórmula
-            document.getElementById('formulaVentas').textContent = formatCurrency(totalVentas);
-            document.getElementById('formulaCostos').textContent = formatCurrency(totalCostos);
-            document.getElementById('formulaGastos').textContent = formatCurrency(totalGastosOp + totalGastos);
+            renderLista('listaOtros',    otros);
+            renderLista('listaGastos',   gastos);
+
+            // ── Formula bar con desglose fiscal ─────────────────────────────
+            document.getElementById('formulaVentas').textContent    = formatCurrency(totalVentas);
+            document.getElementById('formulaCostos').textContent    = formatCurrency(totalCostos);
+            document.getElementById('formulaGastos').textContent    = formatCurrency(totalGastosOp + totalGastos);
             const formulaRes = document.getElementById('formulaResultado');
             formulaRes.textContent = (resultado >= 0 ? '+' : '') + formatCurrency(resultado);
             formulaRes.className = 'val ' + (resultado >= 0 ? 'positivo' : 'negativo');
+
+            // Fila de compensacion ITBIS (visible solo si hay movimiento)
+            const itbisRow = document.getElementById('formulaItbisRow');
+            if (itbisRow) {
+                if (itbisCobrado > 0 || itbisPagado > 0) {
+                    const signo = itbisNeto >= 0 ? '+' : '';
+                    itbisRow.innerHTML =
+                        `ITBIS cobrado <strong>${formatCurrency(itbisCobrado)}</strong>`
+                        + ` &minus; ITBIS pagado a suplidores <strong>${formatCurrency(itbisPagado)}</strong>`
+                        + ` = ITBIS neto a la DGII: <strong style="color:${itbisNeto >= 0 ? '#ef4444' : '#10b981'}">`
+                        + `${signo}${formatCurrency(itbisNeto)}</strong>`;
+                    itbisRow.style.display = 'block';
+                } else {
+                    itbisRow.style.display = 'none';
+                }
+            }
         }
         
-        function renderLista(containerId, items, tipo) {
+        // Registro global de items para el modal de detalle
+        const _itemsCache = {};
+
+        function renderLista(containerId, items, detallesMap) {
             const container = document.getElementById(containerId);
-            
+
             if (items.length === 0) {
                 container.innerHTML = '<div class="seccion-empty">Sin registros en este período</div>';
                 return;
             }
-            
-            // Agrupar por categoría
+
+            const catLabels = {
+                ventas:           'Ventas Manuales',
+                venta_pos:        'Ventas POS',
+                costo_ventas:     'Costo de Ventas',
+                gastos_operativos:'Gastos Fijos',
+                otros_ingresos:   'Otros Ingresos',
+                otros_gastos:     'Otros Gastos',
+                gastos_personales:'Gastos Personales'
+            };
+
+            const catColors = {
+                ventas:           '#10b981',
+                venta_pos:        '#10b981',
+                costo_ventas:     '#3b82f6',
+                gastos_operativos:'#8b5cf6',
+                otros_ingresos:   '#14b8a6',
+                otros_gastos:     '#f59e0b',
+                gastos_personales:'#ef4444'
+            };
+
+            // Agrupar por categoria
             const grupos = {};
             items.forEach(item => {
                 const cat = item.categoria || 'otros';
                 if (!grupos[cat]) grupos[cat] = [];
                 grupos[cat].push(item);
+                _itemsCache[item.id] = item;
             });
-            
-            const catLabels = {
-                ventas: 'Ventas Manuales',
-                venta_pos: 'Ventas Facturadas (POS)',
-                costo_ventas: 'Costo de Ventas',
-                gastos_operativos: 'Gastos Fijos',
-                otros_ingresos: 'Otros Ingresos',
-                otros_gastos: 'Otros Costos/Gastos'
-            };
-            
-            const catColors = {
-                ventas: '#10b981',
-                venta_pos: '#10b981',
-                costo_ventas: '#3b82f6',
-                gastos_operativos: '#8b5cf6',
-                otros_ingresos: '#14b8a6',
-                otros_gastos: '#f59e0b'
-            };
-            
+
+            // Ventas POS: tabla expandida con servicios por fila
+            const esListaVentas = !!detallesMap;
+
             let html = '';
-            Object.keys(grupos).forEach(cat => {
-                const itemsGrupo = grupos[cat];
-                const totalGrupo = itemsGrupo.reduce((s, i) => s + i.monto, 0);
-                const color = catColors[cat] || '#6b7280';
-                
-                html += `<div style="border-left:3px solid ${color}; margin:0.4rem 0.75rem; border-radius:0 6px 6px 0; overflow:hidden;">
-                    <div style="padding:0.4rem 0.75rem; background:${color}15; font-size:0.7rem; font-weight:700; color:${color}; text-transform:uppercase; letter-spacing:0.5px; display:flex; justify-content:space-between;">
-                        <span>${catLabels[cat] || cat}</span>
-                        <span>${formatCurrency(totalGrupo)}</span>
-                    </div>`;
-                
-                itemsGrupo.forEach(item => {
-                    html += `<div class="item-linea">
-                        <span class="desc">${escapeHtml(item.descripcion)}</span>
-                        <span class="fecha">${formatDate(item.fecha)}</span>
-                        <span class="monto">${formatCurrency(item.monto)}</span>
-                    </div>`;
+
+            if (esListaVentas) {
+                // ── Tabla horizontal de ventas ─────────────────────────────
+                html = `<table class="seccion-tabla"><thead><tr>
+                    <th style="width:7%;">#</th>
+                    <th style="width:18%;">Cliente</th>
+                    <th style="width:18%;">Servicios</th>
+                    <th style="width:10%;">Pago</th>
+                    <th style="width:8%;">Fecha</th>
+                    <th style="text-align:right; width:10%;">Subtotal</th>
+                    <th style="text-align:right; width:10%;">ITBIS</th>
+                    <th style="text-align:right; width:10%;">Total</th>
+                    <th style="width:5%;"></th>
+                </tr></thead><tbody>`;
+
+                Object.keys(grupos).forEach(cat => {
+                    const itemsGrupo = grupos[cat];
+                    const totalGrupo = itemsGrupo.reduce((s, i) => s + i.monto, 0);
+                    const color = catColors[cat] || '#6b7280';
+                    const label = catLabels[cat] || cat;
+
+                    html += `<tr class="cat-header-row">
+                        <td colspan="9" style="color:${color}; border-left:3px solid ${color};">
+                            ${label} &mdash; ${formatCurrency(totalGrupo)}
+                        </td>
+                    </tr>`;
+
+                    itemsGrupo.forEach(item => {
+                        const vid      = item.venta_id || item.id;
+                        const vd       = detallesMap && detallesMap[vid];
+                        const detalles = vd && vd.detalles ? vd.detalles : [];
+                        const cliente  = vd ? (vd.cliente || 'Consumidor final') : 'Consumidor final';
+                        const metodo   = item.metodo_pago || (vd ? vd.metodo_pago : '');
+                        const banco    = vd ? (vd.banco || '') : '';
+
+                        const metodoBadge = { efectivo:'💵', transferencia:'🏦', tarjeta:'💳' }[metodo] || '🧾';
+
+                        // Servicios: "Corte ×1, Tinte ×2" — truncado con title completo
+                        const resumenServicios = detalles.length > 0
+                            ? detalles.map(d => `${escapeHtml(d.servicio)} ×${d.cantidad}`).join(', ')
+                            : '<em style="color:var(--gray-400);font-size:0.72rem;">Venta sin detalle (histórica)</em>';
+
+                        const subtotal  = parseFloat(vd ? vd.subtotal  : item.subtotal)  || 0;
+                        const itbisAmt  = parseFloat(vd ? vd.itbis     : item.itbis)     || 0;
+                        const descuento = parseFloat(vd ? vd.descuento : item.descuento) || 0;
+                        const total     = parseFloat(item.monto) || 0;
+                        const ncf       = vd ? (vd.secuencia_ecf || '') : (item.secuencia_ecf || '');
+
+                        const hayExento = detalles.length > 0 && detalles.every(d => (parseFloat(d.itbis_monto)||0) === 0);
+                        const itbisCell = itbisAmt > 0
+                            ? `<span style="color:#8b5cf6;font-weight:700;">${formatCurrency(itbisAmt)}</span>`
+                            : (hayExento
+                                ? `<span style="color:#10b981;font-size:0.72rem;">exento</span>`
+                                : `<span style="color:var(--gray-300);">—</span>`);
+
+                        html += `<tr>
+                            <td style="font-weight:700; color:var(--gray-700); white-space:nowrap;">
+                                #${vid}
+                                ${ncf ? `<br><span style="font-family:monospace;font-size:0.62rem;color:#1d4ed8;">${escapeHtml(ncf)}</span>` : ''}
+                            </td>
+                            <td style="color:var(--gray-700);">
+                                ${escapeHtml(cliente)}
+                            </td>
+                            <td style="color:var(--gray-600); font-size:0.78rem; max-width:0;" title="${detalles.map(d=>d.servicio+' ×'+d.cantidad).join(', ')}">
+                                <div style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                                    ${resumenServicios}
+                                </div>
+                                ${descuento > 0 ? `<div style="font-size:0.68rem;color:#f59e0b;">Desc. −${formatCurrency(descuento)}</div>` : ''}
+                            </td>
+                            <td style="white-space:nowrap;">
+                                <span style="font-size:0.85rem;">${metodoBadge}</span>
+                                ${banco ? `<span style="font-size:0.72rem;color:var(--gray-500);"> ${escapeHtml(banco)}</span>` : ''}
+                            </td>
+                            <td class="td-fecha">${formatDate(item.fecha)}</td>
+                            <td style="text-align:right; color:var(--gray-600); font-variant-numeric:tabular-nums;">
+                                ${formatCurrency(subtotal)}
+                            </td>
+                            <td style="text-align:right; font-variant-numeric:tabular-nums;">
+                                ${itbisCell}
+                            </td>
+                            <td class="td-monto" style="color:#10b981;">
+                                ${formatCurrency(total)}
+                            </td>
+                            <td class="td-accion">
+                                <button class="btn-ver" onclick="abrirDetalle(${vid}, 'pos')" title="Ver factura completa">
+                                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/>
+                                    </svg>
+                                    Ver
+                                </button>
+                            </td>
+                        </tr>`;
+                    });
                 });
-                
-                html += '</div>';
-            });
-            
+
+                html += '</tbody></table>';
+
+            } else {
+                // ── Tabla normal para egresos ──────────────────────────────
+                html = `<table class="seccion-tabla"><thead><tr>
+                    <th>Descripción</th>
+                    <th>Fecha</th>
+                    <th>Monto</th>
+                    <th></th>
+                </tr></thead><tbody>`;
+
+                Object.keys(grupos).forEach(cat => {
+                    const itemsGrupo = grupos[cat];
+                    const totalGrupo = itemsGrupo.reduce((s, i) => s + i.monto, 0);
+                    const color = catColors[cat] || '#6b7280';
+                    const label = catLabels[cat] || cat;
+
+                    html += `<tr class="cat-header-row">
+                        <td colspan="4" style="color:${color}; border-left:3px solid ${color};">
+                            ${label} &mdash; ${formatCurrency(totalGrupo)}
+                        </td>
+                    </tr>`;
+
+                    itemsGrupo.forEach(item => {
+                        const iconoOjo = `<svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>`;
+                        html += `<tr>
+                            <td class="td-desc" title="${escapeHtml(item.descripcion)}">${escapeHtml(item.descripcion)}</td>
+                            <td class="td-fecha">${formatDate(item.fecha)}</td>
+                            <td class="td-monto">${formatCurrency(item.monto)}</td>
+                            <td class="td-accion">
+                                <button class="btn-ver" onclick="abrirDetalle(${item.id}, 'egreso')" title="Ver detalle">
+                                    ${iconoOjo}
+                                </button>
+                            </td>
+                        </tr>`;
+                    });
+                });
+
+                html += '</tbody></table>';
+            }
+
             container.innerHTML = html;
         }
         
         function formatCurrency(amount) {
             return 'RD$' + Number(amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
         }
-        
+
         function formatDate(dateStr) {
             if (!dateStr) return '';
             try {
@@ -602,11 +1165,294 @@
                 return '';
             }
         }
-        
+
+        function formatDateLong(dateStr) {
+            if (!dateStr) return '—';
+            try {
+                const parts = dateStr.replace('T', ' ').split(/[- :]/);
+                const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                if (isNaN(date.getTime())) return dateStr;
+                return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'long', year: 'numeric' });
+            } catch (e) {
+                return dateStr;
+            }
+        }
+
         function escapeHtml(text) {
             const div = document.createElement('div');
             div.textContent = text || '';
             return div.innerHTML;
+        }
+
+        // ── Modal de Detalle ────────────────────────────────────────────────
+
+        function cerrarDetalleBtn() {
+            document.getElementById('detalleOverlay').classList.remove('active');
+        }
+
+        function cerrarDetalle(e) {
+            // Cerrar solo al hacer clic en el overlay (no en el modal)
+            if (e.target === document.getElementById('detalleOverlay')) {
+                document.getElementById('detalleOverlay').classList.remove('active');
+            }
+        }
+
+        async function abrirDetalle(itemId, tipo) {
+            const item = _itemsCache[itemId];
+            if (!item) return;
+
+            const overlay = document.getElementById('detalleOverlay');
+            const titulo  = document.getElementById('detalleTitulo');
+            const sub     = document.getElementById('detalleSubtitulo');
+            const body    = document.getElementById('detalleBody');
+
+            // Abrir el modal de inmediato con un spinner mientras carga
+            overlay.classList.add('active');
+
+            if (tipo === 'pos') {
+                // ── Venta POS — cargar detalles desde el backend ───────────
+                titulo.textContent = `Venta #${item.id}`;
+                sub.textContent    = `Venta registrada en el POS · ${formatDateLong(item.fecha)}`;
+
+                // Mostrar skeleton mientras carga
+                body.innerHTML = `
+                    <div style="padding:2rem; text-align:center; color:var(--gray-400);">
+                        <div style="width:28px;height:28px;border:3px solid #667eea;border-top-color:transparent;
+                             border-radius:50%;animation:spin 0.7s linear infinite;margin:0 auto 0.75rem;"></div>
+                        Cargando servicios…
+                    </div>`;
+
+                let ventaDetalle;
+                try {
+                    ventaDetalle = await apiCall(`/sales/${item.id}`);
+                } catch (e) {
+                    body.innerHTML = `<div style="padding:1.5rem;color:#ef4444;">Error al cargar detalle: ${e.message}</div>`;
+                    return;
+                }
+
+                const detalles = ventaDetalle.detalles || [];
+
+                // Tabla de servicios
+                let tablaServicios = '';
+                if (detalles.length > 0) {
+                    tablaServicios = `
+                        <div>
+                            <div class="detalle-seccion-titulo">Servicios incluidos</div>
+                            <table style="width:100%;border-collapse:collapse;font-size:0.82rem;">
+                                <thead>
+                                    <tr style="border-bottom:2px solid var(--gray-100);">
+                                        <th style="padding:0.4rem 0.5rem;text-align:left;color:var(--gray-500);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Servicio</th>
+                                        <th style="padding:0.4rem 0.5rem;text-align:center;color:var(--gray-500);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Cant.</th>
+                                        <th style="padding:0.4rem 0.5rem;text-align:right;color:var(--gray-500);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Precio</th>
+                                        <th style="padding:0.4rem 0.5rem;text-align:right;color:var(--gray-500);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">Subtotal</th>
+                                        <th style="padding:0.4rem 0.5rem;text-align:right;color:var(--gray-500);font-size:0.68rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">ITBIS</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${detalles.map(d => `
+                                        <tr style="border-bottom:1px solid var(--gray-100);">
+                                            <td style="padding:0.55rem 0.5rem;font-weight:600;color:var(--gray-800);">${escapeHtml(d.servicio)}</td>
+                                            <td style="padding:0.55rem 0.5rem;text-align:center;color:var(--gray-500);">${d.cantidad}</td>
+                                            <td style="padding:0.55rem 0.5rem;text-align:right;color:var(--gray-600);">${formatCurrency(d.precio)}</td>
+                                            <td style="padding:0.55rem 0.5rem;text-align:right;font-weight:600;color:var(--gray-800);">${formatCurrency(d.subtotal)}</td>
+                                            <td style="padding:0.55rem 0.5rem;text-align:right;color:#8b5cf6;">${formatCurrency(d.itbis_monto || 0)}</td>
+                                        </tr>`).join('')}
+                                </tbody>
+                            </table>
+                        </div>`;
+                }
+
+                body.innerHTML = `
+                    <div>
+                        <div class="detalle-seccion-titulo">Resumen de la venta</div>
+                        <div class="detalle-grid">
+                            <div class="detalle-campo">
+                                <div class="dc-label">Método de pago</div>
+                                <div class="dc-value azul">${capitalize(ventaDetalle.metodo_pago || item.metodo_pago || '—')}</div>
+                            </div>
+                            <div class="detalle-campo">
+                                <div class="dc-label">Cliente</div>
+                                <div class="dc-value">${escapeHtml(ventaDetalle.cliente || 'Consumidor final')}</div>
+                            </div>
+                            <div class="detalle-campo">
+                                <div class="dc-label">Subtotal</div>
+                                <div class="dc-value">${formatCurrency(ventaDetalle.subtotal || 0)}</div>
+                            </div>
+                            <div class="detalle-campo">
+                                <div class="dc-label">ITBIS total</div>
+                                <div class="dc-value morado">${formatCurrency(ventaDetalle.itbis || 0)}</div>
+                            </div>
+                            ${ventaDetalle.descuento > 0 ? `
+                            <div class="detalle-campo">
+                                <div class="dc-label">Descuento</div>
+                                <div class="dc-value rojo">−${formatCurrency(ventaDetalle.descuento)}</div>
+                            </div>` : ''}
+                            <div class="detalle-campo">
+                                <div class="dc-label">Total</div>
+                                <div class="dc-value verde grande">${formatCurrency(ventaDetalle.total || item.monto)}</div>
+                            </div>
+                        </div>
+                    </div>
+                    ${tablaServicios}
+                    ${ventaDetalle.secuencia_ecf ? `
+                    <div>
+                        <div class="detalle-seccion-titulo">Fiscal</div>
+                        <div class="detalle-grid cols-1">
+                            <div class="detalle-campo">
+                                <div class="dc-label">NCF emitido</div>
+                                <div class="dc-value">
+                                    <span class="detalle-badge-ncf">
+                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                        </svg>
+                                        ${escapeHtml(ventaDetalle.secuencia_ecf)}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>` : ''}`;
+
+                return; // ya abrimos el overlay arriba
+            } else {
+                // ── Egreso / Ingreso manual ────────────────────────────────
+                const catLabels = {
+                    costo_ventas:     'Costo de Ventas',
+                    gastos_operativos:'Gastos Fijos',
+                    otros_gastos:     'Otros Gastos',
+                    gastos_personales:'Gastos Personales',
+                    ventas:           'Ingreso Manual',
+                    otros_ingresos:   'Otros Ingresos'
+                };
+
+                const metodoPagoIconos = {
+                    efectivo:      '💵 Efectivo',
+                    transferencia: '🏦 Transferencia',
+                    tarjeta:       '💳 Tarjeta'
+                };
+
+                const tipoGastoBadge = item.tipo_gasto
+                    ? `<span class="detalle-tipo-badge ${item.tipo_gasto}">${capitalize(item.tipo_gasto)}</span>`
+                    : `<span class="detalle-tipo-badge sin">Sin clasificar</span>`;
+
+                // Titulo completo en el header — sin truncar
+                titulo.textContent = item.descripcion;
+                sub.textContent    = (catLabels[item.categoria] || item.categoria)
+                                   + ' · ' + formatDateLong(item.fecha);
+
+                // ── Seccion financiera ─────────────────────────────────────
+                const subtotal  = parseFloat(item.subtotal)  || 0;
+                const descuento = parseFloat(item.descuento) || 0;
+                const itbis     = parseFloat(item.itbis)     || 0;
+                const total     = parseFloat(item.monto)     || 0;
+
+                // Construir filas del desglose financiero como tabla simple
+                const filas = [
+                    { label: 'Subtotal',  valor: formatCurrency(subtotal),                  color: 'var(--gray-800)' },
+                    { label: 'Descuento', valor: descuento > 0 ? '− ' + formatCurrency(descuento) : formatCurrency(0), color: descuento > 0 ? '#f59e0b' : 'var(--gray-400)' },
+                    { label: 'ITBIS',     valor: formatCurrency(itbis),                     color: itbis > 0 ? '#8b5cf6' : 'var(--gray-400)' },
+                    { label: 'Total',     valor: formatCurrency(total),                     color: '#ef4444', bold: true },
+                ];
+
+                const tablaFinanciero = `
+                    <table style="width:100%;border-collapse:collapse;font-size:0.85rem;">
+                        ${filas.map((f, i) => `
+                        <tr style="${i < filas.length - 1 ? 'border-bottom:1px solid var(--gray-100);' : 'border-top:2px solid var(--gray-200);'}">
+                            <td style="padding:0.5rem 0.25rem;color:var(--gray-500);font-size:0.78rem;text-transform:uppercase;letter-spacing:0.5px;font-weight:600;">${f.label}</td>
+                            <td style="padding:0.5rem 0.25rem;text-align:right;color:${f.color};font-weight:${f.bold ? '800' : '600'};font-variant-numeric:tabular-nums;font-size:${f.bold ? '1rem' : '0.88rem'};">${f.valor}</td>
+                        </tr>`).join('')}
+                    </table>`;
+
+                // ── Seccion fiscal (NCF + ITBIS pagado) ───────────────────
+                const tieneNCF   = item.ncf_suplidor && item.ncf_suplidor.trim() !== '';
+                const tieneItbis = parseFloat(item.itbis_pagado) > 0;
+
+                const secFiscal = (tieneNCF || tieneItbis) ? `
+                    <div>
+                        <div class="detalle-seccion-titulo">Fiscal (DGII)</div>
+                        <div class="detalle-grid${!tieneItbis || !tieneNCF ? ' cols-1' : ''}">
+                            ${tieneNCF ? `
+                            <div class="detalle-campo">
+                                <div class="dc-label">NCF Suplidor</div>
+                                <div class="dc-value">
+                                    <span class="detalle-badge-ncf">
+                                        <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                                                d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                                        </svg>
+                                        ${escapeHtml(item.ncf_suplidor)}
+                                    </span>
+                                </div>
+                            </div>` : ''}
+                            ${tieneItbis ? `
+                            <div class="detalle-campo">
+                                <div class="dc-label">ITBIS Pagado al Suplidor</div>
+                                <div class="dc-value morado grande">${formatCurrency(item.itbis_pagado)}</div>
+                            </div>` : ''}
+                        </div>
+                    </div>` : '';
+
+                // ── Notas (solo si tiene contenido) ───────────────────────
+                const secNotas = item.notas && item.notas.trim() !== '' ? `
+                    <div>
+                        <div class="detalle-seccion-titulo">Notas</div>
+                        <div class="detalle-notas">${escapeHtml(item.notas)}</div>
+                    </div>` : '';
+
+                body.innerHTML = `
+                    <div>
+                        <div class="detalle-seccion-titulo">Identificación</div>
+                        <div class="detalle-grid">
+                            <div class="detalle-campo">
+                                <div class="dc-label">Categoría</div>
+                                <div class="dc-value">${catLabels[item.categoria] || item.categoria}</div>
+                            </div>
+                            <div class="detalle-campo">
+                                <div class="dc-label">Método de Pago</div>
+                                <div class="dc-value azul">${metodoPagoIconos[item.metodo_pago] || capitalize(item.metodo_pago || 'Efectivo')}</div>
+                            </div>
+                            <div class="detalle-campo">
+                                <div class="dc-label">Fecha</div>
+                                <div class="dc-value">${formatDateLong(item.fecha)}</div>
+                            </div>
+                            <div class="detalle-campo">
+                                <div class="dc-label">Tipo de Gasto</div>
+                                <div class="dc-value">${tipoGastoBadge}</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="detalle-seccion-titulo">Desglose Financiero</div>
+                        ${tablaFinanciero}
+                    </div>
+                    ${secFiscal}
+                    <div>
+                        <div class="detalle-seccion-titulo">Descripción</div>
+                        <div class="detalle-notas" style="background:#f8f9ff; border-color:#c7d2fe;">
+                            ${escapeHtml(item.descripcion)}
+                        </div>
+                    </div>
+                    ${secNotas}`;
+            }
+
+            overlay.classList.add('active');
+        }
+
+        function capitalize(str) {
+            if (!str) return '—';
+            return str.charAt(0).toUpperCase() + str.slice(1);
+        }
+
+        // ── Tabs ────────────────────────────────────────────────────────────
+        function switchTab(nombre, btnEl) {
+            // Desactivar todos los tabs y paneles
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('tab-activo'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('tab-panel-activo'));
+
+            // Activar el tab y panel seleccionados
+            btnEl.classList.add('tab-activo');
+            const panel = document.getElementById('panel' + nombre.charAt(0).toUpperCase() + nombre.slice(1));
+            if (panel) panel.classList.add('tab-panel-activo');
         }
     </script>
     <script src="/js/license-banner.js"></script>

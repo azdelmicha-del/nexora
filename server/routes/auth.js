@@ -4,39 +4,7 @@ const { getDb } = require('../database');
 
 const router = express.Router();
 
-router.get('/debug/trial/:negocioId', (req, res) => {
-    const negocioId = parseInt(req.params.negocioId);
-    const db = getDb();
-    
-    const negocio = db.prepare(`
-        SELECT id, nombre, licencia_fecha_inicio, licencia_fecha_expiracion, licencia_plan
-        FROM negocios WHERE id = ?
-    `).get(negocioId);
-    
-    if (!negocio) {
-        return res.status(404).json({ error: 'Negocio no encontrado' });
-    }
-    
-    const TRIAL_DAYS = 7;
-    let daysRemaining = 7;
-    let daysUsed = 0;
-    
-    if (negocio.licencia_fecha_inicio) {
-        const startDate = new Date(negocio.licencia_fecha_inicio);
-        const now = new Date();
-        daysUsed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
-        daysRemaining = TRIAL_DAYS - daysUsed;
-    }
-    
-    res.json({
-        negocio: negocio,
-        hoy: new Date().toISOString(),
-        TRIAL_DAYS,
-        daysUsed,
-        daysRemaining,
-        mostrar: `Te quedan ${Math.max(0, daysRemaining)} días de prueba`
-    });
-});
+// DEBUG ROUTE ELIMINADA: exponia datos internos sin autenticacion (security fix)
 
 function toTitleCase(str) {
     return String(str).toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());

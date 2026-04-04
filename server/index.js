@@ -2,9 +2,12 @@ const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const path = require('path');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 const { initDatabase } = require('./database');
 const { sanitizeInput } = require('./middleware/sanitize');
 const { initLicense, isLicenseValid } = require('./license');
+const { iniciarRecordatoriosCitas } = require('./cron/recordatorios');
 const { requireAuth, requireAdmin, requireActiveLicense } = require('./middleware/auth');
 const config = require('./config');
 
@@ -25,6 +28,14 @@ const superAdminRoutes = require('./routes/superadmin');
 const debugRoutes = require('./routes/debug');
 const estadoResultadoRoutes = require('./routes/estado-resultado');
 const detailsRoutes = require('./routes/details');
+const productsRoutes = require('./routes/products');
+const commissionsRoutes = require('./routes/commissions');
+const dashboardRoutes = require('./routes/dashboard');
+const auditRoutes = require('./routes/audit');
+const backupRoutes = require('./routes/backup');
+const notesRoutes = require('./routes/notes');
+const loyaltyRoutes = require('./routes/loyalty');
+const whatsappRoutes = require('./routes/whatsapp');
 
 const crypto = require('crypto');
 
@@ -57,6 +68,33 @@ initFullDatabase();
 // Crear super administrador si no existe
 const { createSuperAdmin } = require('./create-superadmin');
 createSuperAdmin();
+
+// ── Seguridad: cabeceras HTTP y rate-limiting ─────────────────────────────
+app.use(helmet({
+    contentSecurityPolicy: false, // deshabilitado para permitir inline scripts del frontend
+    crossOriginEmbedderPolicy: false
+}));
+
+// Rate-limit global: 300 req/min por IP (protege toda la API)
+const globalLimiter = rateLimit({
+    windowMs: 60 * 1000,
+    max: 300,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Demasiadas solicitudes. Intenta en un momento.' }
+});
+app.use('/api', globalLimiter);
+
+// Rate-limit estricto para autenticacion: 10 req/15min por IP
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 10,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: { error: 'Demasiados intentos de acceso. Espera 15 minutos.' }
+});
+app.use('/api/auth/login', authLimiter);
+app.use('/api/superadmin/login', authLimiter);
 
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -98,14 +136,27 @@ app.use('/api/reports', requireActiveLicense, reportsRoutes);
 app.use('/api/notifications', requireActiveLicense, notificationsRoutes);
 app.use('/api/license', licenseRoutes);
 app.use('/api/public', publicRoutes);
-app.use('/api', requireActiveLicense, testDbRoutes);
-app.use('/api', detailsRoutes);
 app.use('/api/superadmin', superAdminRoutes);
 app.use('/api/estado-resultado', requireActiveLicense, estadoResultadoRoutes);
-app.use('/api', debugRoutes);
+app.use('/api/products', requireActiveLicense, productsRoutes);
+app.use('/api/commissions', requireActiveLicense, commissionsRoutes);
+app.use('/api/dashboard', requireActiveLicense, dashboardRoutes);
+app.use('/api/audit', requireActiveLicense, auditRoutes);
+app.use('/api/backup', requireActiveLicense, backupRoutes);
+app.use('/api/notes', requireActiveLicense, notesRoutes);
+app.use('/api/loyalty', requireActiveLicense, loyaltyRoutes);
+app.use('/api/whatsapp', whatsappRoutes);
 
-app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'index.html'));
+// Rutas de debug y test: solo disponibles en desarrollo
+if (process.env.NODE_ENV !== 'production') {
+    app.use('/api', requireActiveLicense, testDbRoutes);
+    app.use('/api', detailsRoutes);
+    app.use('/api', debugRoutes);
+    console.log('⚠️  Rutas de debug activas (solo para desarrollo)');
+}
+
+app.get('/', requireAuth, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html'));
 });
 
 app.get('/superadmin', (req, res) => {
@@ -152,6 +203,30 @@ app.get('/egresos', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'egresos.html'));
 });
 
+app.get('/inventario', requireAuth, requireActiveLicense, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'inventario.html'));
+});
+
+app.get('/comisiones', requireAuth, requireActiveLicense, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'comisiones.html'));
+});
+
+app.get('/notas', requireAuth, requireActiveLicense, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'notas.html'));
+});
+
+app.get('/auditoria', requireAuth, requireActiveLicense, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'auditoria.html'));
+});
+
+app.get('/backup', requireAuth, requireActiveLicense, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'backup.html'));
+});
+
+app.get('/empleados-reporte', requireAuth, requireActiveLicense, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'empleados-reporte.html'));
+});
+
 app.get('/clientes', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'clientes.html'));
 });
@@ -183,4 +258,5 @@ app.get('/booking/:slug', (req, res) => {
 
 app.listen(PORT, () => {
     console.log(`Nexora ejecutándose en http://localhost:${PORT}`);
+    iniciarRecordatoriosCitas();
 });

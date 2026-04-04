@@ -55,3 +55,6 @@ PROMPT_MAESTRO.md
 
 # Backup de superadmin
 public/superadmin.backup.html
+
+# Render
+render.yaml

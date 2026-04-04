@@ -12,8 +12,10 @@ router.get('/', requireAuth, (req, res) => {
         const { estado, categoria } = req.query;
 
         let query = `
-            SELECT s.id, s.nombre, s.precio, s.duracion, s.categoria_id, 
-                   s.descripcion, s.estado, s.fecha_creacion, s.imagen, c.nombre as categoria
+            SELECT s.id, s.nombre, s.precio, s.duracion, s.categoria_id,
+                   s.descripcion, s.estado, s.fecha_creacion, s.imagen,
+                   s.itbis_tasa, s.costo_insumo_estimado, s.comision_porcentaje,
+                   c.nombre as categoria
             FROM servicios s
             LEFT JOIN categorias c ON s.categoria_id = c.id
             WHERE s.negocio_id = ?
@@ -48,8 +50,9 @@ router.get('/:id', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const servicio = db.prepare(`
-            SELECT s.id, s.negocio_id, s.nombre, s.precio, s.duracion, 
+            SELECT s.id, s.negocio_id, s.nombre, s.precio, s.duracion,
                    s.categoria_id, s.descripcion, s.estado, s.fecha_creacion, s.imagen,
+                   s.itbis_tasa, s.costo_insumo_estimado, s.comision_porcentaje,
                    c.nombre as categoria
             FROM servicios s
             LEFT JOIN categorias c ON s.categoria_id = c.id
@@ -69,7 +72,8 @@ router.get('/:id', requireAuth, (req, res) => {
 
 router.post('/', requireAdmin, (req, res) => {
     try {
-        let { nombre, precio, duracion, categoria_id, descripcion, estado, imagen } = req.body;
+        let { nombre, precio, duracion, categoria_id, descripcion, estado, imagen,
+              itbis_tasa, costo_insumo_estimado, comision_porcentaje } = req.body;
 
         if (!nombre || nombre.trim() === '') {
             return res.status(400).json({ error: 'El nombre es requerido' });
@@ -98,11 +102,27 @@ router.post('/', requireAdmin, (req, res) => {
             return res.status(400).json({ error: 'La imagen es demasiado grande después de procesar. Intenta con una foto más pequeña.' });
         }
 
+        // Validar itbis_tasa: solo valores permitidos por la DGII (0, 8, 16, 18)
+        const TASAS_VALIDAS = [0, 8, 16, 18];
+        const tasaFinal = (itbis_tasa !== undefined && itbis_tasa !== null)
+            ? parseInt(itbis_tasa, 10)
+            : 18;
+        if (!TASAS_VALIDAS.includes(tasaFinal)) {
+            return res.status(400).json({ error: 'itbis_tasa debe ser 0, 8, 16 o 18' });
+        }
+
+        const costoFinal = Math.max(0, parseFloat(costo_insumo_estimado) || 0);
+        const comisionFinal = Math.max(0, Math.min(100, parseFloat(comision_porcentaje) || 0));
+
         const db = getDb();
 
         const result = db.prepare(`
-            INSERT INTO servicios (negocio_id, nombre, precio, duracion, categoria_id, descripcion, estado, imagen)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO servicios (
+                negocio_id, nombre, precio, duracion, categoria_id,
+                descripcion, estado, imagen,
+                itbis_tasa, costo_insumo_estimado, comision_porcentaje
+            )
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
             req.session.negocioId,
             nombre,
@@ -111,12 +131,17 @@ router.post('/', requireAdmin, (req, res) => {
             categoria_id || null,
             descripcion,
             estado || 'activo',
-            imagen || null
+            imagen || null,
+            tasaFinal,
+            costoFinal,
+            comisionFinal
         );
 
         const servicio = db.prepare(`
             SELECT s.id, s.nombre, s.precio, s.duracion, s.categoria_id,
-                   s.descripcion, s.estado, s.fecha_creacion, s.imagen, c.nombre as categoria
+                   s.descripcion, s.estado, s.fecha_creacion, s.imagen,
+                   s.itbis_tasa, s.costo_insumo_estimado, s.comision_porcentaje, s.comision_porcentaje,
+                   c.nombre as categoria
             FROM servicios s
             LEFT JOIN categorias c ON s.categoria_id = c.id
             WHERE s.id = ?
@@ -131,7 +156,8 @@ router.post('/', requireAdmin, (req, res) => {
 
 router.put('/:id', requireAdmin, (req, res) => {
     try {
-        let { nombre, precio, duracion, categoria_id, descripcion, estado, imagen } = req.body;
+        let { nombre, precio, duracion, categoria_id, descripcion, estado, imagen,
+              itbis_tasa, costo_insumo_estimado, comision_porcentaje } = req.body;
         const servicioId = req.params.id;
 
         if (nombre) {
@@ -204,6 +230,25 @@ router.put('/:id', requireAdmin, (req, res) => {
             values.push(imagen || null);
         }
 
+        // Campos fiscales
+        if (itbis_tasa !== undefined) {
+            const TASAS_VALIDAS = [0, 8, 16, 18];
+            const tasaPUT = parseInt(itbis_tasa, 10);
+            if (!TASAS_VALIDAS.includes(tasaPUT)) {
+                return res.status(400).json({ error: 'itbis_tasa debe ser 0, 8, 16 o 18' });
+            }
+            updates.push('itbis_tasa = ?');
+            values.push(tasaPUT);
+        }
+        if (costo_insumo_estimado !== undefined) {
+            updates.push('costo_insumo_estimado = ?');
+            values.push(Math.max(0, parseFloat(costo_insumo_estimado) || 0));
+        }
+        if (comision_porcentaje !== undefined) {
+            updates.push('comision_porcentaje = ?');
+            values.push(Math.max(0, Math.min(100, parseFloat(comision_porcentaje) || 0)));
+        }
+
         if (updates.length === 0) {
             return res.status(400).json({ error: 'No hay campos para actualizar' });
         }
@@ -213,7 +258,9 @@ router.put('/:id', requireAdmin, (req, res) => {
 
         const updated = db.prepare(`
             SELECT s.id, s.nombre, s.precio, s.duracion, s.categoria_id,
-                   s.descripcion, s.estado, s.fecha_creacion, s.imagen, c.nombre as categoria
+                   s.descripcion, s.estado, s.fecha_creacion, s.imagen,
+                   s.itbis_tasa, s.costo_insumo_estimado, s.comision_porcentaje,
+                   c.nombre as categoria
             FROM servicios s
             LEFT JOIN categorias c ON s.categoria_id = c.id
             WHERE s.id = ?

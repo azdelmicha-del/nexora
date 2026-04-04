@@ -140,7 +140,8 @@ router.post('/unlock', (req, res) => {
             return res.status(400).json({ error: 'Email y código de seguridad requeridos' });
         }
         
-        if (security_code !== '7916') {
+        const UNLOCK_CODE = process.env.SUPERADMIN_UNLOCK_CODE || '7916';
+        if (security_code !== UNLOCK_CODE) {
             return res.status(401).json({ error: 'Código de seguridad incorrecto' });
         }
         
@@ -439,39 +440,39 @@ router.get('/stats', requireSuperAdmin, (req, res) => {
     }
 });
 
-module.exports = router;
-
-// Cambiar contraseña del super admin
+// Cambiar contraseña del super admin (movida antes de module.exports — fix de codigo muerto)
 router.post('/change-password', requireSuperAdmin, (req, res) => {
     try {
         const { current_password, new_password } = req.body;
-        
+
         if (!current_password || !new_password) {
             return res.status(400).json({ error: 'Todos los campos son requeridos' });
         }
-        
+
         if (new_password.length < 6) {
             return res.status(400).json({ error: 'La nueva contraseña debe tener al menos 6 caracteres' });
         }
-        
+
         const db = getDb();
         const admin = db.prepare('SELECT * FROM super_admins WHERE id = ?').get(req.session.superAdminId);
-        
+
         if (!admin) {
             return res.status(404).json({ error: 'Administrador no encontrado' });
         }
-        
+
         const validPassword = bcrypt.compareSync(current_password, admin.password);
         if (!validPassword) {
             return res.status(401).json({ error: 'Contraseña actual incorrecta' });
         }
-        
+
         const hashedPassword = bcrypt.hashSync(new_password, 10);
         db.prepare('UPDATE super_admins SET password = ? WHERE id = ?').run(hashedPassword, admin.id);
-        
+
         res.json({ success: true, message: 'Contraseña actualizada correctamente' });
     } catch (error) {
         console.error('Error cambiando contraseña:', error);
         res.status(500).json({ error: 'Error del servidor' });
     }
 });
+
+module.exports = router;

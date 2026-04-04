@@ -9,23 +9,24 @@
     <style>
         .pos-container {
             display: grid;
-            grid-template-columns: 300px 1fr 380px;
-            gap: 1.5rem;
+            grid-template-columns: 260px 1fr 420px;
+            gap: 1rem;
             height: calc(100vh - 140px);
         }
         
         .cliente-panel {
             background: white;
             border-radius: 1rem;
-            padding: 1.5rem;
+            padding: 1rem;
             display: flex;
             flex-direction: column;
+            gap: 0.75rem;
         }
         
         .servicios-panel {
             background: white;
             border-radius: 1rem;
-            padding: 1.5rem;
+            padding: 1rem;
             overflow-y: auto;
         }
         
@@ -35,28 +36,29 @@
             padding: 1.25rem;
             display: flex;
             flex-direction: column;
-            min-width: 380px;
-            max-width: 420px;
+            min-width: 420px;
+            max-width: 460px;
         }
         
         .servicio-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-            gap: 1rem;
+            grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+            gap: 0.6rem;
         }
         
         .servicio-card {
             background: var(--gray-50);
             border: 2px solid transparent;
-            border-radius: 0.75rem;
-            padding: 1rem;
+            border-radius: 0.6rem;
+            padding: 0.7rem 0.8rem;
             cursor: pointer;
             transition: all 0.2s;
         }
         
         .servicio-card:hover {
             border-color: var(--primary);
-            transform: translateY(-2px);
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(102,126,234,0.15);
         }
         
         .servicio-card.selected {
@@ -65,19 +67,39 @@
         }
         
         .servicio-card h4 {
-            font-size: 0.9rem;
-            margin-bottom: 0.5rem;
+            font-size: 0.82rem;
+            margin-bottom: 0.3rem;
+            line-height: 1.2;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
         
-        .servicio-card .precio {
+        .servicio-card .servicio-nombre {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--gray-800);
+            margin-bottom: 0.2rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .servicio-card .servicio-precio {
             color: var(--primary);
             font-weight: 700;
-            font-size: 1.1rem;
+            font-size: 0.95rem;
         }
         
-        .servicio-card .duracion {
+        .servicio-card .servicio-duracion {
             color: var(--gray-500);
-            font-size: 0.75rem;
+            font-size: 0.68rem;
+        }
+        
+        .servicio-card .servicio-itbis {
+            font-size: 0.62rem;
+            color: #8b5cf6;
+            margin-top: 2px;
         }
         
         .carrito-item {
@@ -327,49 +349,50 @@
             
             <div class="pos-container">
                 <div class="cliente-panel">
-                    <h3 style="margin-bottom: 1rem;">Cliente</h3>
-                    
+                    <!-- Cliente seleccionado -->
                     <div id="clienteSeleccionado" class="cliente-seleccionado" style="display: none;">
-                        <strong id="clienteNombre"></strong>
-                        <small id="clienteTelefono"></small>
-                        <button class="btn btn-secondary btn-sm" onclick="quitarCliente()">Cambiar</button>
+                        <strong id="clienteNombre" style="font-size:0.85rem;"></strong>
+                        <small id="clienteTelefono" style="font-size:0.72rem;"></small>
+                        <button class="btn btn-secondary btn-sm" onclick="quitarCliente()" style="font-size:0.68rem;margin-top:0.3rem;">Cambiar</button>
                     </div>
                     
+                    <!-- Buscador -->
                     <div id="buscadorCliente">
                         <div class="quick-client">
-                            <input type="text" id="buscarClienteInput" placeholder="Buscar cliente..." onkeyup="buscarCliente()">
-                            <button class="btn-buscar" onclick="buscarCliente()">
-                                <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            <input type="text" id="buscarClienteInput" placeholder="Buscar..." onkeyup="buscarCliente()" style="font-size:0.82rem;padding:0.5rem;">
+                            <button class="btn-buscar" onclick="buscarCliente()" style="padding:0.5rem 0.6rem;">
+                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
                             </button>
                         </div>
-                        <div id="resultadosBusqueda" style="max-height: 200px; overflow-y: auto;"></div>
+                        <div id="resultadosBusqueda" style="max-height: 120px; overflow-y: auto;"></div>
                     </div>
                     
-                    <button class="btn btn-primary btn-block mt-3" onclick="mostrarCrearCliente()">
-                        <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
-                        Crear Cliente
+                    <button class="btn btn-primary btn-block" onclick="mostrarCrearCliente()" style="font-size:0.78rem;padding:0.5rem;">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        Cliente
                     </button>
                     
-                    <div style="margin-top: 1.5rem; padding-top: 1rem; border-top: 1px solid var(--gray-200);">
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                            <h4 style="font-size: 0.875rem; color: var(--gray-600);">Citas de hoy</h4>
-                            <button class="btn btn-secondary btn-sm" onclick="cargarCitasHoy()" title="Actualizar">
-                                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                    <!-- Citas de hoy -->
+                    <div style="margin-top:0.5rem; padding-top:0.5rem; border-top:1px solid var(--gray-200);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.3rem;">
+                            <h4 style="font-size:0.72rem;color:var(--gray-500);margin:0;">Citas hoy</h4>
+                            <button class="btn btn-secondary btn-sm" onclick="cargarCitasHoy()" style="padding:2px 6px;font-size:0.65rem;" title="Actualizar">
+                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
                             </button>
                         </div>
-                        <div id="citasHoy" style="max-height: 200px; overflow-y: auto;">
-                            <p class="text-muted" style="font-size: 0.75rem;">Sin citas</p>
-                        </div>
+                        <div id="citasHoy" style="max-height:140px;overflow-y:auto;"></div>
                     </div>
                 </div>
                 
                 <div class="servicios-panel">
-                    <h3 id="tituloServicios" style="margin-bottom: 0.75rem;">Todos los Servicios</h3>
-                    <input type="text" id="buscarServicioInput" placeholder="Buscar servicio..." 
-                           style="width: 100%; padding: 0.75rem; border: 1px solid var(--gray-300); border-radius: 0.5rem; margin-bottom: 1rem;"
-                           onkeyup="buscarServicio()">
-                    <div class="categoria-tabs" id="categoriaTabs">
-                        <button class="categoria-tab active" onclick="filtrarCategoria(null)">Todos</button>
+                    <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+                        <h3 id="tituloServicios" style="margin:0;font-size:0.95rem;white-space:nowrap;">Servicios</h3>
+                        <input type="text" id="buscarServicioInput" placeholder="Buscar..." 
+                               style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--gray-300);border-radius:0.5rem;font-size:0.82rem;"
+                               onkeyup="buscarServicio()">
+                    </div>
+                    <div class="categoria-tabs" id="categoriaTabs" style="margin-bottom:0.5rem;">
+                        <button class="categoria-tab active" onclick="filtrarCategoria(null)" style="padding:0.3rem 0.7rem;font-size:0.78rem;">Todos</button>
                     </div>
                     
                     <div class="servicio-grid" id="serviciosGrid">
@@ -447,19 +470,8 @@
                                 <button type="button" class="btn btn-sm btn-danger" onclick="limpiarDescuento()" style="margin-left: 0.5rem; padding: 0.2rem 0.4rem; font-size: 0.7rem;">X</button>
                             </div>
                         </div>
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                            <span style="font-size: 0.9rem;">Impuesto 18%</span>
-                            <label style="position: relative; display: inline-flex; align-items: center; gap: 8px; cursor: pointer;">
-                                <span id="itbisLabel" style="font-size: 0.8rem; font-weight: 600; color: var(--gray-500);">Sin Impuesto</span>
-                                <span style="position: relative; display: inline-block; width: 52px; height: 28px;">
-                                    <input type="checkbox" id="itbisToggleInput" onchange="toggleITBIS()" style="opacity: 0; width: 0; height: 0;">
-                                    <span id="itbisSlider" style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: var(--gray-300); border-radius: 28px; transition: 0.3s;"></span>
-                                    <span id="itbisKnob" style="position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; background: white; border-radius: 50%; transition: 0.3s; box-shadow: 0 1px 3px rgba(0,0,0,0.2);"></span>
-                                </span>
-                            </label>
-                        </div>
-                        <div id="itbisRow" style="display: none; justify-content: space-between; margin-bottom: 0.5rem;">
-                            <span>ITBIS 18%:</span>
+                        <div id="itbisRow" style="display:none; justify-content: space-between; margin-bottom: 0.5rem;">
+                            <span>ITBIS:</span>
                             <strong id="itbisMonto">$0.00</strong>
                         </div>
                         <div id="descuentoRow" style="display: none; justify-content: space-between; margin-bottom: 0.5rem;">
@@ -537,9 +549,9 @@
     </div>
     
     <div class="modal-overlay" id="modalCliente">
-        <div class="modal" style="max-width: 400px;">
+        <div class="modal" style="max-width: 480px;">
             <div class="modal-header">
-                <h3>Crear Cliente Rápido</h3>
+                <h3>Crear Cliente</h3>
                 <button class="modal-close" onclick="cerrarModalCliente()">
                     <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
                 </button>
@@ -548,11 +560,35 @@
                 <div class="modal-body">
                     <div class="form-group">
                         <label>Nombre *</label>
-                        <input type="text" id="clienteNombreInput" required>
+                        <input type="text" id="clienteNombreInput" required placeholder="Nombre completo">
                     </div>
                     <div class="form-group">
                         <label>Celular *</label>
                         <input type="tel" id="clienteTelefonoInput" placeholder="+1 (809) 555-1234" required pattern="[\+]?[0-9\s\-\(\)]{10,20}">
+                    </div>
+                    <div class="form-group">
+                        <label>Email</label>
+                        <input type="email" id="clienteEmailInput" placeholder="correo@ejemplo.com">
+                    </div>
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;">
+                        <div class="form-group">
+                            <label>Tipo de Documento</label>
+                            <select id="clienteTipoDocInput">
+                                <option value="">Sin documento</option>
+                                <option value="rnc">RNC</option>
+                                <option value="cedula">Cedula</option>
+                                <option value="pasaporte">Pasaporte</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>Documento</label>
+                            <input type="text" id="clienteDocInput" placeholder="RNC/Cedula/Pasaporte">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Notas</label>
+                        <textarea id="clienteNotasInput" rows="2" placeholder="Preferencias, observaciones..."></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -611,13 +647,13 @@
         let clienteSeleccionado = null;
         let tipoECF = '32';
         let servicios = [];
+        let productos = [];
         let categorias = [];
         let categoriaSeleccionada = null;
         let metodoPago = 'efectivo';
         let bancoSeleccionado = null;
         let configPOS = {};
         let descuentoAplicado = 0;
-        let itbisActivo = false;
         let montoRecibido = 0;
         let citasDelDia = [];
         let ultimaVentaId = null;
@@ -625,6 +661,7 @@
         let negocioRNC = '';
         let negocioDireccion = '';
         let negocioTelefono = '';
+        let negocioLogo = '';
         let citaIdParaFinalizar = null;
         
         document.addEventListener('DOMContentLoaded', async () => {
@@ -702,6 +739,7 @@
                     negocioRNC = config.rnc || '';
                     negocioDireccion = config.direccion || '';
                     negocioTelefono = config.telefono || '';
+                    negocioLogo = config.logo || '';
                 } catch (e) {
                     negocioNombre = 'Nexora';
                 }
@@ -714,6 +752,7 @@
             try {
                 servicios = await apiCall('/services?estado=activo');
                 categorias = await apiCall('/categories?estado=activo');
+                productos = await apiCall('/products?estado=activo');
                 
                 renderCategorias();
                 renderServicios();
@@ -742,10 +781,9 @@
             }
             
             container.innerHTML = citasDelDia.map(c => `
-                <div style="padding: 0.5rem; background: var(--gray-50); border-radius: 0.5rem; margin-bottom: 0.5rem; cursor: pointer;" onclick="convertirCitaAVenta(${c.id})">
-                    <strong style="font-size: 0.8rem;">${escapeHtml(c.cliente)}</strong>
-                    <div style="font-size: 0.7rem; color: var(--gray-500);">${c.servicio} • ${c.hora_inicio}</div>
-                    <div style="font-size: 0.65rem; color: var(--primary); margin-top: 0.25rem;">Clic para vender</div>
+                <div style="padding:0.4rem 0.5rem;background:var(--gray-50);border-radius:0.4rem;margin-bottom:0.3rem;cursor:pointer;border-left:3px solid var(--primary);" onclick="convertirCitaAVenta(${c.id})">
+                    <strong style="font-size:0.75rem;">${escapeHtml(c.cliente)}</strong>
+                    <div style="font-size:0.68rem;color:var(--gray-500);">${c.servicio} • ${c.hora_inicio}</div>
                 </div>
             `).join('');
         }
@@ -789,19 +827,38 @@
                 const texto = textoBuscar.toLowerCase();
                 filtrados = filtrados.filter(s => s.nombre.toLowerCase().includes(texto));
             }
-            
-            if (filtrados.length === 0) {
-                grid.innerHTML = '<p class="text-muted">No hay servicios disponibles</p>';
-                return;
+
+            // Agregar productos filtrados
+            let productosFiltrados = productos.filter(p => p.estado === 'activo');
+            if (textoBuscar) {
+                const texto = textoBuscar.toLowerCase();
+                productosFiltrados = productosFiltrados.filter(p => 
+                    p.nombre.toLowerCase().includes(texto) || 
+                    (p.codigo_barras && p.codigo_barras.includes(texto))
+                );
             }
-            
-            grid.innerHTML = filtrados.map(s => `
-                <div class="servicio-card" onclick="agregarAlCarrito(${s.id})">
-                    <h4>${escapeHtml(s.nombre)}</h4>
-                    <div class="precio">${formatCurrency(s.precio)}</div>
-                    <div class="duracion">${formatDuracionPOS(s.duracion)}</div>
+
+            const serviciosHTML = filtrados.map(s => `
+                <div class="servicio-card" onclick="agregarAlCarrito(${s.id})" data-id="${s.id}">
+                    <div class="servicio-nombre">${escapeHtml(s.nombre)}</div>
+                    <div class="servicio-precio">${formatCurrency(s.precio)}</div>
+                    <div class="servicio-duracion">${s.duracion} min</div>
+                    ${s.itbis_tasa !== 18 ? `<div class="servicio-itbis" style="font-size:0.65rem;color:#8b5cf6;">ITBIS ${s.itbis_tasa}%</div>` : ''}
                 </div>
             `).join('');
+
+            const productosHTML = productosFiltrados.map(p => {
+                const stockBajo = p.stock <= p.stock_minimo;
+                return `
+                <div class="servicio-card" onclick="agregarProducto(${p.id})" data-id="p${p.id}" style="${stockBajo ? 'opacity:0.6;' : ''}">
+                    <div class="servicio-nombre">${escapeHtml(p.nombre)}</div>
+                    <div class="servicio-precio">${formatCurrency(p.precio)}</div>
+                    <div class="servicio-duracion" style="${stockBajo ? 'color:#ef4444;' : ''}">Stock: ${p.stock}${stockBajo ? ' ⚠️' : ''}</div>
+                    ${p.itbis_tasa !== 18 ? `<div style="font-size:0.65rem;color:#8b5cf6;">ITBIS ${p.itbis_tasa}%</div>` : ''}
+                </div>
+            `}).join('');
+
+            grid.innerHTML = serviciosHTML + productosHTML;
         }
         
         function formatDuracionPOS(minutos) {
@@ -844,11 +901,64 @@
                     servicio_id: servicioId,
                     nombre: servicio.nombre,
                     precio: servicio.precio,
-                    cantidad: 1
+                    cantidad: 1,
+                    // itbis_tasa viene del catalogo de servicios (0, 8, 16 o 18)
+                    // null/undefined → asumir 18 para retrocompatibilidad
+                    itbis_tasa: (servicio.itbis_tasa !== null && servicio.itbis_tasa !== undefined)
+                        ? servicio.itbis_tasa
+                        : 18
                 });
             }
             
             renderCarrito();
+        }
+
+        function agregarProducto(productoId) {
+            const producto = productos.find(p => p.id === productoId);
+            if (!producto) return;
+            
+            // Verificar stock
+            const itemEnCarrito = carrito.find(i => i.producto_id === productoId);
+            const cantidadEnCarrito = itemEnCarrito ? itemEnCarrito.cantidad : 0;
+            if (cantidadEnCarrito >= producto.stock) {
+                showToast(`Stock insuficiente. Disponible: ${producto.stock}`, 'warning');
+                return;
+            }
+            
+            const existente = carrito.find(item => item.producto_id === productoId);
+            if (existente) {
+                existente.cantidad++;
+            } else {
+                carrito.push({
+                    producto_id: productoId,
+                    nombre: producto.nombre,
+                    precio: producto.precio,
+                    cantidad: 1,
+                    itbis_tasa: (producto.itbis_tasa !== null && producto.itbis_tasa !== undefined)
+                        ? producto.itbis_tasa
+                        : 18,
+                    tipo_item: 'producto'
+                });
+            }
+            
+            renderCarrito();
+        }
+        
+        // Calcula el ITBIS total del carrito usando la tasa individual de cada servicio
+        // Distribuye el descuento proporcionalmente antes de aplicar el impuesto
+        function calcularItbisCarrito(carrito, descuento) {
+            if (!carrito || carrito.length === 0) return 0;
+            const subtotal = carrito.reduce((s, i) => s + (i.precio * i.cantidad), 0);
+            if (subtotal === 0) return 0;
+            let totalITBIS = 0;
+            carrito.forEach(item => {
+                const tasa = (item.itbis_tasa !== null && item.itbis_tasa !== undefined) ? item.itbis_tasa : 18;
+                const lineSub = item.precio * item.cantidad;
+                const lineDesc = descuento * (lineSub / subtotal);
+                const lineBase = lineSub - lineDesc;
+                totalITBIS += lineBase * (tasa / 100);
+            });
+            return Math.round(totalITBIS * 100) / 100;
         }
         
         function renderCarrito() {
@@ -887,10 +997,12 @@
             `).join('');
             
             const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-            const itbis = itbisActivo ? Math.round((subtotal - descuentoAplicado) * 0.18 * 100) / 100 : 0;
+            // ITBIS calculado por linea usando la tasa individual de cada servicio
+            // El toggle "Sin Impuesto" fuerza tasa 0 en todos (ej: clientes exentos)
+            const itbis = Math.round(calcularItbisCarrito(carrito, descuentoAplicado) * 100) / 100;
             const total = subtotal - descuentoAplicado + itbis;
             document.getElementById('subtotal').textContent = formatCurrency(subtotal);
-            document.getElementById('itbisRow').style.display = itbisActivo ? 'flex' : 'none';
+            document.getElementById('itbisRow').style.display = itbis > 0 ? 'flex' : 'none';
             document.getElementById('itbisMonto').textContent = '+' + formatCurrency(itbis);
             document.getElementById('total').textContent = formatCurrency(total);
             actualizarVueltoDisplay();
@@ -964,7 +1076,7 @@
             
             document.getElementById('descuentoRow').style.display = 'flex';
             document.getElementById('descuentoMonto').textContent = '-' + formatCurrency(descuentoAplicado);
-            const itbis = itbisActivo ? Math.round((subtotal - descuentoAplicado) * 0.18 * 100) / 100 : 0;
+            const itbis = Math.round(calcularItbisCarrito(carrito, descuentoAplicado) * 100) / 100;
             document.getElementById('itbisMonto').textContent = '+' + formatCurrency(itbis);
             document.getElementById('total').textContent = formatCurrency(subtotal - descuentoAplicado + itbis);
             
@@ -992,7 +1104,7 @@
             
             document.getElementById('descuentoRow').style.display = 'flex';
             document.getElementById('descuentoMonto').textContent = '-' + formatCurrency(descuentoAplicado);
-            const itbis = itbisActivo ? Math.round((subtotal - descuentoAplicado) * 0.18 * 100) / 100 : 0;
+            const itbis = Math.round(calcularItbisCarrito(carrito, descuentoAplicado) * 100) / 100;
             document.getElementById('itbisMonto').textContent = '+' + formatCurrency(itbis);
             document.getElementById('total').textContent = formatCurrency(subtotal - descuentoAplicado + itbis);
             
@@ -1050,25 +1162,6 @@
             btn.classList.add('active');
         }
         
-        function toggleITBIS() {
-            itbisActivo = document.getElementById('itbisToggleInput').checked;
-            const slider = document.getElementById('itbisSlider');
-            const knob = document.getElementById('itbisKnob');
-            const label = document.getElementById('itbisLabel');
-            if (itbisActivo) {
-                slider.style.background = '#10b981';
-                knob.style.left = '27px';
-                label.textContent = 'Con Impuesto';
-                label.style.color = '#10b981';
-            } else {
-                slider.style.background = 'var(--gray-300)';
-                knob.style.left = '3px';
-                label.textContent = 'Sin Impuesto';
-                label.style.color = 'var(--gray-500)';
-            }
-            renderCarrito();
-        }
-        
         function calcularVuelto() {
             const totalElement = document.getElementById('total').textContent;
             const total = parseFloat(totalElement.replace(/[^0-9.-]/g, '')) || 0;
@@ -1122,7 +1215,7 @@
             }
             
             const subtotal = carrito.reduce((sum, item) => sum + (item.precio * item.cantidad), 0);
-            const itbis = itbisActivo ? Math.round((subtotal - descuentoAplicado) * 0.18 * 100) / 100 : 0;
+            const itbis = Math.round(calcularItbisCarrito(carrito, descuentoAplicado) * 100) / 100;
             const totalPagar = subtotal - descuentoAplicado + itbis;
             
             if (metodoPago === 'efectivo' && montoRecibido < totalPagar) {
@@ -1199,7 +1292,8 @@
                 const data = {
                     cliente_id: clienteSeleccionado.id,
                     items: carrito.map(item => ({
-                        servicio_id: item.servicio_id,
+                        servicio_id: item.servicio_id || null,
+                        producto_id: item.producto_id || null,
                         cantidad: item.cantidad
                     })),
                     metodo_pago: metodoPago,
@@ -1333,6 +1427,7 @@
             content.innerHTML = `
                 <div class="recibo-container" id="reciboPrint">
                     <div class="recibo-header">
+                        ${negocioLogo ? `<img src="${negocioLogo}" alt="Logo" style="max-width:60px;max-height:60px;margin:0 auto 4px;display:block;">` : ''}
                         <h3>${escapeHtml(negocioNombre)}</h3>
                         ${rncNegocioFmt ? `<p style="margin: 2px 0; font-size: 10px;">RNC: ${rncNegocioFmt}</p>` : ''}
                         ${negocioDireccion ? `<p style="margin: 2px 0; font-size: 10px;">${escapeHtml(negocioDireccion)}</p>` : ''}
@@ -1364,10 +1459,12 @@
                             <span>-${formatCurrency(descuento)}</span>
                         </div>
                     ` : ''}
+                    ${itbis > 0 ? `
                     <div class="recibo-item" style="text-align: left;">
-                        <span>ITBIS 18%:</span>
+                        <span>ITBIS:</span>
                         <span>${formatCurrency(itbis)}</span>
                     </div>
+                    ` : ''}
                     <div class="recibo-total">
                         TOTAL: ${formatCurrency(venta.total)}
                     </div>
@@ -1515,9 +1612,9 @@
                     const tipoDocEsc = (c.tipo_documento || '').replace(/'/g, "\\'");
                     const docLabel = c.documento ? ` · ${c.tipo_documento === 'rnc' ? 'RNC' : 'Cédula'}: ${c.documento}` : '';
                     return `
-                    <div style="padding: 0.5rem; cursor: pointer; border-bottom: 1px solid var(--gray-100);" onclick="seleccionarCliente(${c.id}, '${nombreEsc}', '${telEsc}', '${docEsc}', '${tipoDocEsc}')">
+                    <div style="padding:0.35rem 0.4rem;cursor:pointer;border-bottom:1px solid var(--gray-100);font-size:0.78rem;" onclick="seleccionarCliente(${c.id}, '${nombreEsc}', '${telEsc}', '${docEsc}', '${tipoDocEsc}')">
                         <strong>${escapeHtml(c.nombre)}</strong>
-                        <br><small class="text-muted">${escapeHtml(c.telefono || 'Sin teléfono')}${docLabel}</small>
+                        <div style="font-size:0.68rem;color:var(--gray-500);">${escapeHtml(c.telefono || 'Sin teléfono')}${docLabel}</div>
                     </div>
                 `}).join('');
             } catch (error) {
@@ -1625,6 +1722,10 @@
         function mostrarCrearCliente() {
             document.getElementById('clienteNombreInput').value = '';
             document.getElementById('clienteTelefonoInput').value = '';
+            document.getElementById('clienteEmailInput').value = '';
+            document.getElementById('clienteTipoDocInput').value = '';
+            document.getElementById('clienteDocInput').value = '';
+            document.getElementById('clienteNotasInput').value = '';
             document.getElementById('modalCliente').classList.add('active');
         }
         
@@ -1641,6 +1742,10 @@
             
             const nombre = toTitleCase(document.getElementById('clienteNombreInput').value.trim());
             const telefono = document.getElementById('clienteTelefonoInput').value.trim();
+            const email = document.getElementById('clienteEmailInput').value.trim() || null;
+            const tipoDoc = document.getElementById('clienteTipoDocInput').value || null;
+            const doc = document.getElementById('clienteDocInput').value.trim() || null;
+            const notas = document.getElementById('clienteNotasInput').value.trim() || null;
             
             if (!nombre) {
                 showModalError('El nombre es requerido');
@@ -1667,7 +1772,7 @@
             try {
                 const cliente = await apiCall('/clients', {
                     method: 'POST',
-                    body: JSON.stringify({ nombre, telefono })
+                    body: JSON.stringify({ nombre, telefono, email, tipo_documento: tipoDoc, documento: doc, notas })
                 });
                 
                 cerrarModalCliente();

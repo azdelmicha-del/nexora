@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora - Auditoria</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Log de Auditoria</h1>
+            </div>
+            <div class="card mb-4">
+                <div class="card-body" style="display:flex;gap:0.5rem;align-items:center;flex-wrap:wrap;">
+                    <select id="filtroTabla" style="padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;" onchange="loadAudit()">
+                        <option value="">Todas las tablas</option>
+                        <option value="ventas">Ventas</option>
+                        <option value="clientes">Clientes</option>
+                        <option value="servicios">Servicios</option>
+                        <option value="productos">Productos</option>
+                        <option value="citas">Citas</option>
+                        <option value="estado_resultado_items">Egresos</option>
+                    </select>
+                    <input type="date" id="filtroDesde" style="padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;" onchange="loadAudit()">
+                    <input type="date" id="filtroHasta" style="padding:0.5rem;border:1px solid var(--gray-300);border-radius:8px;" onchange="loadAudit()">
+                </div>
+            </div>
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead><tr><th>Fecha</th><th>Usuario</th><th>Accion</th><th>Tabla</th><th>Detalle</th></tr></thead>
+                        <tbody id="auditTable"><tr><td colspan="5"><div class="spinner"></div></td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    <script src="/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const ok = await requireLicense(); if (!ok) return;
+            const s = await checkSession(); if (!s || !s.authenticated) { window.location.href = '/'; return; }
+            await loadAudit();
+        });
+        async function loadAudit() {
+            const tbody = document.getElementById('auditTable');
+            tbody.innerHTML = '<tr><td colspan="5"><div class="spinner"></div></td></tr>';
+            try {
+                const params = new URLSearchParams();
+                const t = document.getElementById('filtroTabla').value;
+                const d = document.getElementById('filtroDesde').value;
+                const h = document.getElementById('filtroHasta').value;
+                if (t) params.set('tabla', t);
+                if (d) params.set('desde', d);
+                if (h) params.set('hasta', h);
+                params.set('limit', '200');
+                const data = await apiCall('/audit?' + params.toString());
+                if (!data.logs.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:var(--gray-400);">Sin registros</td></tr>'; return; }
+                tbody.innerHTML = data.logs.map(l => `
+                    <tr>
+                        <td style="font-size:0.78rem;color:var(--gray-500);white-space:nowrap;">${formatDate(l.fecha)}</td>
+                        <td>${escapeHtml(l.usuario || 'Sistema')}</td>
+                        <td><span class="badge badge-${l.accion.includes('DELETE')||l.accion.includes('eliminar')?'danger':l.accion.includes('POST')||l.accion.includes('crear')?'success':'info'}">${l.accion}</span></td>
+                        <td style="font-size:0.78rem;color:var(--gray-500);">${l.tabla || '—'}</td>
+                        <td style="font-size:0.82rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(l.detalle)}">${escapeHtml(l.detalle || '—')}</td>
+                    </tr>
+                `).join('');
+            } catch (e) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;padding:2rem;color:#ef4444;">Error</td></tr>'; }
+        }
+        function escapeHtml(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
+        function formatDate(d){if(!d)return'';try{const p=d.replace('T',' ').split(/[- :]/);return new Date(p[0],p[1]-1,p[2]).toLocaleDateString('es-DO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return d;}}
+    </script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/license-banner.js"></script>
+</body>
+</html>

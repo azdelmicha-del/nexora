@@ -10,7 +10,7 @@ router.get('/', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const usuarios = db.prepare(`
-            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, fecha_creacion
+            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, comision_porcentaje, fecha_creacion
             FROM usuarios
             WHERE negocio_id = ?
             ORDER BY fecha_creacion DESC
@@ -27,7 +27,7 @@ router.get('/:id', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const usuario = db.prepare(`
-            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, fecha_creacion
+            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, comision_porcentaje, fecha_creacion
             FROM usuarios
             WHERE id = ? AND negocio_id = ?
         `).get(req.params.id, req.session.negocioId);
@@ -98,12 +98,12 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const result = db.prepare(`
-            INSERT INTO usuarios (negocio_id, nombre, email, password, rol, horario_tipo, hora_entrada, hora_salida)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(req.session.negocioId, nombreNormalizado, emailNormalizado, hashedPassword, rol, horario_tipo || 'completo', hora_entrada || '08:00', hora_salida || '18:00');
+            INSERT INTO usuarios (negocio_id, nombre, email, password, rol, horario_tipo, hora_entrada, hora_salida, comision_porcentaje)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(req.session.negocioId, nombreNormalizado, emailNormalizado, hashedPassword, rol, horario_tipo || 'completo', hora_entrada || '08:00', hora_salida || '18:00', parseFloat(req.body.comision_porcentaje) || 0);
 
         const usuario = db.prepare(`
-            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, fecha_creacion
+            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, comision_porcentaje, fecha_creacion
             FROM usuarios WHERE id = ?
         `).get(result.lastInsertRowid);
 
@@ -243,6 +243,10 @@ router.put('/:id', requireAdmin, async (req, res) => {
             updates.push('hora_salida = ?');
             params.push(hora_salida);
         }
+        if (req.body.comision_porcentaje !== undefined) {
+            updates.push('comision_porcentaje = ?');
+            params.push(parseFloat(req.body.comision_porcentaje) || 0);
+        }
 
         if (updates.length === 0) {
             return res.status(400).json({ error: 'No hay campos para actualizar' });
@@ -252,7 +256,7 @@ router.put('/:id', requireAdmin, async (req, res) => {
         db.prepare(`UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`).run(...params);
 
         const updatedUser = db.prepare(`
-            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, fecha_creacion
+            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, comision_porcentaje, fecha_creacion
             FROM usuarios WHERE id = ?
         `).get(usuarioId);
 

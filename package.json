@@ -8,15 +8,22 @@
     "dev": "nodemon server/index.js"
   },
   "dependencies": {
+    "@xmldom/xmldom": "^0.9.9",
     "bcryptjs": "^2.4.3",
     "better-sqlite3": "^9.4.3",
+    "chart.js": "^4.5.1",
     "connect-sqlite3": "^0.9.16",
     "dotenv": "^17.3.1",
     "express": "^4.18.2",
     "express-fileupload": "^1.5.2",
+    "express-rate-limit": "^8.3.2",
     "express-session": "^1.17.3",
+    "helmet": "^8.1.0",
     "node-forge": "^1.4.0",
-    "node-machine-id": "^1.1.12"
+    "node-machine-id": "^1.1.12",
+    "nodemailer": "^8.0.4",
+    "qrcode": "^1.5.4",
+    "xml-crypto": "^6.1.2"
   },
   "devDependencies": {
     "nodemon": "^3.1.14"

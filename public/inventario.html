@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora - Inventario</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Inventario de Productos</h1>
+                <button class="btn btn-primary" onclick="openModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                    Nuevo Producto
+                </button>
+            </div>
+
+            <div class="card mb-4">
+                <div class="card-body" style="display:flex; gap:1rem; align-items:center;">
+                    <input type="text" id="buscarProducto" placeholder="Buscar por nombre o codigo de barras..." 
+                           style="flex:1; padding:0.75rem;" onkeyup="debouncedSearch()">
+                    <select id="filtroCategoria" style="padding:0.75rem;" onchange="loadProductos()">
+                        <option value="">Todas las categorias</option>
+                    </select>
+                    <button class="btn btn-secondary btn-sm" onclick="loadLowStock()" title="Ver stock bajo">
+                        ⚠️ Stock Bajo
+                    </button>
+                </div>
+            </div>
+            
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Codigo</th>
+                                <th>Precio</th>
+                                <th>Costo</th>
+                                <th>Stock</th>
+                                <th>ITBIS</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="productosTable">
+                            <tr><td colspan="8"><div class="spinner"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+    
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal">
+            <div class="modal-header">
+                <h3 id="modalTitle">Nuevo Producto</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                </button>
+            </div>
+            <form id="productoForm">
+                <div class="modal-body">
+                    <input type="hidden" id="productoId">
+                    <div class="form-group">
+                        <label for="nombre">Nombre *</label>
+                        <input type="text" id="nombre" required placeholder="Shampoo Profesional 500ml">
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="precio">Precio (RD$) *</label>
+                            <input type="number" id="precio" step="0.01" min="0" required placeholder="0.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="costo">Costo (RD$)</label>
+                            <input type="number" id="costo" step="0.01" min="0" placeholder="0.00">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="stock">Stock Inicial</label>
+                            <input type="number" id="stock" min="0" value="0" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label for="stock_minimo">Stock Minimo</label>
+                            <input type="number" id="stock_minimo" min="0" value="5" placeholder="5">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="codigo_barras">Codigo de Barras</label>
+                            <input type="text" id="codigo_barras" placeholder="7501234567890">
+                        </div>
+                        <div class="form-group">
+                            <label for="categoria">Categoria</label>
+                            <input type="text" id="categoria" placeholder="Shampoo, Tinte, etc.">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="itbis_tasa">ITBIS (%)</label>
+                            <select id="itbis_tasa">
+                                <option value="18" selected>18% — General</option>
+                                <option value="16">16% — Reducida</option>
+                                <option value="8">8% — Especial</option>
+                                <option value="0">0% — Exento</option>
+                            </select>
+                        </div>
+                        <div class="form-group" id="estadoGroup" style="display:none;">
+                            <label for="estado">Estado</label>
+                            <select id="estado">
+                                <option value="activo">Activo</option>
+                                <option value="inactivo">Inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label for="descripcion">Descripcion</label>
+                        <textarea id="descripcion" rows="2" placeholder="Descripcion del producto..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        let editingId = null;
+        let searchTimeout = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const licenseOk = await requireLicense();
+            if (!licenseOk) return;
+            const session = await checkSession();
+            if (!session || !session.authenticated) { window.location.href = '/'; return; }
+            await loadProductos();
+            document.getElementById('productoForm').addEventListener('submit', handleSubmit);
+        });
+
+        function debouncedSearch() {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(loadProductos, 300);
+        }
+
+        async function loadProductos() {
+            const tbody = document.getElementById('productosTable');
+            tbody.innerHTML = '<tr><td colspan="8"><div class="spinner"></div></td></tr>';
+            try {
+                const buscar = document.getElementById('buscarProducto').value;
+                const categoria = document.getElementById('filtroCategoria').value;
+                let url = '/products?';
+                if (buscar) url += `buscar=${encodeURIComponent(buscar)}&`;
+                if (categoria) url += `categoria=${categoria}`;
+                const productos = await apiCall(url);
+                renderTabla(productos);
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--gray-500);">Error al cargar productos</td></tr>';
+            }
+        }
+
+        async function loadLowStock() {
+            const tbody = document.getElementById('productosTable');
+            tbody.innerHTML = '<tr><td colspan="8"><div class="spinner"></div></td></tr>';
+            try {
+                const productos = await apiCall('/products/low-stock');
+                renderTabla(productos, true);
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--gray-500);">Error</td></tr>';
+            }
+        }
+
+        function renderTabla(productos, lowStock = false) {
+            const tbody = document.getElementById('productosTable');
+            if (productos.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--gray-500);">Sin productos registrados</td></tr>';
+                return;
+            }
+            tbody.innerHTML = productos.map(p => {
+                const stockColor = p.stock <= p.stock_minimo ? '#ef4444' : (p.stock <= p.stock_minimo * 2 ? '#f59e0b' : '#10b981');
+                const stockBadge = `<span style="background:${stockColor}20;color:${stockColor};padding:2px 8px;border-radius:10px;font-weight:700;font-size:0.82rem;">${p.stock}</span>`;
+                const nombreEsc = (p.nombre || '').replace(/'/g, "\\'");
+                return `<tr class="fade-in">
+                    <td><strong>${escapeHtml(p.nombre)}</strong>${p.categoria ? `<br><small style="color:var(--gray-400);">${escapeHtml(p.categoria)}</small>` : ''}</td>
+                    <td style="font-family:monospace;font-size:0.78rem;">${p.codigo_barras || '—'}</td>
+                    <td style="font-weight:600;">${formatCurrency(p.precio)}</td>
+                    <td style="color:var(--gray-500);">${formatCurrency(p.costo)}</td>
+                    <td>${stockBadge}${p.stock <= p.stock_minimo ? '<br><small style="color:#ef4444;font-size:0.68rem;">⚠️ Bajo</small>' : ''}</td>
+                    <td>${p.itbis_tasa}%</td>
+                    <td><span class="badge badge-${p.estado === 'activo' ? 'success' : 'danger'}">${p.estado}</span></td>
+                    <td class="actions">
+                        <button class="btn btn-secondary btn-sm" onclick="editProducto(${p.id})">Editar</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteProducto(${p.id}, '${nombreEsc}')">Eliminar</button>
+                    </td>
+                </tr>`;
+            }).join('');
+        }
+
+        function openModal(id = null) {
+            editingId = id;
+            document.getElementById('modalTitle').textContent = id ? 'Editar Producto' : 'Nuevo Producto';
+            document.getElementById('estadoGroup').style.display = id ? 'block' : 'none';
+            document.getElementById('productoForm').reset();
+            if (id) loadProducto(id);
+            document.getElementById('modalOverlay').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+            editingId = null;
+        }
+
+        async function loadProducto(id) {
+            try {
+                const p = await apiCall(`/products/${id}`);
+                document.getElementById('productoId').value = p.id;
+                document.getElementById('nombre').value = p.nombre;
+                document.getElementById('precio').value = p.precio;
+                document.getElementById('costo').value = p.costo || 0;
+                document.getElementById('stock').value = p.stock;
+                document.getElementById('stock_minimo').value = p.stock_minimo;
+                document.getElementById('codigo_barras').value = p.codigo_barras || '';
+                document.getElementById('categoria').value = p.categoria || '';
+                document.getElementById('itbis_tasa').value = p.itbis_tasa || 18;
+                document.getElementById('estado').value = p.estado;
+                document.getElementById('descripcion').value = p.descripcion || '';
+            } catch (error) { showToast(error.message, 'error'); }
+        }
+
+        async function editProducto(id) { openModal(id); }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            const data = {
+                nombre: document.getElementById('nombre').value.trim(),
+                precio: parseFloat(document.getElementById('precio').value),
+                costo: parseFloat(document.getElementById('costo').value) || 0,
+                stock: parseInt(document.getElementById('stock').value) || 0,
+                stock_minimo: parseInt(document.getElementById('stock_minimo').value) || 5,
+                codigo_barras: document.getElementById('codigo_barras').value.trim() || null,
+                categoria: document.getElementById('categoria').value.trim() || null,
+                itbis_tasa: parseInt(document.getElementById('itbis_tasa').value, 10),
+                descripcion: document.getElementById('descripcion').value.trim() || null,
+                estado: document.getElementById('estado').value
+            };
+            try {
+                if (editingId) {
+                    await apiCall(`/products/${editingId}`, { method: 'PUT', body: JSON.stringify(data) });
+                    showToast('Producto actualizado', 'success');
+                } else {
+                    await apiCall('/products', { method: 'POST', body: JSON.stringify(data) });
+                    showToast('Producto creado', 'success');
+                }
+                closeModal();
+                await loadProductos();
+            } catch (error) { showToast(error.message, 'error'); }
+        }
+
+        async function deleteProducto(id, nombre) {
+            if (!confirm(`Eliminar "${nombre}"?`)) return;
+            try {
+                await apiCall(`/products/${id}`, { method: 'DELETE' });
+                showToast('Producto eliminado', 'success');
+                await loadProductos();
+            } catch (error) { showToast(error.message, 'error'); }
+        }
+
+        function escapeHtml(text) { if (!text) return ''; const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+        function formatCurrency(amount) { return 'RD$' + Number(amount || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+    </script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/license-banner.js"></script>
+</body>
+</html>

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexora - Notas de Credito/Debito</title>
+    <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+    <div class="layout">
+        <main class="main-content">
+            <div class="page-header">
+                <h1>Notas de Credito / Debito</h1>
+                <button class="btn btn-primary" onclick="openModal()">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+                    Nueva Nota
+                </button>
+            </div>
+
+            <div class="card">
+                <div class="table-container">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>NCF</th>
+                                <th>Cliente</th>
+                                <th>Venta Original</th>
+                                <th>Monto</th>
+                                <th>Motivo</th>
+                                <th>Estado DGII</th>
+                                <th>Fecha</th>
+                            </tr>
+                        </thead>
+                        <tbody id="notasTable">
+                            <tr><td colspan="8"><div class="spinner"></div></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal" style="max-width:500px;">
+            <div class="modal-header">
+                <h3>Nueva Nota de Credito/Debito</h3>
+                <button class="modal-close" onclick="closeModal()">
+                    <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <form id="notaForm">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>Tipo de Nota</label>
+                        <select id="tipoNota">
+                            <option value="34">Nota de Credito (34) — Anulacion/Correccion</option>
+                            <option value="33">Nota de Debito (33) — Aumento de monto</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Venta Original *</label>
+                        <select id="ventaOriginal" required>
+                            <option value="">Seleccionar venta...</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Monto *</label>
+                        <input type="number" id="montoNota" step="0.01" min="0" required placeholder="0.00">
+                    </div>
+                    <div class="form-group">
+                        <label>Motivo *</label>
+                        <textarea id="motivoNota" rows="3" required placeholder="Motivo de la nota..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Crear Nota</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="/js/api.js"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', async () => {
+            const licenseOk = await requireLicense();
+            if (!licenseOk) return;
+            const session = await checkSession();
+            if (!session || !session.authenticated) { window.location.href = '/'; return; }
+            await loadNotas();
+            document.getElementById('notaForm').addEventListener('submit', handleSubmit);
+        });
+
+        async function loadNotas() {
+            const tbody = document.getElementById('notasTable');
+            tbody.innerHTML = '<tr><td colspan="8"><div class="spinner"></div></td></tr>';
+            try {
+                const notas = await apiCall('/notes');
+                if (notas.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:var(--gray-400);">Sin notas registradas</td></tr>';
+                    return;
+                }
+                tbody.innerHTML = notas.map(n => `
+                    <tr>
+                        <td><span class="badge badge-${n.tipo_nota === '34' ? 'danger' : 'warning'}">${n.tipo_nota === '34' ? 'Credito' : 'Debito'}</span></td>
+                        <td style="font-family:monospace;font-size:0.78rem;color:#1d4ed8;">${escapeHtml(n.secuencia_ecf)}</td>
+                        <td>${escapeHtml(n.cliente_nombre || 'Consumidor final')}</td>
+                        <td style="font-family:monospace;font-size:0.78rem;">#${n.venta_original_id} <small style="color:var(--gray-400);">(${n.secuencia_original || 'N/A'})</small></td>
+                        <td style="font-weight:700;">${formatCurrency(n.monto)}</td>
+                        <td style="max-width:200px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(n.motivo)}">${escapeHtml(n.motivo)}</td>
+                        <td><span class="badge badge-${n.estado_dgii === 'aceptada' ? 'success' : n.estado_dgii === 'rechazada' ? 'danger' : 'warning'}">${n.estado_dgii || 'pendiente'}</span></td>
+                        <td>${formatDate(n.fecha)}</td>
+                    </tr>
+                `).join('');
+            } catch (error) {
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:2rem;color:#ef4444;">Error al cargar notas</td></tr>';
+            }
+        }
+
+        async function loadVentas() {
+            try {
+                const ventas = await apiCall('/sales');
+                const select = document.getElementById('ventaOriginal');
+                select.innerHTML = '<option value="">Seleccionar venta...</option>' +
+                    ventas.slice(0, 50).map(v => `<option value="${v.id}">#${v.id} - ${v.cliente || 'Consumidor final'} - ${formatCurrency(v.total)}</option>`).join('');
+            } catch (error) { console.error('Error:', error); }
+        }
+
+        function openModal() {
+            document.getElementById('modalOverlay').classList.add('active');
+            document.getElementById('notaForm').reset();
+            loadVentas();
+        }
+
+        function closeModal() {
+            document.getElementById('modalOverlay').classList.remove('active');
+        }
+
+        async function handleSubmit(e) {
+            e.preventDefault();
+            const data = {
+                venta_id: parseInt(document.getElementById('ventaOriginal').value),
+                tipo_nota: document.getElementById('tipoNota').value,
+                monto: parseFloat(document.getElementById('montoNota').value),
+                motivo: document.getElementById('motivoNota').value.trim()
+            };
+            if (!data.venta_id || !data.monto || !data.motivo) {
+                showToast('Completa todos los campos', 'error');
+                return;
+            }
+            try {
+                await apiCall('/notes', { method: 'POST', body: JSON.stringify(data) });
+                showToast('Nota creada exitosamente', 'success');
+                closeModal();
+                await loadNotas();
+            } catch (error) { showToast(error.message, 'error'); }
+        }
+
+        function escapeHtml(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
+        function formatDate(d) { if (!d) return ''; try { const p = d.replace('T',' ').split(/[- :]/); return new Date(p[0],p[1]-1,p[2]).toLocaleDateString('es-DO',{day:'2-digit',month:'short'}); } catch(e) { return d; } }
+        function formatCurrency(a) { return 'RD$' + Number(a||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,','); }
+    </script>
+    <script src="/js/sidebar.js"></script>
+    <script src="/js/license-banner.js"></script>
+</body>
+</html>

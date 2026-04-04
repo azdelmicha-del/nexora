@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { enviarConfirmacionCita } = require('../utils/email');
 
 const router = express.Router();
 
@@ -229,12 +230,34 @@ router.post('/', requireAuth, (req, res) => {
 
         const cita = db.prepare(`
             SELECT cit.id, cit.fecha, cit.hora_inicio, cit.hora_fin, cit.estado,
-                   c.nombre as cliente, s.nombre as servicio
+                   c.nombre as cliente, c.email as cliente_email, s.nombre as servicio,
+                   s.precio as servicio_precio, u.nombre as barbero
             FROM citas cit
             JOIN clientes c ON cit.cliente_id = c.id
             JOIN servicios s ON cit.servicio_id = s.id
+            LEFT JOIN usuarios u ON cit.user_id = u.id
             WHERE cit.id = ?
         `).get(result.lastInsertRowid);
+
+        // Enviar email de confirmacion si el cliente tiene email y el negocio lo tiene activado
+        try {
+            const negocio = db.prepare('SELECT nombre, notificaciones_activas FROM negocios WHERE id = ?').get(req.session.negocioId);
+            if (cita.cliente_email && negocio && negocio.notificaciones_activas) {
+                enviarConfirmacionCita({
+                    negocio: { nombre: negocio.nombre },
+                    cliente: cita.cliente_email,
+                    servicio: cita.servicio,
+                    fecha: cita.fecha,
+                    horaInicio: cita.hora_inicio,
+                    horaFin: cita.hora_fin,
+                    barbero: cita.barbero,
+                    total: cita.servicio_precio
+                }).catch(err => console.error('Error enviando email de cita:', err.message));
+            }
+        } catch (e) {
+            // No bloquear la creacion de cita si falla el email
+            console.error('Error en envio de email:', e.message);
+        }
 
         res.json(cita);
     } catch (error) {

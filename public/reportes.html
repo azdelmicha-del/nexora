@@ -6,7 +6,10 @@
     <meta name="mobile-web-app-capable" content="yes">
     <title>Nexora - Reportes</title>
     <link rel="stylesheet" href="/css/styles.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- chart.js servido localmente — evita bloqueo de Tracking Prevention -->
+    <script src="/js/chart.min.js"></script>
+    <script src="/js/api.js"></script>
+    <script src="/js/common.js"></script>
     <style>
         .report-header {
             display: flex;
@@ -334,13 +337,34 @@
                 </div>
             </div>
             
-            <div class="tabs">
-                <button class="tab active" onclick="mostrarSeccion('ventas')">Ventas</button>
-                <button class="tab" onclick="mostrarSeccion('servicios')">Servicios</button>
-                <button class="tab" onclick="mostrarSeccion('clientes')">Clientes</button>
-                <button class="tab" onclick="mostrarSeccion('citas')">Citas</button>
-                <button class="tab" onclick="mostrarCuadre()" id="tabCuadre" style="display: none;">Cuadre de Caja</button>
-            </div>
+        <div class="tabs">
+            <button class="tab active" onclick="mostrarSeccion('ventas')">Ventas</button>
+            <button class="tab" onclick="mostrarSeccion('servicios')">Servicios</button>
+            <button class="tab" onclick="mostrarSeccion('clientes')">Clientes</button>
+            <button class="tab" onclick="mostrarSeccion('citas')">Citas</button>
+            <button class="tab" onclick="mostrarSeccion('fiscal')" id="tabFiscal">ITBIS Fiscal</button>
+            <button class="tab" onclick="mostrarCuadre()" id="tabCuadre" style="display: none;">Cuadro de Caja</button>
+        </div>
+
+        <!-- Barra de exportacion -->
+        <div style="display:flex; gap:0.5rem; margin:0.75rem 0; flex-wrap:wrap;">
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV('ventas')">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Exportar Ventas CSV
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV('egresos')">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                Exportar Egresos CSV
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV('606')">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                606 (Compras) CSV
+            </button>
+            <button class="btn btn-secondary btn-sm" onclick="exportCSV('607')">
+                <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                607 (Ventas) CSV
+            </button>
+        </div>
             
             <div id="seccion-ventas">
                 <div class="filtros-rapidos">
@@ -421,6 +445,43 @@
                 </div>
             </div>
             
+            <!-- ── SECCIÓN FISCAL ITBIS ──────────────────────────────────── -->
+            <div id="seccion-fiscal" style="display: none;">
+                <div style="background:linear-gradient(135deg,#1a1a2e 0%,#0f3460 100%); border-radius:20px; padding:2rem; margin-bottom:1.5rem; color:white;">
+                    <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; color:rgba(255,255,255,0.55); margin-bottom:0.4rem;">Compensación ITBIS — DGII</div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; margin-top:1rem;">
+                        <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:1rem; text-align:center;">
+                            <div style="font-size:1.4rem; font-weight:800; color:#34d399;" id="fiscalItbisCobrado">$0.00</div>
+                            <div style="font-size:0.7rem; opacity:0.7; margin-top:4px;">ITBIS Cobrado en Ventas</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:1rem; text-align:center;">
+                            <div style="font-size:1.4rem; font-weight:800; color:#f87171;" id="fiscalItbisPagado">$0.00</div>
+                            <div style="font-size:0.7rem; opacity:0.7; margin-top:4px;">ITBIS Pagado a Suplidores</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.15); border-radius:12px; padding:1rem; text-align:center; border:1px solid rgba(255,255,255,0.2);">
+                            <div style="font-size:1.6rem; font-weight:800;" id="fiscalItbisNeto">$0.00</div>
+                            <div style="font-size:0.7rem; opacity:0.7; margin-top:4px;">ITBIS Neto a Pagar DGII</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="grid-2-col">
+                    <div class="seccion-reporte">
+                        <h3>Servicios por Tasa de ITBIS</h3>
+                        <div id="fiscalPorTasa"></div>
+                    </div>
+                    <div class="seccion-reporte">
+                        <h3>Egresos con NCF Registrado</h3>
+                        <div id="fiscalEgresosNCF"></div>
+                    </div>
+                </div>
+
+                <div class="seccion-reporte" style="margin-top:1.5rem;">
+                    <h3>Detalle ITBIS por Venta (período seleccionado)</h3>
+                    <div id="fiscalDetalleVentas" style="max-height:400px; overflow-y:auto;"></div>
+                </div>
+            </div>
+
             <div id="seccion-cuadre" style="display: none;">
                 <div class="header-actions">
                     <button class="btn btn-secondary" onclick="imprimirCuadreResumen()">🖨️ Imprimir Cuadre</button>
@@ -484,38 +545,6 @@
         let filtroActual = 'mes';
         let isAdmin = false;
         let datosCuadreActual = null;
-        
-        async function apiCall(endpoint, options = {}) {
-            const config = {
-                headers: { 'Content-Type': 'application/json' },
-                ...options
-            };
-            try {
-                const response = await fetch(`${API_BASE}${endpoint}`, config);
-                const data = await response.json();
-                if (!response.ok) throw new Error(data.error || 'Error');
-                return data;
-            } catch (error) {
-                console.error('API Error:', error);
-                throw error;
-            }
-        }
-        
-        async function checkSession() {
-            try {
-                const res = await fetch('/api/auth/session');
-                return await res.json();
-            } catch (e) { return null; }
-        }
-        
-        function showToast(msg, type = 'error') {
-            const colors = { error: '#ef4444', success: '#10b981', warning: '#f59e0b', info: '#3b82f6' };
-            const toast = document.createElement('div');
-            toast.style.cssText = `position:fixed;top:20px;right:20px;background:${colors[type] || colors.error};color:white;padding:12px 20px;border-radius:8px;z-index:9999999;box-shadow:0 4px 12px rgba(0,0,0,0.15);font-size:14px;`;
-            toast.textContent = msg;
-            document.body.appendChild(toast);
-            setTimeout(() => toast.remove(), 4000);
-        }
         
         document.addEventListener('DOMContentLoaded', async () => {
             try {
@@ -715,13 +744,58 @@
         
         function mostrarSeccion(seccion) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            
+            // Marcar el tab activo
+            const tabBtn = document.querySelector(`.tab[onclick*="'${seccion}'"]`);
+            if (tabBtn) tabBtn.classList.add('active');
+
             document.querySelectorAll('[id^="seccion-"]').forEach(s => s.style.display = 'none');
-            
+
             const targetSection = document.getElementById('seccion-' + seccion);
             if (targetSection) {
                 targetSection.style.display = 'block';
             }
+
+            // Cargar datos fiscales al entrar al tab
+            if (seccion === 'fiscal') {
+                renderReporteFiscal();
+            }
+        }
+
+        // ── Exportar CSV ────────────────────────────────────────────────────
+        function exportCSV(tipo) {
+            const desde = document.getElementById('fechaDesde').value;
+            const hasta = document.getElementById('fechaHasta').value;
+            const now = new Date();
+            const mes = String(now.getMonth() + 1).padStart(2, '0');
+            const anio = now.getFullYear();
+
+            let url;
+            if (tipo === 'ventas') {
+                url = `/api/reports/export/ventas?desde=${desde || ''}&hasta=${hasta || ''}`;
+            } else if (tipo === 'egresos') {
+                url = `/api/reports/export/egresos?desde=${desde || ''}&hasta=${hasta || ''}`;
+            } else if (tipo === '606') {
+                url = `/api/reports/export/606?mes=${mes}&anio=${anio}`;
+            } else if (tipo === '607') {
+                url = `/api/reports/export/607?mes=${mes}&anio=${anio}`;
+            }
+
+            // Usar fetch + blob para enviar la cookie de sesion
+            fetch(url, { credentials: 'same-origin' })
+                .then(r => {
+                    if (!r.ok) throw new Error('Error al exportar');
+                    return r.blob();
+                })
+                .then(blob => {
+                    const a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = url.split('/').pop().split('?')[0] + '.csv';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+                })
+                .catch(err => showToast('Error al exportar: ' + err.message, 'error'));
         }
         
         async function mostrarCuadre() {
@@ -947,23 +1021,27 @@
                 `;
                 container.innerHTML = '<div class="no-data"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><p>No hay ventas en este período</p></div>';
             } else {
-                const totalBruto = data.resumen.monto_total || 0;
-                const totalItbis = Math.round(totalBruto * 18 / 118 * 100) / 100;
-                const totalNeto = totalBruto - totalItbis;
-                const volumen = data.resumen.total_ventas || 0;
-                
+                const totalBruto   = data.resumen.monto_total     || 0;
+                // Usar ITBIS real de la DB (suma de campo itbis por venta individual)
+                const totalItbis   = data.resumen.itbis_total     || 0;
+                const totalSubtotal= data.resumen.subtotal_total  || 0;
+                const totalDescuento = data.resumen.descuento_total || 0;
+                // Neto = subtotal real (sin ITBIS) cuando disponible, sino total - itbis
+                const totalNeto    = totalSubtotal > 0 ? totalSubtotal : (totalBruto - totalItbis);
+                const volumen      = data.resumen.total_ventas    || 0;
+
                 kpis.innerHTML = `
                     <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 12px; padding: 1.25rem; text-align: center; color: white; box-shadow: 0 4px 12px rgba(102,126,234,0.3);">
                         <div style="font-size: 1.6rem; font-weight: 700;">${formatCurrency(totalBruto)}</div>
-                        <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Total Bruto</div>
+                        <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Total Cobrado</div>
                     </div>
                     <div style="background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%); border-radius: 12px; padding: 1.25rem; text-align: center; color: white; box-shadow: 0 4px 12px rgba(245,158,11,0.3);">
                         <div style="font-size: 1.6rem; font-weight: 700;">${formatCurrency(totalItbis)}</div>
-                        <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Total ITBIS</div>
+                        <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">ITBIS Cobrado</div>
                     </div>
                     <div style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border-radius: 12px; padding: 1.25rem; text-align: center; color: white; box-shadow: 0 4px 12px rgba(16,185,129,0.3);">
                         <div style="font-size: 1.6rem; font-weight: 700;">${formatCurrency(totalNeto)}</div>
-                        <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Total Neto</div>
+                        <div style="font-size: 0.75rem; opacity: 0.85; margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.5px;">Subtotal Neto</div>
                     </div>
                     <div style="background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%); border-radius: 12px; padding: 1.25rem; text-align: center; color: white; box-shadow: 0 4px 12px rgba(59,130,246,0.3);">
                         <div style="font-size: 1.6rem; font-weight: 700;">${volumen}</div>
@@ -1151,13 +1229,14 @@
             }
             
             const recientes = document.getElementById('clientesRecientes');
+            // ultimosRegistrados viene del backend (fix aplicado)
             if (data && data.ultimosRegistrados && data.ultimosRegistrados.length > 0) {
                 recientes.innerHTML = `
                     <table class="tabla-simple">
                         <thead>
                             <tr>
                                 <th>Cliente</th>
-                                <th>Fecha</th>
+                                <th>Registrado</th>
                                 <th>Compras</th>
                             </tr>
                         </thead>
@@ -1174,6 +1253,155 @@
                 `;
             } else {
                 recientes.innerHTML = '<p class="text-muted">Sin clientes registrados</p>';
+            }
+        }
+
+        async function renderReporteFiscal() {
+            const desde = document.getElementById('fechaDesde').value;
+            const hasta = document.getElementById('fechaHasta').value;
+            const params = desde || hasta ? '?desde=' + (desde || '') + '&hasta=' + (hasta || '') : '';
+
+            // Mostrar loading en las cards mientras carga
+            ['fiscalItbisCobrado','fiscalItbisPagado','fiscalItbisNeto'].forEach(id => {
+                document.getElementById(id).textContent = '...';
+            });
+
+            try {
+                // Un solo endpoint dedicado que hace todos los calculos correctamente
+                const fiscal = await apiCall('/reports/fiscal' + params);
+
+                // ── Hero cards ─────────────────────────────────────────────
+                document.getElementById('fiscalItbisCobrado').textContent = formatCurrency(fiscal.itbisCobrado);
+                document.getElementById('fiscalItbisPagado').textContent  = formatCurrency(fiscal.itbisPagado);
+
+                const netoEl = document.getElementById('fiscalItbisNeto');
+                netoEl.textContent = (fiscal.itbisNeto >= 0 ? '+' : '') + formatCurrency(fiscal.itbisNeto);
+                netoEl.style.color = fiscal.itbisNeto >= 0 ? '#fbbf24' : '#34d399';
+
+                // ── Desglose por tasa de ITBIS ─────────────────────────────
+                const porTasaEl = document.getElementById('fiscalPorTasa');
+                if (fiscal.porTasa && fiscal.porTasa.length > 0) {
+                    const tasaLabels = { 0: '0% — Exento', 8: '8% — Especial', 16: '16% — Reducida', 18: '18% — General' };
+                    porTasaEl.innerHTML = `
+                        <table class="tabla-simple">
+                            <thead>
+                                <tr>
+                                    <th>Tasa ITBIS</th>
+                                    <th style="text-align:right;">Ventas</th>
+                                    <th style="text-align:right;">Subtotal</th>
+                                    <th style="text-align:right;">ITBIS generado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${fiscal.porTasa.map(t => `
+                                    <tr>
+                                        <td>
+                                            <span style="display:inline-block; padding:2px 8px; border-radius:10px;
+                                                background:${t.itbis_tasa === 0 ? '#d1fae5' : t.itbis_tasa === 18 ? '#ede9fe' : '#fef3c7'};
+                                                color:${t.itbis_tasa === 0 ? '#065f46' : t.itbis_tasa === 18 ? '#5b21b6' : '#92400e'};
+                                                font-size:0.78rem; font-weight:700;">
+                                                ${tasaLabels[t.itbis_tasa] || t.itbis_tasa + '%'}
+                                            </span>
+                                        </td>
+                                        <td style="text-align:right;">${t.veces}</td>
+                                        <td style="text-align:right;">${formatCurrency(t.subtotal_total)}</td>
+                                        <td style="text-align:right; font-weight:700; color:#8b5cf6;">${formatCurrency(t.itbis_total)}</td>
+                                    </tr>
+                                `).join('')}
+                            </tbody>
+                        </table>`;
+                } else {
+                    porTasaEl.innerHTML = '<p class="text-muted">Sin ventas con detalle ITBIS en este período</p>';
+                }
+
+                // ── Egresos con ITBIS ──────────────────────────────────────
+                // Muestra TODOS los egresos que tienen algún ITBIS, con o sin NCF
+                const ncfEl = document.getElementById('fiscalEgresosNCF');
+                const egresosConItbis = (fiscal.egresos || []).filter(e =>
+                    (parseFloat(e.itbis_efectivo) || 0) > 0
+                );
+
+                if (egresosConItbis.length > 0) {
+                    ncfEl.innerHTML = `
+                        <table class="tabla-simple">
+                            <thead>
+                                <tr>
+                                    <th>Descripción</th>
+                                    <th>Fecha</th>
+                                    <th style="text-align:right;">ITBIS Pagado</th>
+                                    <th style="text-align:right;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${egresosConItbis.map(e => `
+                                    <tr>
+                                        <td>
+                                            ${escapeHtml(e.descripcion)}
+                                            ${e.ncf_suplidor
+                                                ? `<br><span style="font-family:monospace;font-size:0.7rem;color:#1d4ed8;">${escapeHtml(e.ncf_suplidor)}</span>`
+                                                : ''}
+                                        </td>
+                                        <td>${formatDate(e.fecha)}</td>
+                                        <td style="text-align:right; color:#8b5cf6; font-weight:700;">${formatCurrency(e.itbis_efectivo)}</td>
+                                        <td style="text-align:right; font-weight:600;">${formatCurrency(e.monto)}</td>
+                                    </tr>
+                                `).join('')}
+                                <tr style="background:#faf5ff; border-top:2px solid #ddd6fe;">
+                                    <td colspan="2" style="font-weight:700; color:#5b21b6;">Total ITBIS deducible</td>
+                                    <td style="text-align:right; font-weight:800; color:#5b21b6; font-size:1rem;" colspan="2">
+                                        ${formatCurrency(egresosConItbis.reduce((s,e) => s + (parseFloat(e.itbis_efectivo)||0), 0))}
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>`;
+                } else {
+                    ncfEl.innerHTML = '<p class="text-muted">No hay egresos con ITBIS registrado en este período</p>';
+                }
+
+                // ── Detalle ITBIS por venta ────────────────────────────────
+                const dvEl = document.getElementById('fiscalDetalleVentas');
+                if (fiscal.ventas && fiscal.ventas.length > 0) {
+                    dvEl.innerHTML = `
+                        <table class="tabla-simple">
+                            <thead>
+                                <tr>
+                                    <th>#</th>
+                                    <th>Cliente</th>
+                                    <th>Fecha</th>
+                                    <th>Método</th>
+                                    <th style="text-align:right;">Subtotal</th>
+                                    <th style="text-align:right;">ITBIS</th>
+                                    <th style="text-align:right;">Total</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                ${fiscal.ventas.map(v => {
+                                    // Usar el ITBIS mas preciso disponible
+                                    const itbisReal = parseFloat(v.itbis_monto_real) > 0
+                                        ? v.itbis_monto_real
+                                        : (v.itbis || 0);
+                                    return `
+                                    <tr>
+                                        <td style="font-family:monospace; font-size:0.78rem; color:var(--gray-500);">#${v.id}</td>
+                                        <td>${escapeHtml(v.cliente || 'Consumidor final')}</td>
+                                        <td>${formatDate(v.fecha)}</td>
+                                        <td>${v.metodo_pago}${v.banco ? '<br><small style="color:var(--gray-400);">' + escapeHtml(v.banco) + '</small>' : ''}</td>
+                                        <td style="text-align:right;">${formatCurrency(v.subtotal || 0)}</td>
+                                        <td style="text-align:right; font-weight:700; color:${itbisReal > 0 ? '#8b5cf6' : '#10b981'};">
+                                            ${itbisReal > 0 ? formatCurrency(itbisReal) : '<span style="font-size:0.75rem;">exento</span>'}
+                                        </td>
+                                        <td style="text-align:right; font-weight:700;">${formatCurrency(v.total)}</td>
+                                    </tr>`;
+                                }).join('')}
+                            </tbody>
+                        </table>`;
+                } else {
+                    dvEl.innerHTML = '<p class="text-muted">Sin ventas en este período</p>';
+                }
+
+            } catch (err) {
+                console.error('Error cargando reporte fiscal:', err);
+                showToast('Error al cargar reporte fiscal: ' + err.message, 'error');
             }
         }
         
@@ -1416,8 +1644,9 @@
         }
         
         // Modal helper para opciones de cierre
+        // modalContainer e initModalContainer ya vienen de /js/api.js
         let cierreModalContainer = null;
-        
+
         function initCierreModal() {
             if (!cierreModalContainer) {
                 cierreModalContainer = document.createElement('div');
@@ -1425,7 +1654,7 @@
                 document.body.appendChild(cierreModalContainer);
             }
         }
-        
+
         function closeGlobalModal() {
             const cierreModal = document.getElementById('cierre-modal-container');
             if (cierreModal) cierreModal.innerHTML = '';
@@ -1653,15 +1882,22 @@ ${egresosText}
         function imprimirDetalleVentas() {
             const d = window.ultimoCierre || datosCuadreActual;
             if (!d || !d.ventas) return;
-            
+
             const ahora = new Date();
             const horaCierre = ahora.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit' });
-            
+            const nombreNegocio = (d.negocio && d.negocio.nombre) ? d.negocio.nombre : (typeof d.negocio === 'string' ? d.negocio : 'MI NEGOCIO');
 
-            
+            const ventasText = d.ventas.map(v => {
+                const hora  = formatTime(v.fecha).padEnd(6);
+                const cli   = (v.cliente || 'Rapida').substring(0, 18).padEnd(19);
+                const met   = (v.metodo_pago + (v.banco ? '/' + v.banco : '')).substring(0, 18).padEnd(19);
+                const total = formatCurrency(v.total).padStart(9);
+                return `${hora} ${cli} ${met} ${total}\n  ${(v.detalles || '').substring(0, 42)}`;
+            }).join('\n');
+
             const ticket = `
 ================================
-  (d.negocio?.nombre || d.negocio || 'MI NEGOCIO')
+  ${nombreNegocio.toUpperCase()}
   DETALLE DE VENTAS
   ${formatDateFull(d.fecha)} - ${horaCierre}
 ================================
@@ -1964,8 +2200,6 @@ ${ventasText}
             });
         }
     </script>
-    <script src="/js/api.js"></script>
-    <script src="/js/common.js"></script>
     <script src="/js/sidebar.js"></script>
     <script src="/js/license-banner.js"></script>
 </body>

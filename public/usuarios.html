@@ -98,6 +98,16 @@
                             <option value="inactivo">Inactivo</option>
                         </select>
                     </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="comision_porcentaje">Comision (%)</label>
+                            <input type="number" id="comision_porcentaje" min="0" max="100" step="0.5" value="0"
+                                   title="Porcentaje de comision sobre ventas realizadas por este empleado">
+                        </div>
+                        <div class="form-group" style="display:flex;align-items:flex-end;">
+                            <small style="color:var(--gray-400);font-size:0.72rem;">0% = sin comision. Ej: 10% = recibe 10% de cada venta</small>
+                        </div>
+                    </div>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" onclick="closeModal()">Cancelar</button>
@@ -150,8 +160,34 @@
                 }
                 
                 tbody.innerHTML = usuarios.map(u => {
-                    const isSelf = sessionStorage.getItem('session') ? JSON.parse(sessionStorage.getItem('session')).user.id === u.id : false;
+                    const sessionData = sessionStorage.getItem('session');
+                    const sessionUser = sessionData ? JSON.parse(sessionData).user : null;
+                    const currentUserId = sessionUser ? sessionUser.id : null;
+                    const isSelf = currentUserId === u.id;
                     const nombreEsc = (u.nombre || '').replace(/'/g, "\\'");
+
+                    // Logica de permisos:
+                    // - isPrincipalAdmin (azdelmicha@gmail.com): puede editar/eliminar a todos MENOS a si mismo
+                    // - Admin normal: puede editar/eliminar empleados, NO puede eliminar otros admins
+                    // - Nadie puede eliminarse a si mismo
+                    let accionesHTML = '';
+                    if (isSelf) {
+                        // No puede eliminarse a si mismo, solo editar
+                        accionesHTML = `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>`;
+                    } else if (isPrincipalAdmin) {
+                        // Super admin: puede todo
+                        accionesHTML = `
+                            <button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id}, '${nombreEsc}')">Eliminar</button>`;
+                    } else if (u.rol === 'empleado') {
+                        // Admin normal: puede editar/eliminar empleados
+                        accionesHTML = `
+                            <button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>
+                            <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id}, '${nombreEsc}')">Eliminar</button>`;
+                    } else {
+                        // Admin normal viendo otro admin: solo puede ver, no eliminar
+                        accionesHTML = `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>`;
+                    }
                     
                     return `
                     <tr class="${u.estado === 'inactivo' ? 'text-muted' : ''}">
@@ -162,16 +198,7 @@
                         <td>${u.horario_tipo === 'completo' ? `${u.hora_entrada} - ${u.hora_salida}` : 'Turno partido'}</td>
                         <td>${formatDate(u.fecha_creacion)}</td>
                         <td class="actions">
-                            ${isSelf ? 
-                                `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>
-                                 <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id}, '${nombreEsc}')">Eliminar</button>` :
-                                (isPrincipalAdmin ?
-                                    `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>
-                                     <button class="btn btn-danger btn-sm" onclick="deleteUsuario(${u.id}, '${nombreEsc}')">Eliminar</button>` :
-                                    (u.estado === 'inactivo' && isPrincipalAdmin ? 
-                                        `<button class="btn btn-success btn-sm" onclick="reactivateUsuario(${u.id})">Reactivar</button>` :
-                                        `<button class="btn btn-secondary btn-sm" onclick="editUsuario(${u.id})">Editar</button>`))
-                            }
+                            ${accionesHTML}
                         </td>
                     </tr>
                 `}).join('');
@@ -243,8 +270,9 @@
                 document.getElementById('horario_tipo').value = usuario.horario_tipo || 'completo';
                 document.getElementById('hora_entrada').value = usuario.hora_entrada || '08:00';
                 document.getElementById('hora_salida').value = usuario.hora_salida || '18:00';
+                document.getElementById('comision_porcentaje').value = usuario.comision_porcentaje || 0;
             } catch (error) {
-                showModalError(error.message);
+                showToast(error.message, 'error');
             }
         }
         
@@ -266,7 +294,8 @@
                 estado: document.getElementById('estado').value,
                 horario_tipo: document.getElementById('horario_tipo').value,
                 hora_entrada: document.getElementById('hora_entrada').value,
-                hora_salida: document.getElementById('hora_salida').value
+                hora_salida: document.getElementById('hora_salida').value,
+                comision_porcentaje: parseFloat(document.getElementById('comision_porcentaje').value) || 0
             };
             
             const password = document.getElementById('password').value;
@@ -290,7 +319,7 @@
                 closeModal();
                 await loadUsuarios();
             } catch (error) {
-                showModalError(error.message);
+                showToast(error.message, 'error');
             }
         }
         
@@ -298,10 +327,10 @@
             if (!confirm(`¿Está seguro que desea eliminar el usuario "${nombre}"?`)) return;
             try {
                 await apiCall(`/users/${id}`, { method: 'DELETE' });
-                showModalError('Usuario eliminado correctamente', 'success');
+                showToast('Usuario eliminado correctamente', 'success');
                 await loadUsuarios();
             } catch (error) {
-                showModalError(error.message || 'Error al eliminar usuario');
+                showToast(error.message || 'Error al eliminar usuario', 'error');
             }
         }
         
@@ -346,9 +375,14 @@
         
         function formatDate(dateStr) {
             if (!dateStr) return '';
-            const [year, month, day] = dateStr.split('-').map(Number);
-            const date = new Date(year, month - 1, day);
-            return date.toLocaleDateString('es-DO');
+            try {
+                const parts = dateStr.replace('T', ' ').split(/[- :]/);
+                const date = new Date(parts[0], parts[1] - 1, parts[2]);
+                if (isNaN(date.getTime())) return dateStr;
+                return date.toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' });
+            } catch (e) {
+                return dateStr;
+            }
         }
     </script>
     <script src="/js/sidebar.js"></script>

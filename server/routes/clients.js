@@ -47,7 +47,7 @@ router.get('/:id', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const cliente = db.prepare(`
-            SELECT c.id, c.negocio_id, c.nombre, c.telefono, c.email, c.notas, c.estado, c.fecha_registro
+            SELECT c.id, c.negocio_id, c.nombre, c.telefono, c.email, c.documento, c.tipo_documento, c.notas, c.estado, c.fecha_registro
             FROM clientes c
             WHERE c.id = ? AND c.negocio_id = ?
         `).get(req.params.id, req.session.negocioId);
@@ -82,7 +82,7 @@ router.get('/:id', requireAuth, (req, res) => {
 
 router.post('/', requireAuth, (req, res) => {
     try {
-        let { nombre, telefono, email, notas } = req.body;
+        let { nombre, telefono, email, notas, tipo_documento, documento } = req.body;
 
         if (!nombre || nombre.trim() === '') {
             return res.status(400).json({ error: 'El nombre es requerido' });
@@ -114,6 +114,21 @@ router.post('/', requireAuth, (req, res) => {
             }
         }
 
+        // Validar documento si se provee
+        if (documento) {
+            documento = documento.trim();
+            const TIPOS_DOC_VALIDOS = ['rnc', 'cedula', 'pasaporte', 'otro'];
+            if (tipo_documento && !TIPOS_DOC_VALIDOS.includes(tipo_documento)) {
+                return res.status(400).json({ error: 'tipo_documento debe ser: rnc, cedula, pasaporte u otro' });
+            }
+            if (documento.length > 30) {
+                return res.status(400).json({ error: 'El documento no puede exceder 30 caracteres' });
+            }
+        } else {
+            documento = null;
+            tipo_documento = null;
+        }
+
         notas = notas ? notas.trim() : null;
 
         const db = getDb();
@@ -125,13 +140,15 @@ router.post('/', requireAuth, (req, res) => {
         }
 
         const result = db.prepare(`
-            INSERT INTO clientes (negocio_id, nombre, telefono, email, notas)
-            VALUES (?, ?, ?, ?, ?)
+            INSERT INTO clientes (negocio_id, nombre, telefono, email, tipo_documento, documento, notas)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
         `).run(
             req.session.negocioId,
             nombre,
             telefono,
             email || null,
+            tipo_documento || null,
+            documento,
             notas || null
         );
 
@@ -146,7 +163,7 @@ router.post('/', requireAuth, (req, res) => {
 
 router.put('/:id', requireAuth, (req, res) => {
     try {
-        let { nombre, telefono, email, notas, estado } = req.body;
+        let { nombre, telefono, email, notas, estado, tipo_documento, documento } = req.body;
         const clienteId = req.params.id;
 
         // Formatear nombre (Title Case)
@@ -176,6 +193,23 @@ router.put('/:id', requireAuth, (req, res) => {
                 return res.status(400).json({ error: errorMessages.telefonoInvalido });
             }
             telefono = formatters.toPhone(telefono);
+        }
+
+        // Validar documento
+        if (documento !== undefined) {
+            if (documento !== null && documento !== '') {
+                documento = documento.trim();
+                const TIPOS_DOC_VALIDOS = ['rnc', 'cedula', 'pasaporte', 'otro'];
+                if (tipo_documento && !TIPOS_DOC_VALIDOS.includes(tipo_documento)) {
+                    return res.status(400).json({ error: 'tipo_documento debe ser: rnc, cedula, pasaporte u otro' });
+                }
+                if (documento.length > 30) {
+                    return res.status(400).json({ error: 'El documento no puede exceder 30 caracteres' });
+                }
+            } else {
+                documento = null;
+                tipo_documento = null;
+            }
         }
 
         const db = getDb();
@@ -209,6 +243,14 @@ router.put('/:id', requireAuth, (req, res) => {
         if (email !== undefined) {
             updates.push('email = ?');
             values.push(email || null);
+        }
+        if (tipo_documento !== undefined) {
+            updates.push('tipo_documento = ?');
+            values.push(tipo_documento || null);
+        }
+        if (documento !== undefined) {
+            updates.push('documento = ?');
+            values.push(documento);
         }
         if (notas !== undefined) {
             updates.push('notas = ?');

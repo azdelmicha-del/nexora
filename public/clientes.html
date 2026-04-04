@@ -39,7 +39,7 @@
                             <tr>
                                 <th>Nombre</th>
                                 <th>Teléfono</th>
-                                <th>Email</th>
+                                <th>Documento</th>
                                 <th>Ventas</th>
                                 <th>Citas</th>
                                 <th>Estado</th>
@@ -78,6 +78,23 @@
                         <div class="form-group">
                             <label for="email">Email</label>
                             <input type="email" id="email">
+                        </div>
+                    </div>
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label for="tipo_documento">Tipo de Documento</label>
+                            <select id="tipo_documento">
+                                <option value="">Sin documento</option>
+                                <option value="rnc">RNC</option>
+                                <option value="cedula">Cédula</option>
+                                <option value="pasaporte">Pasaporte</option>
+                                <option value="otro">Otro</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="documento">Documento</label>
+                            <input type="text" id="documento" placeholder="RNC/Cédula/Pasaporte"
+                                   title="Para emitir Crédito Fiscal (e-CF 31) se requiere RNC o Cédula">
                         </div>
                     </div>
                     <div class="form-group">
@@ -181,11 +198,14 @@
                 
                 tbody.innerHTML = clientes.map(c => {
                     const nombreEsc = (c.nombre || '').replace(/'/g, "\\'");
+                    const docBadge = c.documento
+                        ? `<span style="font-family:monospace;font-size:0.72rem;color:#1d4ed8;background:#eff6ff;padding:1px 6px;border-radius:10px;border:1px solid #bfdbfe;" title="Tipo: ${c.tipo_documento || 'N/A'}">${escapeHtml(c.documento)}</span>`
+                        : '<span class="text-muted">—</span>';
                     return `
                     <tr class="fade-in">
                         <td><strong>${escapeHtml(c.nombre)}</strong></td>
                         <td>${escapeHtml(c.telefono || '<span class="text-muted">-</span>')}</td>
-                        <td>${c.email ? escapeHtml(c.email) : '<span class="text-muted"></span>'}</td>
+                        <td>${docBadge}</td>
                         <td>${c.total_ventas || 0}</td>
                         <td>${c.total_citas || 0}</td>
                         <td><span class="badge badge-${c.estado === 'activo' ? 'success' : 'danger'}">${c.estado}</span></td>
@@ -241,6 +261,7 @@
                     <div style="margin-bottom: 1.5rem;">
                         <h4 style="color: var(--gray-900); margin-bottom: 0.5rem;">${escapeHtml(cliente.nombre)}</h4>
                         <p class="text-muted">${cliente.telefono || '-'}</p>
+                        ${cliente.documento ? `<p style="margin-top:0.5rem;"><span style="font-family:monospace;font-size:0.82rem;color:#1d4ed8;background:#eff6ff;padding:2px 8px;border-radius:10px;border:1px solid #bfdbfe;">${escapeHtml(cliente.tipo_documento ? cliente.tipo_documento.toUpperCase() + ': ' : '')}${escapeHtml(cliente.documento)}</span></p>` : ''}
                         ${cliente.email ? `<p class="text-muted">${escapeHtml(cliente.email)}</p>` : ''}
                         ${cliente.notas ? `<p style="margin-top: 1rem; padding: 1rem; background: var(--gray-50); border-radius: 0.5rem;">${escapeHtml(cliente.notas)}</p>` : ''}
                     </div>
@@ -308,6 +329,8 @@
                 document.getElementById('nombre').value = cliente.nombre;
                 document.getElementById('telefono').value = cliente.telefono || '';
                 document.getElementById('email').value = cliente.email || '';
+                document.getElementById('tipo_documento').value = cliente.tipo_documento || '';
+                document.getElementById('documento').value = cliente.documento || '';
                 document.getElementById('notas').value = cliente.notas || '';
                 document.getElementById('estado').value = cliente.estado;
             } catch (error) {
@@ -355,6 +378,8 @@
                 nombre: toTitleCase(nombreInput.value.trim()),
                 telefono: telefono,
                 email: emailInput.value.trim() || null,
+                tipo_documento: document.getElementById('tipo_documento').value || null,
+                documento: document.getElementById('documento').value.trim() || null,
                 notas: capitalizeFirst(document.getElementById('notas').value) || null,
                 estado: document.getElementById('estado').value
             };
