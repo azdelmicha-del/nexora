@@ -116,8 +116,9 @@
             <form id="configForm">
                 <div class="tabs">
                     <button type="button" class="tab active" onclick="showTab('general')">Datos Generales</button>
+                    <button type="button" class="tab" onclick="showTab('tipo')">Tipo de Negocio</button>
                     <button type="button" class="tab" onclick="showTab('horario')">Horario</button>
-                    <button type="button" class="tab" onclick="showTab('pagos')">Métodos de Pago</button>
+                    <button type="button" class="tab" onclick="showTab('pagos')">Metodos de Pago</button>
                     <button type="button" class="tab" onclick="showTab('reservas')">Reservas Online</button>
                     <button type="button" class="tab" onclick="showTab('firma')">Firma Digital</button>
                     <button type="button" class="tab" onclick="showTab('cuenta')">Mi Cuenta</button>
@@ -155,6 +156,51 @@
                                     <label for="direccion">Dirección</label>
                                     <input type="text" id="direccion" name="direccion">
                                 </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div id="tab-tipo" class="tab-content" style="display: none;">
+                    <div class="card">
+                        <div class="card-header">
+                            <h3>Tipo de Negocio</h3>
+                        </div>
+                        <div class="card-body">
+                            <p style="color:var(--gray-500);font-size:0.85rem;margin-bottom:1.5rem;">Selecciona como quieres usar Nexora. Esto afecta que modulos se muestran en el sidebar.</p>
+                            <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:1rem;">
+                                <label class="tipo-negocio-card" style="border:2px solid var(--gray-200);border-radius:16px;padding:1.5rem;cursor:pointer;transition:all 0.2s;text-align:center;" onclick="document.querySelectorAll('.tipo-negocio-card').forEach(c=>c.style.borderColor='var(--gray-200)');this.style.borderColor='#667eea';document.getElementById('tipo_negocio').value='servicios'">
+                                    <div style="font-size:2.5rem;margin-bottom:0.5rem;">💇</div>
+                                    <div style="font-weight:700;margin-bottom:0.25rem;">Servicios y Citas</div>
+                                    <div style="font-size:0.78rem;color:var(--gray-500);">Barberia, salon, consultorio</div>
+                                    <input type="radio" name="tipo_negocio_radio" value="servicios" style="display:none;">
+                                </label>
+                                <label class="tipo-negocio-card" style="border:2px solid var(--gray-200);border-radius:16px;padding:1.5rem;cursor:pointer;transition:all 0.2s;text-align:center;" onclick="document.querySelectorAll('.tipo-negocio-card').forEach(c=>c.style.borderColor='var(--gray-200)');this.style.borderColor='#667eea';document.getElementById('tipo_negocio').value='comida'">
+                                    <div style="font-size:2.5rem;margin-bottom:0.5rem;">🍽️</div>
+                                    <div style="font-weight:700;margin-bottom:0.25rem;">Comida y Pedidos</div>
+                                    <div style="font-size:0.78rem;color:var(--gray-500);">Restaurante, cafeteria, delivery</div>
+                                    <input type="radio" name="tipo_negocio_radio" value="comida" style="display:none;">
+                                </label>
+                                <label class="tipo-negocio-card" style="border:2px solid var(--gray-200);border-radius:16px;padding:1.5rem;cursor:pointer;transition:all 0.2s;text-align:center;" onclick="document.querySelectorAll('.tipo-negocio-card').forEach(c=>c.style.borderColor='var(--gray-200)');this.style.borderColor='#667eea';document.getElementById('tipo_negocio').value='ambos'">
+                                    <div style="font-size:2.5rem;margin-bottom:0.5rem;">🏪</div>
+                                    <div style="font-weight:700;margin-bottom:0.25rem;">Ambos</div>
+                                    <div style="font-size:0.78rem;color:var(--gray-500);">Servicios + Menu de comida</div>
+                                    <input type="radio" name="tipo_negocio_radio" value="ambos" style="display:none;">
+                                </label>
+                            </div>
+                            <input type="hidden" id="tipo_negocio" name="tipo_negocio" value="ambos">
+                        </div>
+                    </div>
+                    
+                    <div class="card" style="margin-top:1rem;">
+                        <div class="card-header">
+                            <h3>WhatsApp del Negocio</h3>
+                        </div>
+                        <div class="card-body">
+                            <div class="form-group">
+                                <label for="whatsapp_negocio">Numero de WhatsApp (para pedidos)</label>
+                                <input type="text" id="whatsapp_negocio" name="whatsapp_negocio" placeholder="8095551234" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'').substring(0,10)">
+                                <p style="font-size:0.75rem;color:var(--gray-400);margin-top:0.25rem;">Este numero se usa para redirigir a WhatsApp cuando el cliente envia un pedido.</p>
                             </div>
                         </div>
                     </div>
@@ -481,6 +527,18 @@
                 document.getElementById('email').value = config.email || '';
                 document.getElementById('direccion').value = config.direccion || '';
                 
+                // Tipo de negocio
+                const tipoNegocio = config.tipo_negocio || 'ambos';
+                document.getElementById('tipo_negocio').value = tipoNegocio;
+                document.querySelectorAll('.tipo-negocio-card').forEach(card => {
+                    const radio = card.querySelector('input[type=radio]');
+                    if (radio && radio.value === tipoNegocio) {
+                        card.style.borderColor = '#667eea';
+                        radio.checked = true;
+                    }
+                });
+                document.getElementById('whatsapp_negocio').value = config.whatsapp_negocio || '';
+                
                 document.getElementById('hora_apertura').value = config.hora_apertura || '09:00';
                 document.getElementById('hora_cierre').value = config.hora_cierre || '18:00';
                 document.getElementById('duracion_minima_cita').value = config.duracion_minima_cita || 30;
@@ -552,6 +610,8 @@
                 telefono: document.getElementById('telefono').value,
                 email: document.getElementById('email').value.toLowerCase().trim(),
                 direccion: capitalizeFirst(document.getElementById('direccion').value),
+                tipo_negocio: document.getElementById('tipo_negocio').value || 'ambos',
+                whatsapp_negocio: document.getElementById('whatsapp_negocio').value.replace(/\D/g, '') || null,
                 hora_apertura: document.getElementById('hora_apertura').value,
                 hora_cierre: document.getElementById('hora_cierre').value,
                 duracion_minima_cita: parseInt(document.getElementById('duracion_minima_cita').value),

@@ -121,19 +121,19 @@ router.post('/:id/facturar', requireAuth, (req, res) => {
 
         // Crear venta
         const ventaResult = db.prepare(`
-            INSERT INTO ventas (negocio_id, cliente_id, total, subtotal, itbis, descuento, metodo_pago, tipo_ecf, fecha)
-            VALUES (?, ?, ?, ?, ?, ?, 'efectivo', '32', ?)
-        `).run(negocioId, clienteId, total, subtotal, totalItbis, pedido.descuento || 0, pedido.fecha);
+            INSERT INTO ventas (negocio_id, cliente_id, user_id, total, subtotal, itbis, descuento, metodo_pago, tipo_ecf, fecha)
+            VALUES (?, ?, ?, ?, ?, ?, ?, 'efectivo', '32', ?)
+        `).run(negocioId, clienteId, req.session.userId, total, subtotal, totalItbis, pedido.descuento || 0, pedido.fecha);
 
-        // Crear detalles de venta
+        // Crear detalles de venta con tipo_item='menu' y menu_item_id
         itemsPedido.forEach(ip => {
             const menuItem = db.prepare('SELECT itbis_tasa FROM menu_items WHERE id = ?').get(ip.menu_item_id);
             const tasa = (menuItem && menuItem.itbis_tasa !== null) ? menuItem.itbis_tasa : 18;
             const itbisItem = Math.round(ip.subtotal * (tasa / 100) * 100) / 100;
             db.prepare(`
-                INSERT INTO venta_detalles (venta_id, servicio_id, cantidad, precio, subtotal, itbis_monto)
-                VALUES (?, 0, ?, ?, ?, ?)
-            `).run(ventaResult.lastInsertRowid, ip.cantidad, ip.precio, ip.subtotal, itbisItem);
+                INSERT INTO venta_detalles (venta_id, servicio_id, menu_item_id, tipo_item, cantidad, precio, subtotal, itbis_monto)
+                VALUES (?, NULL, ?, 'menu', ?, ?, ?, ?)
+            `).run(ventaResult.lastInsertRowid, ip.menu_item_id, ip.cantidad, ip.precio, ip.subtotal, itbisItem);
         });
 
         // Vincular pedido con venta
@@ -142,8 +142,8 @@ router.post('/:id/facturar', requireAuth, (req, res) => {
         const venta = db.prepare('SELECT * FROM ventas WHERE id = ?').get(ventaResult.lastInsertRowid);
         res.json({ success: true, venta });
     } catch (error) {
-        console.error('Error:', error);
-        res.status(500).json({ error: 'Error al facturar pedido' });
+        console.error('Error al facturar pedido:', error);
+        res.status(500).json({ error: 'Error al facturar pedido: ' + error.message });
     }
 });
 
@@ -152,7 +152,7 @@ router.post('/:id/facturar', requireAuth, (req, res) => {
 router.post('/public/:negocioSlug', (req, res) => {
     try {
         const db = getDb();
-        const negocio = db.prepare('SELECT id FROM negocios WHERE slug = ?').get(req.params.negocioSlug);
+        const negocio = db.prepare('SELECT id, telefono FROM negocios WHERE slug = ?').get(req.params.negocioSlug);
         if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
 
         const { cliente_nombre, cliente_telefono, cliente_direccion, cliente_ubicacion, tipo_entrega, items, notas } = req.body;
@@ -200,7 +200,8 @@ router.post('/public/:negocioSlug', (req, res) => {
             subtotal,
             itbis: totalItbis,
             costo_envio: costoEnvio,
-            total
+            total,
+            negocio_telefono: negocio.telefono || null
         });
     } catch (error) {
         console.error('Error:', error);
@@ -212,7 +213,7 @@ router.post('/public/:negocioSlug', (req, res) => {
 router.get('/public/:negocioSlug/menu', (req, res) => {
     try {
         const db = getDb();
-        const negocio = db.prepare('SELECT id, nombre, delivery_activo, delivery_costo, delivery_tiempo, delivery_minimo FROM negocios WHERE slug = ?').get(req.params.negocioSlug);
+        const negocio = db.prepare('SELECT id, nombre, telefono, delivery_activo, delivery_costo, delivery_tiempo, delivery_minimo FROM negocios WHERE slug = ?').get(req.params.negocioSlug);
         if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
 
         const categorias = db.prepare(`

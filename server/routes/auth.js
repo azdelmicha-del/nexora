@@ -121,6 +121,10 @@ router.post('/registrar', async (req, res) => {
         req.session.nombre = user.nombre;
         req.session.email = email;
 
+        // Obtener tipo de negocio para el sidebar
+        const negocioConfig = db.prepare('SELECT tipo_negocio FROM negocios WHERE id = ?').get(negocioId);
+        req.session.tipo_negocio = (negocioConfig && negocioConfig.tipo_negocio) || 'ambos';
+
         const license = require('../license');
         license.recordTrialStart(negocioId);
 

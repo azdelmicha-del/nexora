@@ -478,44 +478,32 @@ function initDatabase() {
         console.log('Tabla movimientos_inventario creada.');
     }
 
+    // ── Migracion v7: tipo_negocio ──────────────────────────────────────────
+    const tipoNegCols = db.prepare("PRAGMA table_info(negocios)").all();
+    const tipoNegColNames = tipoNegCols.map(c => c.name);
+    if (!tipoNegColNames.includes('tipo_negocio')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN tipo_negocio TEXT DEFAULT 'ambos' CHECK(tipo_negocio IN ('servicios', 'comida', 'ambos'))");
+        console.log('Columna tipo_negocio agregada a negocios.');
+    }
+    if (!tipoNegColNames.includes('whatsapp_negocio')) {
+        db.exec("ALTER TABLE negocios ADD COLUMN whatsapp_negocio TEXT");
+        console.log('Columna whatsapp_negocio agregada a negocios.');
+    }
+
     // ── Migracion v3: venta_detalles puede incluir productos ────────────────
     const vdProdCols = db.prepare("PRAGMA table_info(venta_detalles)").all();
     const vdProdColNames = vdProdCols.map(c => c.name);
-
-    // Rebuild table to remove NOT NULL on servicio_id and add new columns
-    const needsRebuild = vdProdColNames.includes('producto_id')
-        ? db.prepare("SELECT sql FROM sqlite_master WHERE type='table' AND name='venta_detalles'").get()
-        : null;
-    const hasOldConstraint = needsRebuild && needsRebuild.sql && needsRebuild.sql.includes('servicio_id INTEGER NOT NULL');
-
-    if (hasOldConstraint) {
-        db.exec(`
-            CREATE TABLE venta_detalles_new (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                venta_id INTEGER NOT NULL,
-                servicio_id INTEGER DEFAULT NULL,
-                producto_id INTEGER DEFAULT NULL,
-                tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto')),
-                cantidad INTEGER DEFAULT 1,
-                precio REAL NOT NULL,
-                subtotal REAL NOT NULL,
-                itbis_monto REAL DEFAULT 0,
-                FOREIGN KEY (venta_id) REFERENCES ventas(id),
-                FOREIGN KEY (servicio_id) REFERENCES servicios(id),
-                FOREIGN KEY (producto_id) REFERENCES productos(id)
-            )
-        `);
-        db.exec(`
-            INSERT INTO venta_detalles_new (id, venta_id, servicio_id, cantidad, precio, subtotal, itbis_monto)
-            SELECT id, venta_id, servicio_id, cantidad, precio, subtotal, itbis_monto
-            FROM venta_detalles
-        `);
-        db.exec('DROP TABLE venta_detalles');
-        db.exec('ALTER TABLE venta_detalles_new RENAME TO venta_detalles');
-        console.log('Tabla venta_detalles reconstruida (servicio_id nullable).');
-    } else if (!vdProdColNames.includes('producto_id')) {
+    if (!vdProdColNames.includes('menu_item_id')) {
+        db.exec("ALTER TABLE venta_detalles ADD COLUMN menu_item_id INTEGER REFERENCES menu_items(id)");
+        console.log('Columna menu_item_id agregada a venta_detalles.');
+    }
+    if (!vdProdColNames.includes('producto_id')) {
         db.exec("ALTER TABLE venta_detalles ADD COLUMN producto_id INTEGER REFERENCES productos(id)");
         console.log('Columna producto_id agregada a venta_detalles.');
+    }
+    if (!vdProdColNames.includes('tipo_item')) {
+        db.exec("ALTER TABLE venta_detalles ADD COLUMN tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto', 'menu'))");
+        console.log('Columna tipo_item agregada a venta_detalles.');
     }
     if (!vdProdColNames.includes('tipo_item')) {
         db.exec("ALTER TABLE venta_detalles ADD COLUMN tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto'))");

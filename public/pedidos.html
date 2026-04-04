@@ -11,78 +11,186 @@
         .pedido-tab.active { border-color:#667eea; background:#667eea; color:#fff; }
         .pedido-tab .count { background:rgba(255,255,255,0.3); padding:1px 6px; border-radius:10px; font-size:0.72rem; }
         .pedido-tab:not(.active) .count { background:var(--gray-200); }
-        .pedido-card { background:white; border-radius:16px; padding:1.25rem; box-shadow:0 2px 12px rgba(0,0,0,0.06); margin-bottom:1rem; border-left:4px solid #667eea; }
+
+        .pedido-card {
+            background:white; border-radius:14px; padding:1rem 1.25rem;
+            box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:0.75rem;
+            display:flex; align-items:center; justify-content:space-between;
+            border-left:4px solid #667eea; transition:all 0.2s;
+        }
+        .pedido-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.1); }
         .pedido-card.estado-confirmado { border-left-color:#3b82f6; }
         .pedido-card.estado-preparando { border-left-color:#f59e0b; }
         .pedido-card.estado-listo { border-left-color:#10b981; }
         .pedido-card.estado-entregado { border-left-color:#8b5cf6; }
-        .pedido-card.estado-cancelado { border-left-color:#ef4444; opacity:0.7; }
-        .pedido-header { display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:0.75rem; }
-        .pedido-items { background:var(--gray-50); border-radius:8px; padding:0.75rem; margin:0.75rem 0; }
-        .pedido-item-row { display:flex; justify-content:space-between; padding:0.25rem 0; font-size:0.85rem; }
-        .pedido-actions { display:flex; gap:0.35rem; flex-wrap:wrap; margin-top:0.75rem; }
-        .estado-badge { padding:3px 10px; border-radius:20px; font-size:0.72rem; font-weight:700; text-transform:uppercase; }
+        .pedido-card.estado-cancelado { border-left-color:#ef4444; opacity:0.6; }
+
+        .pedido-info { display:flex; align-items:center; gap:1rem; flex:1; min-width:0; }
+        .pedido-id { font-weight:700; font-size:1rem; color:var(--gray-800); white-space:nowrap; }
+        .pedido-date { font-size:0.78rem; color:var(--gray-400); white-space:nowrap; }
+        .pedido-cliente { font-size:0.85rem; color:var(--gray-600); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+        .pedido-total { font-weight:700; color:#10b981; font-size:0.95rem; white-space:nowrap; margin-left:0.5rem; }
+
+        .estado-badge { padding:3px 10px; border-radius:20px; font-size:0.68rem; font-weight:700; text-transform:uppercase; white-space:nowrap; }
         .estado-pendiente { background:#fef3c7; color:#92400e; }
         .estado-confirmado { background:#dbeafe; color:#1e40af; }
         .estado-preparando { background:#fef3c7; color:#92400e; }
         .estado-listo { background:#d1fae5; color:#065f46; }
         .estado-entregado { background:#ede9fe; color:#5b21b6; }
         .estado-cancelado { background:#fee2e2; color:#991b1b; }
+
+        .btn-ver-detalle {
+            padding:0.5rem 1rem; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+            color:#fff; border:none; border-radius:10px; font-size:0.82rem; font-weight:600;
+            cursor:pointer; transition:all 0.2s; white-space:nowrap; margin-left:0.75rem;
+        }
+        .btn-ver-detalle:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(102,126,234,0.4); }
+
+        /* Modal premium */
+        .modal-pedido-overlay {
+            position:fixed; top:0; left:0; right:0; bottom:0;
+            background:rgba(0,0,0,0.5); backdrop-filter:blur(4px);
+            z-index:1000; display:flex; align-items:center; justify-content:center;
+            opacity:0; visibility:hidden; transition:all 0.3s ease; padding:1rem;
+        }
+        .modal-pedido-overlay.active { opacity:1; visibility:visible; }
+        .modal-pedido {
+            background:white; border-radius:24px; max-width:480px; width:100%;
+            max-height:90vh; overflow-y:auto; transform:scale(0.9) translateY(20px);
+            transition:transform 0.3s ease; box-shadow:0 20px 60px rgba(0,0,0,0.2);
+        }
+        .modal-pedido-overlay.active .modal-pedido { transform:scale(1) translateY(0); }
+
+        .modal-pedido-header {
+            background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+            padding:1.5rem 1.5rem 1.25rem; border-radius:24px 24px 0 0;
+            color:#fff; position:relative;
+        }
+        .modal-pedido-header h3 { font-size:1.25rem; font-weight:700; margin:0; }
+        .modal-pedido-header p { font-size:0.82rem; opacity:0.85; margin:0.25rem 0 0; }
+        .modal-pedido-close {
+            position:absolute; top:12px; right:12px; width:32px; height:32px;
+            border-radius:50%; background:rgba(255,255,255,0.2); border:none;
+            color:#fff; font-size:18px; cursor:pointer; display:flex;
+            align-items:center; justify-content:center; transition:all 0.2s;
+        }
+        .modal-pedido-close:hover { background:rgba(255,255,255,0.3); }
+
+        .modal-pedido-body { padding:1.25rem 1.5rem; }
+        .mp-row { display:flex; justify-content:space-between; padding:0.6rem 0; border-bottom:1px solid var(--gray-100); font-size:0.88rem; }
+        .mp-row:last-child { border-bottom:none; }
+        .mp-label { color:var(--gray-500); }
+        .mp-value { font-weight:600; color:var(--gray-800); text-align:right; }
+        .mp-value.green { color:#10b981; }
+        .mp-value.purple { color:#8b5cf6; }
+
+        .mp-items { background:var(--gray-50); border-radius:12px; padding:0.75rem 1rem; margin:0.75rem 0; }
+        .mp-item { display:flex; justify-content:space-between; padding:0.35rem 0; font-size:0.85rem; }
+        .mp-item-name { color:var(--gray-700); }
+        .mp-item-price { font-weight:600; }
+        .mp-total { display:flex; justify-content:space-between; padding:0.75rem 0 0; border-top:2px solid var(--gray-200); margin-top:0.5rem; font-weight:700; font-size:1.05rem; }
+        .mp-total .amount { color:#10b981; }
+
+        .mp-notas { background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:0.75rem; margin-top:0.75rem; font-size:0.85rem; color:var(--gray-700); }
+        .mp-facturado { background:#f0fdf4; border:1px solid #a7f3d0; border-radius:10px; padding:0.75rem; margin-top:0.75rem; font-size:0.85rem; color:#065f46; }
+
+        .modal-pedido-actions {
+            padding:1rem 1.5rem 1.5rem; display:flex; flex-wrap:wrap; gap:0.5rem;
+        }
+        .mp-btn {
+            flex:1; min-width:120px; padding:0.75rem; border:none; border-radius:12px;
+            font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.2s;
+            font-family:inherit; text-align:center;
+        }
+        .mp-btn:hover { transform:translateY(-1px); }
+        .mp-btn-confirm { background:#3b82f6; color:#fff; }
+        .mp-btn-confirm:hover { box-shadow:0 4px 12px rgba(59,130,246,0.4); }
+        .mp-btn-prepare { background:#f59e0b; color:#fff; }
+        .mp-btn-prepare:hover { box-shadow:0 4px 12px rgba(245,158,11,0.4); }
+        .mp-btn-ready { background:#10b981; color:#fff; }
+        .mp-btn-ready:hover { box-shadow:0 4px 12px rgba(16,185,129,0.4); }
+        .mp-btn-deliver { background:#8b5cf6; color:#fff; }
+        .mp-btn-deliver:hover { box-shadow:0 4px 12px rgba(139,92,246,0.4); }
+        .mp-btn-cancel { background:#ef4444; color:#fff; }
+        .mp-btn-cancel:hover { box-shadow:0 4px 12px rgba(239,68,68,0.4); }
+        .mp-btn-invoice { background:linear-gradient(135deg,#10b981,#059669); color:#fff; }
+        .mp-btn-invoice:hover { box-shadow:0 4px 12px rgba(16,185,129,0.4); }
+        .mp-btn-close { background:var(--gray-100); color:var(--gray-600); }
+        .mp-btn-close:hover { background:var(--gray-200); }
+
+        @media (max-width:600px) {
+            .pedido-card { flex-direction:column; align-items:flex-start; gap:0.75rem; padding:1rem; }
+            .pedido-info { flex-wrap:wrap; }
+            .pedido-total { margin-left:0; }
+            .btn-ver-detalle { margin-left:0; width:100%; text-align:center; }
+            .modal-pedido { max-width:100%; margin:0.5rem; border-radius:20px; }
+            .modal-pedido-header { border-radius:20px 20px 0 0; }
+            .mp-btn { min-width:100%; }
+        }
     </style>
 </head>
 <body>
     <div class="layout">
         <main class="main-content">
             <div class="page-header">
-                <h1>Pedidos de Comida</h1>
+                <h1>Pedidos</h1>
             </div>
             <div class="pedido-tabs" id="estadoTabs"></div>
             <div id="pedidosList"></div>
         </main>
     </div>
 
-    <div class="modal-overlay" id="modalPedido">
-        <div class="modal" style="max-width:500px;">
-            <div class="modal-header"><h3 id="modalPedidoTitle">Detalle del Pedido</h3><button class="modal-close" onclick="document.getElementById('modalPedido').classList.remove('active')"><svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg></button></div>
-            <div class="modal-body" id="modalPedidoBody"></div>
-            <div class="modal-footer" id="modalPedidoFooter"></div>
+    <div class="modal-pedido-overlay" id="modalPedido" onclick="if(event.target===this)closeModalPedido()">
+        <div class="modal-pedido">
+            <div class="modal-pedido-header">
+                <button class="modal-pedido-close" onclick="closeModalPedido()">&times;</button>
+                <h3 id="mpTitle">Pedido</h3>
+                <p id="mpSubtitle"></p>
+            </div>
+            <div class="modal-pedido-body" id="mpBody"></div>
+            <div class="modal-pedido-actions" id="mpActions"></div>
         </div>
     </div>
 
     <script src="/js/api.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script>
         let todosPedidos = [];
         const estados = [
-            { key: '', label: 'Todos', color: '#667eea' },
-            { key: 'pendiente', label: 'Pendientes', color: '#f59e0b' },
-            { key: 'confirmado', label: 'Confirmados', color: '#3b82f6' },
-            { key: 'preparando', label: 'Preparando', color: '#f59e0b' },
-            { key: 'listo', label: 'Listos', color: '#10b981' },
-            { key: 'entregado', label: 'Entregados', color: '#8b5cf6' },
-            { key: 'cancelado', label: 'Cancelados', color: '#ef4444' }
+            { key:'', label:'Todos', color:'#667eea' },
+            { key:'pendiente', label:'Pendientes', color:'#f59e0b' },
+            { key:'confirmado', label:'Confirmados', color:'#3b82f6' },
+            { key:'preparando', label:'Preparando', color:'#f59e0b' },
+            { key:'listo', label:'Listos', color:'#10b981' },
+            { key:'entregado', label:'Entregados', color:'#8b5cf6' },
+            { key:'cancelado', label:'Cancelados', color:'#ef4444' }
         ];
         let filtroActual = '';
+        let negocioNombre = '';
+        let negocioDireccion = '';
+        let negocioTelefono = '';
 
         document.addEventListener('DOMContentLoaded', async () => {
             const ok = await requireLicense(); if (!ok) return;
             const s = await checkSession(); if (!s || !s.authenticated) { window.location.href = '/'; return; }
+            try {
+                const config = await apiCall('/config');
+                negocioNombre = config.nombre || '';
+                negocioDireccion = config.direccion || '';
+                negocioTelefono = config.telefono || '';
+            } catch(e) {}
             renderTabs();
             await loadPedidos();
         });
 
         function renderTabs() {
-            const container = document.getElementById('estadoTabs');
-            container.innerHTML = estados.map(e => {
+            document.getElementById('estadoTabs').innerHTML = estados.map(e => {
                 const count = e.key ? todosPedidos.filter(p => p.estado === e.key).length : todosPedidos.length;
                 return `<button class="pedido-tab ${filtroActual===e.key?'active':''}" onclick="setFiltro('${e.key}')" style="${filtroActual===e.key?`border-color:${e.color};background:${e.color};`:''}">${e.label} <span class="count">${count}</span></button>`;
             }).join('');
         }
 
-        function setFiltro(key) {
-            filtroActual = key;
-            renderTabs();
-            renderPedidos();
-        }
+        function setFiltro(key) { filtroActual = key; renderTabs(); renderPedidos(); }
 
         async function loadPedidos() {
             try {
@@ -100,84 +208,357 @@
             if (!filtrados.length) { container.innerHTML = '<p style="text-align:center;padding:3rem;color:var(--gray-400);">No hay pedidos</p>'; return; }
             container.innerHTML = filtrados.map(p => `
                 <div class="pedido-card ${p.estado ? 'estado-'+p.estado : ''}">
-                    <div class="pedido-header">
-                        <div>
-                            <strong style="font-size:1rem;">Pedido #${p.id}</strong>
-                            <span style="margin-left:0.5rem;font-size:0.78rem;color:var(--gray-500);">${fmtDate(p.fecha_creacion)}</span>
-                        </div>
-                        <span class="estado-badge estado-${p.estado}">${p.estado}</span>
+                    <div class="pedido-info">
+                        <span class="pedido-id">#${p.id}</span>
+                        <span class="pedido-date">${fmtDate(p.fecha_creacion)}</span>
+                        <span class="pedido-cliente">${esc(p.cliente_nombre)}</span>
+                        <span class="pedido-total">${formatCurrency(p.total)}</span>
                     </div>
-                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;font-size:0.82rem;margin-bottom:0.5rem;">
-                        <div><strong>Cliente:</strong> ${esc(p.cliente_nombre)}</div>
-                        <div><strong>Teléfono:</strong> ${esc(p.cliente_telefono || '—')}</div>
-                        <div><strong>Entrega:</strong> ${p.tipo_entrega === 'domicilio' ? '🏠 Domicilio' : '🏪 Retiro'}</div>
-                        <div><strong>Items:</strong> ${p.items_count}</div>
-                    </div>
-                    ${p.cliente_direccion ? `<div style="font-size:0.78rem;color:var(--gray-500);">📍 ${esc(p.cliente_direccion)}</div>` : ''}
-                    <div class="pedido-items">
-                        ${(p.items||[]).map(i => `<div class="pedido-item-row"><span>${i.nombre_item} × ${i.cantidad}</span><span style="font-weight:600;">${formatCurrency(i.subtotal)}</span></div>`).join('')}
-                        ${p.costo_envio > 0 ? `<div class="pedido-item-row" style="color:var(--gray-500);"><span>Envío</span><span>${formatCurrency(p.costo_envio)}</span></div>` : ''}
-                        <div class="pedido-item-row" style="border-top:2px solid var(--gray-200);padding-top:0.5rem;margin-top:0.25rem;"><strong>Total</strong><strong style="color:#10b981;font-size:1.1rem;">${formatCurrency(p.total)}</strong></div>
-                    </div>
-                    <div class="pedido-actions">
-                        ${p.estado === 'pendiente' ? `
-                            <button class="btn btn-sm" style="background:#3b82f6;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'confirmado')">✓ Confirmar</button>
-                            <button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'preparando')">🍳 Preparar</button>
-                            <button class="btn btn-sm" style="background:#ef4444;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'cancelado')">✕ Cancelar</button>
-                        ` : ''}
-                        ${p.estado === 'confirmado' ? `<button class="btn btn-sm" style="background:#f59e0b;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'preparando')">🍳 Preparar</button>` : ''}
-                        ${p.estado === 'preparando' ? `<button class="btn btn-sm" style="background:#10b981;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'listo')">✓ Listo</button>` : ''}
-                        ${p.estado === 'listo' ? `<button class="btn btn-sm" style="background:#8b5cf6;color:#fff;border:none;" onclick="cambiarEstado(${p.id},'entregado')">📦 Entregado</button>` : ''}
-                        ${p.estado !== 'cancelado' && !p.venta_id ? `<button class="btn btn-sm" style="background:#10b981;color:#fff;border:none;" onclick="facturarPedido(${p.id})">💰 Facturar</button>` : ''}
-                        <button class="btn btn-secondary btn-sm" onclick="verDetalle(${p.id})">👁️ Ver</button>
-                    </div>
+                    <span class="estado-badge estado-${p.estado}">${p.estado}</span>
+                    <button class="btn-ver-detalle" onclick="openModalPedido(${p.id})">Ver detalle</button>
                 </div>
             `).join('');
+        }
+
+        function openModalPedido(id) {
+            const p = todosPedidos.find(x => x.id === id);
+            if (!p) return;
+
+            document.getElementById('mpTitle').textContent = 'Pedido #' + p.id;
+            document.getElementById('mpSubtitle').textContent = fmtDate(p.fecha_creacion);
+
+            let bodyHtml = `
+                <div class="mp-row"><span class="mp-label">Cliente</span><span class="mp-value">${esc(p.cliente_nombre)}</span></div>
+                <div class="mp-row"><span class="mp-label">Telefono</span><span class="mp-value">${esc(p.cliente_telefono || '—')}</span></div>
+                <div class="mp-row"><span class="mp-label">Entrega</span><span class="mp-value">${p.tipo_entrega === 'domicilio' ? 'Domicilio' : 'Retiro en local'}</span></div>
+                <div class="mp-row"><span class="mp-label">Estado</span><span class="mp-value"><span class="estado-badge estado-${p.estado}">${p.estado}</span></span></div>
+            `;
+            if (p.cliente_direccion) {
+                bodyHtml += `<div class="mp-row"><span class="mp-label">Direccion</span><span class="mp-value">${esc(p.cliente_direccion)}</span></div>`;
+            }
+            if (p.cliente_ubicacion) {
+                bodyHtml += `<div class="mp-row"><span class="mp-label">Ubicacion</span><span class="mp-value"><a href="https://maps.google.com/?q=${esc(p.cliente_ubicacion)}" target="_blank" style="color:#3b82f6;">Ver mapa</a></span></div>`;
+            }
+
+            bodyHtml += '<div class="mp-items">';
+            (p.items||[]).forEach(i => {
+                bodyHtml += `<div class="mp-item"><span class="mp-item-name">${esc(i.nombre_item)} x${i.cantidad}</span><span class="mp-item-price">${formatCurrency(i.subtotal)}</span></div>`;
+            });
+            if (p.costo_envio > 0) {
+                bodyHtml += `<div class="mp-item" style="color:var(--gray-500);"><span>Envio</span><span>${formatCurrency(p.costo_envio)}</span></div>`;
+            }
+            bodyHtml += `<div class="mp-total"><span>Total</span><span class="amount">${formatCurrency(p.total)}</span></div>`;
+            bodyHtml += '</div>';
+
+            if (p.notas) {
+                bodyHtml += `<div class="mp-notas">📝 ${esc(p.notas)}</div>`;
+            }
+            if (p.venta_ecf) {
+                bodyHtml += `<div class="mp-facturado">✅ Facturado: ${esc(p.venta_ecf)}</div>`;
+            }
+
+            document.getElementById('mpBody').innerHTML = bodyHtml;
+
+            // Action buttons
+            let actionsHtml = '';
+            if (p.estado === 'pendiente') {
+                actionsHtml += `<button class="mp-btn mp-btn-confirm" onclick="cambiarEstado(${p.id},'confirmado')">Confirmar</button>`;
+                actionsHtml += `<button class="mp-btn mp-btn-prepare" onclick="cambiarEstado(${p.id},'preparando')">Preparar</button>`;
+                actionsHtml += `<button class="mp-btn mp-btn-cancel" onclick="cambiarEstado(${p.id},'cancelado')">Cancelar</button>`;
+            } else if (p.estado === 'confirmado') {
+                actionsHtml += `<button class="mp-btn mp-btn-prepare" onclick="cambiarEstado(${p.id},'preparando')">Preparar</button>`;
+            } else if (p.estado === 'preparando') {
+                actionsHtml += `<button class="mp-btn mp-btn-ready" onclick="cambiarEstado(${p.id},'listo')">Listo</button>`;
+            } else if (p.estado === 'listo') {
+                actionsHtml += `<button class="mp-btn mp-btn-deliver" onclick="cambiarEstado(${p.id},'entregado')">Entregado</button>`;
+            }
+            if (p.estado !== 'cancelado' && !p.venta_id) {
+                actionsHtml += `<button class="mp-btn mp-btn-invoice" onclick="facturarPedido(${p.id})">Facturar</button>`;
+            }
+            actionsHtml += `<button class="mp-btn mp-btn-close" onclick="closeModalPedido()">Cerrar</button>`;
+
+            document.getElementById('mpActions').innerHTML = actionsHtml;
+            document.getElementById('modalPedido').classList.add('active');
+        }
+
+        function closeModalPedido() {
+            document.getElementById('modalPedido').classList.remove('active');
         }
 
         async function cambiarEstado(id, estado) {
             try {
                 await apiCall(`/pedidos/${id}/estado`, { method:'PUT', body:JSON.stringify({ estado }) });
-                showToast(`Pedido ${estado}`, 'success');
+                showToast('Pedido ' + estado, 'success');
                 await loadPedidos();
+                openModalPedido(id);
+                enviarNotificacionWhatsApp(id, estado);
+                if (estado === 'entregado') {
+                    setTimeout(() => facturarPedido(id), 1000);
+                }
             } catch(e) { showToast(e.message, 'error'); }
+        }
+
+        function enviarNotificacionWhatsApp(pedidoId, estado) {
+            const p = todosPedidos.find(x => x.id === pedidoId);
+            if (!p || !p.cliente_telefono) return;
+
+            const tel = p.cliente_telefono.replace(/\D/g, '');
+            if (tel.length < 10) return;
+
+            const itemsList = (p.items||[]).map(i => '- ' + i.nombre_item + ' x' + i.cantidad).join('\n');
+            let msg = '';
+            if (estado === 'confirmado') {
+                msg = '*PEDIDO CONFIRMADO*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + p.id + ' ha sido confirmado.\n\n*Items:*\n' + itemsList + '\n\n*Total: ' + formatCurrency(p.total) + '*\n\nTe avisaremos cuando este listo.';
+            } else if (estado === 'preparando') {
+                msg = '*PEDIDO EN PREPARACION*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + p.id + ' esta siendo preparado.\n\n*Total: ' + formatCurrency(p.total) + '*\n\nPronto estara listo.';
+            } else if (estado === 'listo') {
+                msg = '*PEDIDO LISTO!*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + p.id + ' esta listo para ' + (p.tipo_entrega === 'domicilio' ? 'entrega' : 'retiro') + '.\n\n*Total: ' + formatCurrency(p.total) + '*';
+            } else if (estado === 'cancelado') {
+                msg = '*PEDIDO CANCELADO*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + p.id + ' ha sido cancelado.\n\nSi tienes alguna duda, contactanos.';
+            } else if (estado === 'entregado') {
+                msg = '*PEDIDO ENTREGADO*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + p.id + ' ha sido entregado.\n\n*Total: ' + formatCurrency(p.total) + '*\n\nGracias por tu compra!';
+            }
+
+            if (!msg) return;
+
+            const waUrl = 'https://wa.me/1' + tel + '?text=' + encodeURIComponent(msg);
+            window.open(waUrl, '_blank');
         }
 
         async function facturarPedido(id) {
-            if (!confirm('Facturar este pedido? Se creara una venta con e-CF.')) return;
-            try {
-                const result = await apiCall(`/pedidos/${id}/facturar`, { method:'POST' });
-                showToast('Pedido facturado: ' + (result.venta?.secuencia_ecf || ''), 'success');
-                await loadPedidos();
-            } catch(e) { showToast(e.message, 'error'); }
-        }
-
-        function verDetalle(id) {
             const p = todosPedidos.find(x => x.id === id);
             if (!p) return;
-            document.getElementById('modalPedidoTitle').textContent = `Pedido #${p.id}`;
-            document.getElementById('modalPedidoBody').innerHTML = `
-                <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:1rem;">
-                    <div class="detalle-campo"><div class="dc-label">Cliente</div><div class="dc-value">${esc(p.cliente_nombre)}</div></div>
-                    <div class="detalle-campo"><div class="dc-label">Telefono</div><div class="dc-value">${esc(p.cliente_telefono || '—')}</div></div>
-                    <div class="detalle-campo"><div class="dc-label">Entrega</div><div class="dc-value">${p.tipo_entrega === 'domicilio' ? '🏠 Domicilio' : '🏪 Retiro en local'}</div></div>
-                    <div class="detalle-campo"><div class="dc-label">Estado</div><div class="dc-value"><span class="estado-badge estado-${p.estado}">${p.estado}</span></div></div>
-                    ${p.cliente_direccion ? `<div class="detalle-campo" style="grid-column:1/-1;"><div class="dc-label">Direccion</div><div class="dc-value">${esc(p.cliente_direccion)}</div></div>` : ''}
-                    ${p.cliente_ubicacion ? `<div class="detalle-campo" style="grid-column:1/-1;"><div class="dc-label">Ubicacion GPS</div><div class="dc-value"><a href="https://maps.google.com/?q=${esc(p.cliente_ubicacion)}" target="_blank" style="color:#3b82f6;">Ver en Google Maps 📍</a></div></div>` : ''}
+
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:10000;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s ease;';
+
+            const modal = document.createElement('div');
+            modal.style.cssText = 'background:#fff;border-radius:24px;width:min(92vw,400px);box-shadow:0 20px 60px rgba(0,0,0,0.25);transform:scale(0.9);transition:transform 0.3s ease;overflow:hidden;';
+            modal.innerHTML = `
+                <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:1.5rem;color:#fff;text-align:center;position:relative;">
+                    <button onclick="this.closest('div').parentElement.parentElement.remove()" style="position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+                    <div style="font-size:40px;margin-bottom:8px;">&#128176;</div>
+                    <h3 style="margin:0;font-size:1.1rem;font-weight:700;">Facturar Pedido</h3>
+                    <p style="margin:4px 0 0;font-size:0.82rem;opacity:0.85;">Pedido #${p.id} - ${formatCurrency(p.total)}</p>
                 </div>
-                <div style="background:var(--gray-50);border-radius:8px;padding:0.75rem;">
-                    ${(p.items||[]).map(i => `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;font-size:0.85rem;"><span>${esc(i.nombre_item)} × ${i.cantidad}</span><span style="font-weight:600;">${formatCurrency(i.subtotal)}</span></div>`).join('')}
-                    ${p.costo_envio > 0 ? `<div style="display:flex;justify-content:space-between;padding:0.25rem 0;color:var(--gray-500);"><span>Envio</span><span>${formatCurrency(p.costo_envio)}</span></div>` : ''}
-                    <div style="display:flex;justify-content:space-between;padding-top:0.5rem;border-top:2px solid var(--gray-200);margin-top:0.25rem;"><strong>Total</strong><strong style="color:#10b981;font-size:1.1rem;">${formatCurrency(p.total)}</strong></div>
+                <div style="padding:1.5rem;">
+                    <p style="color:var(--gray-600);font-size:0.88rem;margin-bottom:1.25rem;">Se creara una venta con e-CF y se registrara en el sistema de facturacion.</p>
+                    <div style="background:var(--gray-50);border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.85rem;"><span style="color:var(--gray-500);">Cliente</span><strong>${esc(p.cliente_nombre)}</strong></div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.85rem;"><span style="color:var(--gray-500);">Items</span><strong>${p.items_count}</strong></div>
+                        <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:2px solid var(--gray-200);font-size:1.05rem;"><strong>Total</strong><strong style="color:#10b981;">${formatCurrency(p.total)}</strong></div>
+                    </div>
+                    <div style="display:flex;gap:0.5rem;">
+                        <button id="btnFacturarSi" style="flex:1;padding:0.75rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Facturar</button>
+                        <button onclick="this.closest('div').parentElement.parentElement.parentElement.remove()" style="flex:1;padding:0.75rem;background:var(--gray-100);color:var(--gray-600);border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button>
+                    </div>
                 </div>
-                ${p.notas ? `<div style="margin-top:0.75rem;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;padding:0.75rem;font-size:0.85rem;">📝 ${esc(p.notas)}</div>` : ''}
-                ${p.venta_ecf ? `<div style="margin-top:0.75rem;background:#f0fdf4;border:1px solid #a7f3d0;border-radius:8px;padding:0.75rem;font-size:0.85rem;">✅ Facturado: ${p.venta_ecf}</div>` : ''}
             `;
-            document.getElementById('modalPedidoFooter').innerHTML = `
-                ${p.estado !== 'cancelado' && !p.venta_id ? `<button class="btn btn-sm" style="background:#10b981;color:#fff;border:none;" onclick="facturarPedido(${p.id});document.getElementById('modalPedido').classList.remove('active');">💰 Facturar</button>` : ''}
-                <button class="btn btn-secondary btn-sm" onclick="document.getElementById('modalPedido').classList.remove('active')">Cerrar</button>
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => { overlay.style.opacity = '1'; modal.style.transform = 'scale(1)'; });
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+
+            document.getElementById('btnFacturarSi').addEventListener('click', async () => {
+                const btn = document.getElementById('btnFacturarSi');
+                btn.disabled = true;
+                btn.textContent = 'Facturando...';
+                btn.style.opacity = '0.6';
+
+                try {
+                    const result = await apiCall(`/pedidos/${id}/facturar`, { method: 'POST' });
+                    overlay.remove();
+                    await loadPedidos();
+                    mostrarReciboFactura(id, p, result);
+                } catch(e) {
+                    showToast(e.message, 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Facturar';
+                    btn.style.opacity = '1';
+                }
+            });
+        }
+
+        function mostrarReciboFactura(pedidoId, pedido, result) {
+            const venta = result.venta || {};
+            const ncf = venta.secuencia_ecf || 'E320000000000';
+            const fecha = new Date().toLocaleDateString('es-DO', { day:'2-digit', month:'short', year:'numeric' });
+            const hora = new Date().toLocaleTimeString('es-DO', { hour:'2-digit', minute:'2-digit' });
+
+            const overlay = document.createElement('div');
+            overlay.id = 'reciboOverlay';
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:10000;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s ease;';
+
+            const reciboHTML = `
+                <div id="reciboContent" style="width:340px;background:#fff;border-radius:16px;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;">
+                    <!-- Header con gradiente -->
+                    <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:20px 16px;text-align:center;color:#fff;">
+                        <div style="font-size:20px;font-weight:800;letter-spacing:0.5px;">${esc(negocioNombre || 'MI NEGOCIO')}</div>
+                        ${negocioDireccion ? `<div style="font-size:10px;opacity:0.85;margin-top:4px;">${esc(negocioDireccion)}</div>` : ''}
+                        ${negocioTelefono ? `<div style="font-size:10px;opacity:0.85;">Tel: ${esc(negocioTelefono)}</div>` : ''}
+                        <div style="margin-top:10px;background:rgba(255,255,255,0.2);border-radius:8px;padding:6px 12px;display:inline-block;">
+                            <div style="font-size:9px;opacity:0.8;text-transform:uppercase;letter-spacing:1px;">Factura de Consumidor Final</div>
+                            <div style="font-size:13px;font-weight:700;margin-top:2px;">${ncf}</div>
+                        </div>
+                    </div>
+                    
+                    <!-- Info del cliente -->
+                    <div style="padding:14px 16px;background:#f8f9fc;border-bottom:1px solid #e5e7eb;">
+                        <div style="display:flex;justify-content:space-between;align-items:center;">
+                            <div>
+                                <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Cliente</div>
+                                <div style="font-size:13px;font-weight:600;color:#1f2937;margin-top:2px;">${esc(pedido.cliente_nombre)}</div>
+                            </div>
+                            <div style="text-align:right;">
+                                <div style="font-size:9px;color:#9ca3af;text-transform:uppercase;letter-spacing:0.5px;">Fecha</div>
+                                <div style="font-size:12px;font-weight:600;color:#1f2937;margin-top:2px;">${fecha} ${hora}</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Items -->
+                    <div style="padding:14px 16px;">
+                        <div style="display:flex;justify-content:space-between;padding-bottom:8px;border-bottom:2px solid #667eea;margin-bottom:8px;">
+                            <span style="font-size:10px;font-weight:700;color:#667eea;text-transform:uppercase;letter-spacing:0.5px;">Detalle</span>
+                            <span style="font-size:10px;font-weight:700;color:#667eea;text-transform:uppercase;letter-spacing:0.5px;">Monto</span>
+                        </div>
+                        ${(pedido.items||[]).map(i => `
+                            <div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f3f4f6;">
+                                <div>
+                                    <div style="font-size:12px;font-weight:600;color:#1f2937;">${esc(i.nombre_item)}</div>
+                                    <div style="font-size:10px;color:#9ca3af;">Cantidad: ${i.cantidad} × ${formatCurrency(i.subtotal / i.cantidad)}</div>
+                                </div>
+                                <div style="font-size:13px;font-weight:700;color:#1f2937;">${formatCurrency(i.subtotal)}</div>
+                            </div>
+                        `).join('')}
+                    </div>
+                    
+                    <!-- Totales -->
+                    <div style="padding:14px 16px;background:#f8f9fc;border-top:2px solid #e5e7eb;">
+                        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                            <span style="font-size:12px;color:#6b7280;">Subtotal</span>
+                            <span style="font-size:12px;font-weight:600;color:#1f2937;">${formatCurrency(pedido.subtotal)}</span>
+                        </div>
+                        <div style="display:flex;justify-content:space-between;margin-bottom:6px;">
+                            <span style="font-size:12px;color:#6b7280;">ITBIS (18%)</span>
+                            <span style="font-size:12px;font-weight:600;color:#8b5cf6;">${formatCurrency(pedido.itbis)}</span>
+                        </div>
+                        ${pedido.costo_envio > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:6px;"><span style="font-size:12px;color:#6b7280;">Envio</span><span style="font-size:12px;font-weight:600;color:#1f2937;">${formatCurrency(pedido.costo_envio)}</span></div>` : ''}
+                        <div style="display:flex;justify-content:space-between;padding-top:10px;border-top:2px solid #667eea;margin-top:8px;">
+                            <span style="font-size:15px;font-weight:800;color:#1f2937;">TOTAL</span>
+                            <span style="font-size:18px;font-weight:800;color:#10b981;">${formatCurrency(pedido.total)}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Footer -->
+                    <div style="padding:14px 16px;text-align:center;background:linear-gradient(135deg,#f0fdf4 0%,#ecfdf5 100%);border-top:1px solid #d1fae5;">
+                        <div style="font-size:14px;margin-bottom:4px;">&#10003;</div>
+                        <div style="font-size:12px;font-weight:600;color:#065f46;">Pago realizado en efectivo</div>
+                        <div style="font-size:10px;color:#6b7280;margin-top:6px;">&#161;Gracias por su compra!</div>
+                        <div style="font-size:9px;color:#9ca3af;margin-top:4px;">Generado por Nexora</div>
+                    </div>
+                </div>
             `;
-            document.getElementById('modalPedido').classList.add('active');
+
+            const modal = document.createElement('div');
+            modal.style.cssText = 'background:#fff;border-radius:24px;width:min(92vw,380px);box-shadow:0 20px 60px rgba(0,0,0,0.25);transform:scale(0.9);transition:transform 0.3s ease;overflow:hidden;';
+            modal.innerHTML = `
+                <div style="background:linear-gradient(135deg,#10b981,#059669);padding:1.25rem;color:#fff;text-align:center;position:relative;">
+                    <button onclick="document.getElementById('reciboOverlay').remove()" style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
+                    <div style="font-size:32px;margin-bottom:4px;">&#9989;</div>
+                    <h3 style="margin:0;font-size:1rem;font-weight:700;">Factura Generada</h3>
+                    <p style="margin:2px 0 0;font-size:0.78rem;opacity:0.85;">NCF: ${ncf}</p>
+                </div>
+                <div style="padding:1.25rem;">
+                    <div style="display:flex;justify-content:center;margin-bottom:1rem;">${reciboHTML}</div>
+                    <div style="display:flex;gap:0.5rem;">
+                        <button onclick="imprimirRecibo()" style="flex:1;padding:0.65rem;background:#667eea;color:#fff;border:none;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;">&#128424; Imprimir</button>
+                        <button onclick="enviarReciboWhatsApp('${esc(pedido.cliente_nombre)}','${ncf}','${formatCurrency(pedido.total)}')" style="flex:1;padding:0.65rem;background:#25D366;color:#fff;border:none;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;">&#128241; WhatsApp</button>
+                    </div>
+                    <button onclick="document.getElementById('reciboOverlay').remove()" style="width:100%;padding:0.65rem;margin-top:0.5rem;background:var(--gray-100);color:var(--gray-600);border:none;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;">Cerrar</button>
+                </div>
+            `;
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+            requestAnimationFrame(() => { overlay.style.opacity = '1'; modal.style.transform = 'scale(1)'; });
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) overlay.remove(); });
+        }
+
+        function imprimirRecibo() {
+            const recibo = document.getElementById('reciboContent');
+            if (!recibo) return;
+            const win = window.open('', '_blank', 'width=320,height=600');
+            win.document.write(`
+                <html><head><title>Factura</title>
+                <style>body{margin:0;padding:8px;font-family:'Courier New',monospace;font-size:11px;}@media print{body{margin:0;padding:4px;}}</style>
+                </head><body>${recibo.innerHTML}</body></html>
+            `);
+            win.document.close();
+            setTimeout(() => { win.print(); }, 300);
+        }
+
+        async function enviarReciboWhatsApp(cliente, ncf, total) {
+            const reciboEl = document.getElementById('reciboContent');
+            if (!reciboEl) return;
+
+            const p = todosPedidos.find(x => x.cliente_nombre === cliente);
+            const tel = p ? (p.cliente_telefono || '').replace(/\D/g, '') : '';
+
+            if (!tel) {
+                showToast('El cliente no tiene telefono registrado', 'error');
+                return;
+            }
+
+            try {
+                // Capturar el recibo como imagen con html2canvas
+                const canvas = await html2canvas(reciboEl, {
+                    scale: 2,
+                    backgroundColor: '#ffffff',
+                    useCORS: true,
+                    logging: false
+                });
+
+                // Convertir a blob
+                const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+                const fileName = 'factura_' + ncf + '.png';
+
+                // Intentar Web Share API (movil)
+                if (navigator.share && navigator.canShare) {
+                    const file = new File([blob], fileName, { type: 'image/png' });
+                    const shareData = {
+                        title: 'Factura ' + ncf,
+                        text: 'Factura de ' + (negocioNombre || 'Mi Negocio') + ' - Total: ' + total,
+                        files: [file]
+                    };
+                    if (navigator.canShare(shareData)) {
+                        await navigator.share(shareData);
+                        showToast('Factura compartida!', 'success');
+                        return;
+                    }
+                }
+
+                // Fallback PC: descargar + abrir WhatsApp
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = fileName;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                // Abrir WhatsApp con el numero del cliente
+                const msg = 'Hola ' + cliente + ', aqui tiene su factura de ' + (negocioNombre || 'Mi Negocio') + '.\nNCF: ' + ncf + '\nTotal: ' + total + '\n\nGracias por su compra!';
+                const waUrl = 'https://wa.me/1' + tel + '?text=' + encodeURIComponent(msg);
+                window.open(waUrl, '_blank');
+
+                showToast('Imagen descargada. Adjuntala en el chat de WhatsApp.', 'success');
+            } catch(e) {
+                console.error('Error:', e);
+                showToast('Error al generar imagen', 'error');
+            }
         }
 
         function esc(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}

@@ -1,192 +1,181 @@
-# Nexora - Guía de Validación Fase 1
+PROMPT MAESTRO - Nexora SaaS (VERSIÓN ULTIMATE PREMIUM)
 
-## 1. Aislamiento Multi-tenant (negocio_id)
+📋 CONTEXTO DEL PROYECTO
+Sistema SaaS de gestión y facturación en producción con datos reales intocables.
+Repositorio: https://github.com/azdelmicha-del/nexora.git
 
-### Prueba: Acceso cruzado por URL
+Producción: https://nexora-alid.onrender.com
 
-**Objetivo:** Verificar que un negocio NO pueda acceder a datos de otro.
+Local: http://localhost:3000/
 
-**Pasos:**
-1. Registrar Negocio A (email: a@test.com)
-2. Registrar Negocio B (email: b@test.com) en navegador incógnito
-3. En Negocio A: Crear cliente "Cliente A"
-4. En Negocio B: Ir a Clientes - NO debe ver "Cliente A"
-5. En Negocio A: Crear servicio "Servicio A"
-6. En Negocio B: Ir a POS - NO debe ver "Servicio A"
+Stack: Express.js + Node.js (Backend) | Vanilla JS + HTML/CSS puro (Frontend) | SQLite (DB Local).
 
-**Resultado esperado:** Cada negocio ve SOLO sus datos.
+🚀 1. FLUJO ESTRICTO DE TRABAJO Y DEPLOY
+Todo se desarrolla y prueba PRIMERO en local (http://localhost:3000/
+).
+NUNCA hacer push a Render sin confirmación explícita del usuario.
+Al finalizar, recomienda ejecutar:
+git add . -> git commit -m "..." -> git push origin main.
+Asume siempre que producción se afecta inmediatamente tras el push.
 
----
+🚫 2. PROTECCIÓN DE DATOS Y SEGURIDAD CRÍTICA
+Datos Intocables: PROHIBIDO eliminar datos, tablas o registros existentes.
+NUNCA sugieras migraciones destructivas.
+Soft Delete: Prohibido usar DELETE físico para servicios/categorías; siempre cambia estado = 'inactivo'.
+SQL Injection: Uso obligatorio de prepared statements en SQLite para toda consulta.
+Backups: Sugerir backup antes de cambios de riesgo ALTO y tener plan de reversión (Rollback).
 
-## 2. Duplicados de Clientes por WhatsApp
+💰 3. LÓGICA FINANCIERA (CUADRE DE CAJA)
+Punto de Corte: Al cerrar caja, es OBLIGATORIO asignar un cuadre_id a las ventas procesadas.
+Borrón y Cuenta Nueva: Al abrir caja, el panel de "Cuadre Actual" debe mostrar $0.00 y el detalle de ventas debe resetearse visualmente.
+Prevención de Errores: El botón "Abrir Caja" debe eliminar el último registro de cajas_cerradas por negocio_id para evitar bloqueos.
 
-### Prueba: Validación de teléfono duplicado
+🔥 4. ESTÁNDAR UI/UX PREMIUM (SaaS CRÍTICO)
+Toda interfaz DEBE ser nivel SaaS Premium (estilo Stripe, Linear).
+Si el diseño actual es mediocre, REHÁZLO.
 
-**Pasos:**
-1. Ir a Clientes → Nuevo Cliente
-2. Crear cliente con nombre "Test" y teléfono "809-555-1234"
-3. Intentar crear otro cliente con el mismo teléfono "809-555-1234"
+Layout:
+Flexbox/Grid, tarjetas claras con sombras suaves y border-radius: 8px–16px.
 
-**Resultado esperado:** 
-- Mensaje de error: "Ya existe un cliente con este teléfono"
-- Cliente duplicado NO creado
+Modales Nexora (OBLIGATORIO):
+Cero alert() o confirm(). Usa el Sistema Estilizado:
+Tarjeta central con border-radius: 24px y sombra profunda.
+Overlay oscuro con backdrop-filter: blur(4px).
+Iconografía central superior (Verde=Éxito, Naranja=Advertencia, Rojo=Error).
+Botones tipo píldora (border-radius: 50px).
 
----
+Tipografía:
+Nombres en Title Case, Categorías en MAYÚSCULAS.
 
-## 3. Desactivación de Servicios
+📱💻 5. COMPATIBILIDAD MULTIPLATAFORMA (OBLIGATORIO)
+El sistema Nexora SaaS DEBE estar diseñado para funcionar correctamente en: celulares, tablets y computadoras.
 
-### Prueba: Impacto en POS y Citas
+Responsive Design:
+Toda interfaz debe adaptarse fluidamente a cualquier tamaño de pantalla usando media queries.
 
-**Pasos:**
-1. Crear servicio "Masaje Relajante - $800" (estado: activo)
-2. Ir a POS - El servicio debe aparecer
-3. Ir a Servicios - Editar el servicio - Cambiar a "Inactivo"
-4. Ir a POS - El servicio NO debe aparecer
-5. Ir a Citas - Intentar crear cita con ese servicio
+Mobile First:
+El diseño debe comenzar desde resoluciones móviles y escalar hacia desktop.
 
-**Resultado esperado:**
-- Servicio inactivo NO aparece en POS
-- Al crear cita: mensaje "Servicio no válido"
+Adaptabilidad Total:
+Ningún elemento debe desbordarse, romper layout o volverse inutilizable en pantallas pequeñas.
 
----
+Interacciones Táctiles:
+Botones, inputs y elementos interactivos deben tener tamaños adecuados para uso con dedos (mínimo 44px).
 
-## 4. Validación de Horarios en Citas
+Breakpoints Recomendados:
+Mobile: ≤ 480px
+Tablet: 481px – 1024px
+Desktop: ≥ 1025px
 
-### Prueba: Crear cita en horario ocupado
+Optimización UX:
+Evitar hover-dependence en mobile.
+Menús deben transformarse (ej: sidebar → menú hamburguesa).
+Tablas deben ser scrollables o transformadas a tarjetas en móvil.
 
-**Pasos:**
-1. Ir a Citas → Nueva Cita
-2. Seleccionar cliente y servicio (duración 60 min)
-3. Seleccionar fecha y hora (ej: 10:00)
-4. Guardar - Cita creada
-5. Intentar crear OTRA cita con la MISMA hora
+Performance:
+Reducir peso visual en mobile (menos sombras pesadas, optimizar renders).
 
-**Resultado esperado:**
-- Mensaje de error: "Ya existe una cita en ese horario"
-- Segunda cita NO creada
+Consistencia:
+La experiencia debe ser visual y funcionalmente consistente en todos los dispositivos.
 
----
+💻 6. CÓDIGO Y ESTRATEGIA DE DESARROLLO
+Identación Estricta: Siempre entrega el código perfectamente identado.
 
-## 5. Flujo: Cita → Venta (Conversión automática)
+Formato de Respuesta:
+Toda explicación tuya debe darse obligatoriamente en una lista línea por línea.
 
-### Prueba: Convertir cita en venta desde POS
+Anti-Alucinación:
+Si falta contexto, PÍDELO.
+NO inventes lógica ni asumas funciones.
 
-**Pasos:**
-1. Crear cita para "María García" con servicio "Corte"
-2. Ir a POS
-3. Buscar "María" en el panel de clientes
+Regla DRY:
+PROHIBIDO duplicar código. Reutiliza funciones.
 
-**Resultado esperado:**
-- El panel "Citas de hoy" muestra las citas pendientes
-- Al hacer clic en una cita:
-  - Cliente se auto-selecciona en el buscador
-  - Servicio se auto-agrega al carrito
+Economía:
+Muestra solo lo que cambia usando // ... resto del código ...
+(excepto si mejoras la UI completa).
 
----
+Race Conditions:
+Guarda las funciones de confirmación en variables temporales antes de cerrar modales en frontend.
 
-## 6. Reportes con Datos Reales
+Riesgo:
+Clasifica siempre el cambio en BAJO, MEDIO o ALTO e indica el módulo afectado.
 
-### Prueba: Validar cálculos de reportes
+Sólo responde a lo que se te pide, abstente de dar sugerencias.
 
-**Pasos:**
-1. Hacer 3 ventas en efectivo ($500, $300, $200)
-2. Hacer 2 ventas en transferencia ($150, $250)
-3. Ir a Reportes → Filtrar por "Hoy"
+🎯 7. PROTOCOLO DE CIERRE Y PRUEBA (QA)
+Al final de cada respuesta, debes incluir:
 
-**Verificar:**
-- Total de ventas: 5
-- Monto total: $1,400
-- Efectivo: $1,000
-- Transferencia: $400
+Verificación DB:
+Cómo comprobar en SQLite que la data antigua no se corrompió.
 
----
+Test Local:
+Instrucciones para probar el flujo visualmente.
 
-## 7. Estados de Citas
+Liberación de Puerto:
+Comando exacto para liberar el puerto 3000.
 
-### Prueba: Ciclo de vida de una cita
+Ejecución:
+Recordatorio para arrancar npm run dev y probar antes del deploy.
 
-**Pasos:**
-1. Crear cita → Estado: **Pendiente**
-2. Hacer clic en "Confirmar" → Estado: **Confirmada**
-3. Hacer clic en "Finalizar" → Estado: **Finalizada**
-4. Intentar cambiar estado de cita cancelada
+🔍 8. VALIDACIÓN FINAL OBLIGATORIA (ANTES DE ENTREGAR)
 
-**Verificar:**
-- Los colores de los badges cambian según estado
-- En calendario, las citas canceladas se ven diferentes
+Antes de responder, debes realizar una verificación interna completa de la solución generada:
 
----
+DRY Check:
+Confirma que no existe duplicación de lógica, funciones, estilos o consultas SQL.
 
-## 8. Validación de Acceso (Middleware)
+Reutilización:
+Si detectas código repetido, debes refactorizarlo antes de responder.
 
-### Prueba: Intentar acceder sin login
+Integración:
+Verifica que el código respeta la arquitectura actual del proyecto y reutiliza estructuras existentes.
 
-**Pasos:**
-1. Cerrar sesión
-2. Abrir directamente: `http://localhost:3000/api/sales`
-3. Abrir directamente: `http://localhost:3000/api/users`
+Seguridad:
+Confirma uso de prepared statements y que no se comprometen datos existentes.
 
-**Resultado esperado:**
-- Respuesta: `{ "error": "No autenticado" }`
-- Status HTTP: 401
+Datos:
+Verifica que no se eliminan registros ni se rompe la integridad de la base de datos.
 
----
+UI/UX:
+Confirma que cumple estándar SaaS Premium y es responsive en mobile, tablet y desktop.
 
-## 9. Validación de Roles
+Errores:
+Valida que no existan posibles fallos lógicos, race conditions o comportamientos inesperados.
 
-### Prueba: Empleado no puede acceder a admin
+Optimización:
+Evita código innecesario, redundante o soluciones sobrecomplicadas.
 
-**Pasos:**
-1. Login como admin → Crear usuario "Empleado1" (rol: empleado)
-2. Cerrar sesión → Login como "Empleado1"
-3. Ir a: Configuración, Usuarios
+Bloqueo de Entrega:
+NO está permitido responder si alguna de estas validaciones falla.
 
-**Resultado esperado:**
-- Usuarios: Redirigido a Dashboard o error
-- Configuración: Redirigido a Dashboard o error
+♻️ 9. AUTO-CORRECCIÓN OBLIGATORIA (NIVEL ENTERPRISE)
 
----
+Antes de entregar la respuesta final, debes ejecutar un ciclo interno de mejora automática:
 
-## 10. Sanitización XSS
+Detección:
+Identifica errores, duplicaciones, malas prácticas o debilidades en la solución generada.
 
-### Prueba: Intentar injectar código
+Refactorización:
+Corrige automáticamente cualquier problema detectado SIN esperar feedback del usuario.
 
-**Pasos:**
-1. Ir a Clientes → Nuevo Cliente
-2. Nombre: `<script>alert('hack')</script>`
-3. Guardar
+Re-evaluación:
+Vuelve a validar la solución completa después de corregirla.
 
-**Resultado esperado:**
-- Cliente creado sin ejecutar el script
-- El nombre se muestra como texto plano
+Iteración:
+Repite este proceso hasta que la solución cumpla completamente con:
 
----
+DRY
+Seguridad
+Arquitectura existente
+UI/UX Premium
+Compatibilidad multiplataforma
 
-## Checklist Final
+Optimización Final:
+Reduce complejidad innecesaria y mejora claridad del código.
 
-| # | Prueba | Estado | Notas |
-|---|--------|--------|-------|
-| 1 | Aislamiento multi-tenant | ⬜ | |
-| 2 | Duplicados por WhatsApp | ⬜ | |
-| 3 | Servicios desactivados | ⬜ | |
-| 4 | Horarios ocupados | ⬜ | |
-| 5 | Cita → Venta | ⬜ | |
-| 6 | Reportes con datos reales | ⬜ | |
-| 7 | Estados de citas | ⬜ | |
-| 8 | Middleware de acceso | ⬜ | |
-| 9 | Validación de roles | ⬜ | |
-| 10 | Sanitización XSS | ⬜ | |
+Bloqueo:
+NO puedes entregar código en estado “mejorable”.
 
----
-
-## Comandos para Iniciar
-
-```bash
-cd nexora
-npm install  # Solo la primera vez
-npm start
-```
-
-Abrir en navegadores diferentes:
-- http://localhost:3000 (Negocio A)
-- http://localhost:3000 (incógnito) (Negocio B)
+Entrega:
+Solo puedes responder cuando la solución esté en estado óptimo de producción.

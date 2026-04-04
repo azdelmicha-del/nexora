@@ -648,6 +648,8 @@
         let tipoECF = '32';
         let servicios = [];
         let productos = [];
+        let menuItems = [];
+        let menuCategorias = [];
         let categorias = [];
         let categoriaSeleccionada = null;
         let metodoPago = 'efectivo';
@@ -753,6 +755,12 @@
                 servicios = await apiCall('/services?estado=activo');
                 categorias = await apiCall('/categories?estado=activo');
                 productos = await apiCall('/products?estado=activo');
+                try {
+                    const menuData = await apiCall('/menu/items');
+                    menuItems = menuData || [];
+                    const menuCats = await apiCall('/menu/categorias');
+                    menuCategorias = menuCats || [];
+                } catch(e) { menuItems = []; menuCategorias = []; }
                 
                 renderCategorias();
                 renderServicios();
@@ -859,6 +867,20 @@
             `}).join('');
 
             grid.innerHTML = serviciosHTML + productosHTML;
+
+            // Agregar items del menu
+            if (menuItems.length > 0) {
+                const menuFiltrados = menuItems.filter(mi => mi.disponible);
+                const menuHTML = menuFiltrados.map(mi => `
+                    <div class="servicio-card" onclick="agregarMenuItem(${mi.id})" data-id="m${mi.id}">
+                        <div class="servicio-nombre">${escapeHtml(mi.nombre)}</div>
+                        <div class="servicio-precio">${formatCurrency(mi.precio)}</div>
+                        <div class="servicio-duracion" style="color:#667eea;font-size:0.7rem;">🍽️ Menu</div>
+                        ${mi.itbis_tasa !== 18 ? `<div style="font-size:0.65rem;color:#8b5cf6;">ITBIS ${mi.itbis_tasa}%</div>` : ''}
+                    </div>
+                `).join('');
+                grid.innerHTML += menuHTML;
+            }
         }
         
         function formatDuracionPOS(minutos) {
@@ -917,7 +939,6 @@
             const producto = productos.find(p => p.id === productoId);
             if (!producto) return;
             
-            // Verificar stock
             const itemEnCarrito = carrito.find(i => i.producto_id === productoId);
             const cantidadEnCarrito = itemEnCarrito ? itemEnCarrito.cantidad : 0;
             if (cantidadEnCarrito >= producto.stock) {
@@ -938,6 +959,29 @@
                         ? producto.itbis_tasa
                         : 18,
                     tipo_item: 'producto'
+                });
+            }
+            
+            renderCarrito();
+        }
+
+        function agregarMenuItem(menuItemId) {
+            const menuItem = menuItems.find(m => m.id === menuItemId);
+            if (!menuItem) return;
+            
+            const existente = carrito.find(item => item.menu_item_id === menuItemId);
+            if (existente) {
+                existente.cantidad++;
+            } else {
+                carrito.push({
+                    menu_item_id: menuItemId,
+                    nombre: menuItem.nombre,
+                    precio: menuItem.precio,
+                    cantidad: 1,
+                    itbis_tasa: (menuItem.itbis_tasa !== null && menuItem.itbis_tasa !== undefined)
+                        ? menuItem.itbis_tasa
+                        : 18,
+                    tipo_item: 'menu'
                 });
             }
             
@@ -1258,7 +1302,7 @@
                                 <span>${formatCurrency(subtotal)}</span>
                             </div>
                             ${descuento > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:0.9rem;"><span style="color:var(--gray-500);">Descuento</span><span style="color:#ef4444;">-${formatCurrency(descuento)}</span></div>` : ''}
-                            ${itbis > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:0.9rem;"><span style="color:var(--gray-500);">ITBIS 18%</span><span>+${formatCurrency(itbis)}</span></div>` : ''}
+                            ${itbis > 0 ? `<div style="display:flex;justify-content:space-between;margin-bottom:8px;font-size:0.9rem;"><span style="color:var(--gray-500);">ITBIS</span><span>+${formatCurrency(itbis)}</span></div>` : ''}
                             <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:2px solid var(--gray-200);font-size:1.3rem;font-weight:800;">
                                 <span>Total</span>
                                 <span style="color:#10b981;">${formatCurrency(total)}</span>
@@ -1294,6 +1338,7 @@
                     items: carrito.map(item => ({
                         servicio_id: item.servicio_id || null,
                         producto_id: item.producto_id || null,
+                        menu_item_id: item.menu_item_id || null,
                         cantidad: item.cantidad
                     })),
                     metodo_pago: metodoPago,

@@ -238,6 +238,11 @@ function calcularTotalesVenta(items, db, negocioId, descuento = 0) {
         FROM   productos
         WHERE  id = ? AND negocio_id = ? AND estado = 'activo'
     `);
+    const stmtMenuItem = db.prepare(`
+        SELECT id, nombre, precio, itbis_tasa, 'menu' as tipo_item
+        FROM   menu_items
+        WHERE  id = ? AND negocio_id = ? AND disponible = 1
+    `);
 
     const lineasCrudas = items.map((item) => {
         const cantidad = Math.max(1, parseInt(item.cantidad, 10) || 1);
@@ -246,15 +251,20 @@ function calcularTotalesVenta(items, db, negocioId, descuento = 0) {
         if (item.servicio_id) {
             entidad = stmtServicio.get(parseInt(item.servicio_id, 10), negocioId);
             if (!entidad) {
-                throw new Error(`Servicio ID ${item.servicio_id} no válido para el negocio ${negocioId}`);
+                throw new Error(`Servicio ID ${item.servicio_id} no valido para el negocio ${negocioId}`);
             }
         } else if (item.producto_id) {
             entidad = stmtProducto.get(parseInt(item.producto_id, 10), negocioId);
             if (!entidad) {
-                throw new Error(`Producto ID ${item.producto_id} no válido para el negocio ${negocioId}`);
+                throw new Error(`Producto ID ${item.producto_id} no valido para el negocio ${negocioId}`);
+            }
+        } else if (item.menu_item_id) {
+            entidad = stmtMenuItem.get(parseInt(item.menu_item_id, 10), negocioId);
+            if (!entidad) {
+                throw new Error(`Menu item ID ${item.menu_item_id} no valido para el negocio ${negocioId}`);
             }
         } else {
-            throw new Error('Cada item debe tener servicio_id o producto_id');
+            throw new Error('Cada item debe tener servicio_id, producto_id o menu_item_id');
         }
 
         const tasa = (entidad.itbis_tasa !== null && entidad.itbis_tasa !== undefined)
@@ -264,13 +274,14 @@ function calcularTotalesVenta(items, db, negocioId, descuento = 0) {
         const subtotal = multiplySafe(precio, cantidad);
 
         return {
-            servicio_id: entidad.tipo_item === 'servicio' ? entidad.id : null,
-            producto_id: entidad.tipo_item === 'producto' ? entidad.id : null,
-            tipo_item:   entidad.tipo_item,
-            nombre:      entidad.nombre,
+            servicio_id:  entidad.tipo_item === 'servicio' ? entidad.id : null,
+            producto_id:  entidad.tipo_item === 'producto' ? entidad.id : null,
+            menu_item_id: entidad.tipo_item === 'menu' ? entidad.id : null,
+            tipo_item:    entidad.tipo_item,
+            nombre:       entidad.nombre,
             precio,
             cantidad,
-            itbis_tasa:  tasa,
+            itbis_tasa:   tasa,
             subtotal,
             _precio_original: precio
         };
@@ -302,14 +313,15 @@ function calcularTotalesVenta(items, db, negocioId, descuento = 0) {
         sumaSubtotales = round2(sumaSubtotales + linea.subtotal);
 
         return {
-            servicio_id: linea.servicio_id,
-            producto_id: linea.producto_id,
-            tipo_item:   linea.tipo_item,
-            nombre:      linea.nombre,
-            precio:      linea.precio,
-            cantidad:    linea.cantidad,
-            itbis_tasa:  linea.itbis_tasa,
-            subtotal:    linea.subtotal,
+            servicio_id:  linea.servicio_id,
+            producto_id:  linea.producto_id,
+            menu_item_id: linea.menu_item_id,
+            tipo_item:    linea.tipo_item,
+            nombre:       linea.nombre,
+            precio:       linea.precio,
+            cantidad:     linea.cantidad,
+            itbis_tasa:   linea.itbis_tasa,
+            subtotal:     linea.subtotal,
             itbis_monto,
             total_linea
         };

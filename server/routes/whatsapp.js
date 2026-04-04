@@ -82,6 +82,67 @@ router.post('/send', requireAuth, async (req, res) => {
     }
 });
 
+// POST /api/whatsapp/send-image — Enviar imagen via WhatsApp API
+router.post('/send-image', requireAuth, async (req, res) => {
+    try {
+        const { to, caption, image_base64 } = req.body;
+        if (!to || !image_base64) {
+            return res.status(400).json({ error: 'to e image_base64 son requeridos' });
+        }
+
+        const db = getDb();
+        const config = db.prepare('SELECT * FROM whatsapp_config WHERE negocio_id = ? AND activo = 1').get(req.session.negocioId);
+        if (!config || !config.token || !config.phone_number_id) {
+            return res.status(400).json({ error: 'WhatsApp no configurado o no activo' });
+        }
+
+        // Subir imagen a WhatsApp Media API
+        const formData = new FormData();
+        const buffer = Buffer.from(image_base64.replace(/^data:image\/png;base64,/, ''), 'base64');
+        formData.append('messaging_product', 'whatsapp');
+        formData.append('file', new Blob([buffer], { type: 'image/png' }), 'factura.png');
+        formData.append('type', 'image/png');
+
+        const uploadResponse = await fetch(`https://graph.facebook.com/v17.0/${config.phone_number_id}/media`, {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${config.token}` },
+            body: formData
+        });
+
+        const uploadData = await uploadResponse.json();
+        if (!uploadResponse.ok) {
+            return res.status(uploadResponse.status).json({ error: uploadData.error?.message || 'Error al subir imagen' });
+        }
+
+        const mediaId = uploadData.id;
+
+        // Enviar imagen al cliente
+        const sendResponse = await fetch(`https://graph.facebook.com/v17.0/${config.phone_number_id}/messages`, {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${config.token}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                messaging_product: 'whatsapp',
+                to,
+                type: 'image',
+                image: { id: mediaId, caption: caption || 'Factura' }
+            })
+        });
+
+        const sendData = await sendResponse.json();
+        if (!sendResponse.ok) {
+            return res.status(sendResponse.status).json({ error: sendData.error?.message || 'Error al enviar imagen' });
+        }
+
+        res.json({ success: true, message_id: sendData.messages?.[0]?.id });
+    } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Error al enviar imagen por WhatsApp: ' + error.message });
+    }
+});
+
 // Webhook para WhatsApp (verificacion + recepcion)
 router.get('/webhook', (req, res) => {
     const mode = req.query['hub.mode'];

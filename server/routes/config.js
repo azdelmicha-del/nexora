@@ -33,7 +33,8 @@ router.put('/', requireAdmin, (req, res) => {
             'activar_descuentos', 'seleccion_obligatoria_cliente',
             'metodo_efectivo', 'metodo_transferencia', 'metodo_tarjeta',
             'chatbot_activo', 'chatbot_bienvenida', 'notificaciones_activas', 'booking_activo',
-            'buffer_entre_citas'
+            'buffer_entre_citas', 'tipo_negocio', 'whatsapp_negocio',
+            'delivery_activo', 'delivery_costo', 'delivery_tiempo', 'delivery_minimo'
         ];
 
         const updates = [];

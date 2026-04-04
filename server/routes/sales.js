@@ -121,14 +121,15 @@ router.post('/', requireAuth, (req, res) => {
         // itbis_monto queda congelado en el valor del momento de la venta.
         // Si la tasa del servicio cambia después, las facturas históricas no se alteran.
         const stmtDetalle = db.prepare(`
-            INSERT INTO venta_detalles (venta_id, servicio_id, producto_id, tipo_item, cantidad, precio, subtotal, itbis_monto)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO venta_detalles (venta_id, servicio_id, producto_id, menu_item_id, tipo_item, cantidad, precio, subtotal, itbis_monto)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
         for (const linea of totales.lineas) {
             stmtDetalle.run(
                 ventaId,
                 linea.servicio_id || null,
                 linea.producto_id || null,
+                linea.menu_item_id || null,
                 linea.tipo_item || 'servicio',
                 linea.cantidad,
                 linea.precio,
@@ -268,10 +269,11 @@ router.get('/:id', requireAuth, (req, res) => {
         const detalles = db.prepare(`
             SELECT vd.id, vd.cantidad, vd.precio, vd.subtotal, vd.itbis_monto,
                    vd.tipo_item,
-                   COALESCE(s.nombre, p.nombre) as servicio
+                   COALESCE(s.nombre, p.nombre, m.nombre) as servicio
             FROM venta_detalles vd
             LEFT JOIN servicios s ON vd.servicio_id = s.id
             LEFT JOIN productos p ON vd.producto_id = p.id
+            LEFT JOIN menu_items m ON vd.menu_item_id = m.id
             WHERE vd.venta_id = ?
         `).all(req.params.id);
 
