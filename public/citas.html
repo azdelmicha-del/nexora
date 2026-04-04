@@ -360,6 +360,7 @@
         </div>
     </div>
     
+    <script src="/js/common.js"></script>
     <script src="/js/api.js"></script>
     <script>
         let clientes = [];
@@ -1045,10 +1046,6 @@
         
         async function crearClienteRapido(e) {
             e.preventDefault();
-            
-            function toTitleCase(str) {
-                return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
-            }
             
             const nombre = toTitleCase(document.getElementById('clienteNombreInput').value.trim());
             const telefono = document.getElementById('clienteTelefonoInput').value.trim();

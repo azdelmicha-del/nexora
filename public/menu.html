@@ -313,8 +313,8 @@
                 document.getElementById('deliveryMinimo').value = cfg.delivery_minimo || 0;
                 // Menu link
                 const session = JSON.parse(sessionStorage.getItem('session'));
-                const negocio = await apiCall('/config');
-                const slug = negocio.slug || 'mi-negocio';
+                const config = await apiCall('/config');
+                const slug = config.slug || 'mi-negocio';
                 document.getElementById('menuLink').value = `${window.location.origin}/menu/${slug}`;
             } catch(e) {}
         }

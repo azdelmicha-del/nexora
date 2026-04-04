@@ -2,6 +2,7 @@ const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { getNextNCF, generarCodigoSeguridad } = require('../utils/dgii');
+const { getRDDateString } = require('../utils/timezone');
 
 const router = express.Router();
 
@@ -80,7 +81,7 @@ router.post('/', requireAuth, (req, res) => {
             codigoSeg,
             montoAbs,
             motivo.trim(),
-            new Date().toISOString().split('T')[0]
+            getRDDateString()
         );
 
         res.json({

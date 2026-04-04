@@ -1,6 +1,8 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { getRDTimestamp } = require('../utils/timezone');
+const { toTitleCase, capitalizeFirst } = require('../utils/validators');
 
 const router = express.Router();
 
@@ -188,8 +190,7 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
         }
         
         // Obtener hora actual
-        const ahora = new Date();
-        const horaActual = `${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}:${String(ahora.getSeconds()).padStart(2, '0')}`;
+        const horaActual = getRDTimestamp().split(' ')[1];
         
         const metodoPago = metodo_pago || 'efectivo';
         
@@ -208,7 +209,7 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
             tipo,
             subtipoFinal,
             categoria,
-            descripcion.trim(),
+            toTitleCase(descripcion.trim()),
             parseFloat(subtotal) || 0,
             parseFloat(itbis) || 0,
             parseFloat(descuento) || 0,
@@ -271,7 +272,7 @@ router.put('/:id', requireAuth, requireAdmin, (req, res) => {
         }
         if (descripcion) {
             updates.push('descripcion = ?');
-            values.push(descripcion.trim());
+            values.push(toTitleCase(descripcion.trim()));
         }
         if (subtotal !== undefined) {
             updates.push('subtotal = ?');

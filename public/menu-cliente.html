@@ -634,13 +634,13 @@
                 const E = String.fromCodePoint;
                 const itemsText = cart.map(i => `- ${i.nombre} x${i.cantidad} = ${formatCurrency(i.precio * i.cantidad)}`).join('\n');
                 const deliveryText = deliveryType === 'domicilio' ? `- Domicilio: ${direccion || 'Sin direccion'}` : '- Retiro en local';
-                const waMsg = `*NUEVO PEDIDO #${data.pedido_id}*\n\n${itemsText}\n\n${deliveryText}\n\n*Total: ${formatCurrency(total)}*\n\nNombre: ${nombre}\nTel: ${telefono}`;
+                const waMsg = `*NUEVO PEDIDO #${data.numero_pedido || data.pedido_id}*\n\n${itemsText}\n\n${deliveryText}\n\n*Total: ${formatCurrency(total)}*\n\nNombre: ${nombre}\nTel: ${telefono}`;
                 const negocioTelClean = (data.negocio_telefono || negocioTelefono).replace(/\D/g, '');
                 const waNumber = negocioTelClean ? `1${negocioTelClean}` : '';
                 const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMsg)}`;
 
                 document.getElementById('modal-summary').innerHTML = `
-                    <div style="display:flex;justify-content:space-between;padding:6px 0;"><span style="color:#666;">Pedido #</span><strong>${data.pedido_id}</strong></div>
+                    <div style="display:flex;justify-content:space-between;padding:6px 0;"><span style="color:#666;">Pedido #</span><strong>${data.numero_pedido || data.pedido_id}</strong></div>
                     <div style="display:flex;justify-content:space-between;padding:6px 0;"><span style="color:#666;">Total</span><strong style="color:#667eea;font-size:16px;">${formatCurrency(total)}</strong></div>
                 `;
                 document.getElementById('modal-whatsapp').href = waUrl;

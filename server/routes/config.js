@@ -1,6 +1,8 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { getRDDateString, getRDDate } = require('../utils/timezone');
+const { toTitleCase, capitalizeFirst } = require('../utils/validators');
 
 const router = express.Router();
 
@@ -26,7 +28,7 @@ router.put('/', requireAdmin, (req, res) => {
         const negocioId = req.session.negocioId;
 
         const camposPermitidos = [
-            'nombre', 'rnc', 'telefono', 'email', 'direccion', 'logo',
+            'nombre', 'slug', 'rnc', 'telefono', 'email', 'direccion', 'logo',
             'moneda', 'formato_moneda', 'hora_apertura', 'hora_cierre',
             'dias_laborales', 'duracion_minima_cita', 'permitir_solapamiento',
             'tiempo_anticipacion', 'tiempo_cancelacion', 'mostrar_impuestos',
@@ -55,7 +57,10 @@ router.put('/', requireAdmin, (req, res) => {
         for (const campo of camposPermitidos) {
             if (req.body[campo] !== undefined) {
                 updates.push(`${campo} = ?`);
-                values.push(req.body[campo]);
+                let valor = req.body[campo];
+                if (campo === 'nombre') valor = toTitleCase(valor);
+                if (campo === 'direccion') valor = capitalizeFirst(valor);
+                values.push(valor);
             }
         }
 
@@ -78,8 +83,7 @@ router.get('/dashboard', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const negocioId = req.session.negocioId;
-        const ahora = new Date();
-        const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+        const hoy = getRDDateString();
 
         // La caja siempre está abierta para nuevas ventas
         const clientesNuevos = db.prepare(`

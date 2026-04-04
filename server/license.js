@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
 const os = require('os');
+const { getRDDate } = require('./utils/timezone');
 
 const LICENSE_FILE = path.join(__dirname, '..', 'license.json');
 const KEYS_FILE = path.join(__dirname, '..', 'valid_keys.json');
@@ -65,7 +66,7 @@ function getLicense() {
     }
     
     return {
-        installDate: new Date().toISOString(),
+        installDate: getRDDate().toISOString(),
         plan: 'trial',
         isPaid: false,
         licenseKey: null,
@@ -113,14 +114,14 @@ function getDaysRemainingLocal() {
     if (!license.isPaid || !license.activatedDate || !license.expirationDate) {
         const trialStartDate = license.trialStartDate || license.installDate;
         const startDate = new Date(trialStartDate);
-        const now = new Date();
+        const now = getRDDate();
         const daysUsed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
         const remaining = TRIAL_DAYS - daysUsed;
         return { valid: remaining > 0, type: 'trial', daysRemaining: Math.max(0, remaining) };
     }
     
     const expirationDate = new Date(license.expirationDate);
-    const now = new Date();
+    const now = getRDDate();
     const daysRemaining = Math.floor((expirationDate - now) / (1000 * 60 * 60 * 24));
     
     return { valid: daysRemaining > 0, type: license.plan, daysRemaining: Math.max(0, daysRemaining) };
@@ -131,7 +132,7 @@ function recordTrialStart(negocioId = null) {
         const license = getLicense();
         
         if (!license.trialStartDate && !license.isPaid) {
-            license.trialStartDate = new Date().toISOString();
+            license.trialStartDate = getRDDate().toISOString();
             saveLicense(license);
         }
         
@@ -251,8 +252,8 @@ function activateLicenseLocal(key, plan) {
     }
     
     const planInfo = PLANS[plan];
-    const activatedDate = new Date();
-    const expirationDate = new Date();
+    const activatedDate = getRDDate();
+    const expirationDate = getRDDate();
     expirationDate.setDate(expirationDate.getDate() + planInfo.days);
     
     license.plan = plan;
@@ -325,7 +326,7 @@ function activateLicenseNegocio(key, plan, negocioId) {
 function initLicense() {
     if (isLocalInstallation() && !fs.existsSync(LICENSE_FILE)) {
         const license = {
-            installDate: new Date().toISOString(),
+            installDate: getRDDate().toISOString(),
             plan: 'trial',
             isPaid: false,
             licenseKey: null,

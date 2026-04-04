@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { toTitleCase, capitalizeFirst } = require('../utils/validators');
 
 const router = express.Router();
 
@@ -30,8 +31,8 @@ router.post('/categorias', requireAuth, (req, res) => {
         if (!nombre) return res.status(400).json({ error: 'Nombre requerido' });
         const db = getDb();
         const result = db.prepare('INSERT INTO menu_categorias (negocio_id, nombre, orden) VALUES (?, ?, ?)')
-            .run(req.session.negocioId, nombre.trim(), parseInt(orden) || 0);
-        res.json({ id: result.lastInsertRowid, nombre: nombre.trim(), orden: parseInt(orden) || 0 });
+            .run(req.session.negocioId, toTitleCase(nombre), parseInt(orden) || 0);
+        res.json({ id: result.lastInsertRowid, nombre: toTitleCase(nombre), orden: parseInt(orden) || 0 });
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Error al crear categoria' });
@@ -44,7 +45,7 @@ router.put('/categorias/:id', requireAuth, (req, res) => {
         const db = getDb();
         const updates = [];
         const params = [];
-        if (nombre !== undefined) { updates.push('nombre = ?'); params.push(nombre.trim()); }
+        if (nombre !== undefined) { updates.push('nombre = ?'); params.push(toTitleCase(nombre)); }
         if (orden !== undefined) { updates.push('orden = ?'); params.push(parseInt(orden)); }
         if (activa !== undefined) { updates.push('activa = ?'); params.push(activa ? 1 : 0); }
         if (updates.length === 0) return res.status(400).json({ error: 'No hay campos' });
@@ -95,7 +96,7 @@ router.post('/items', requireAuth, (req, res) => {
         const result = db.prepare(`
             INSERT INTO menu_items (negocio_id, categoria_id, nombre, descripcion, precio, imagen, itbis_tasa, destacado)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(req.session.negocioId, categoria_id || null, nombre.trim(), descripcion ? descripcion.trim() : null,
+        `).run(req.session.negocioId, categoria_id || null, toTitleCase(nombre), descripcion ? capitalizeFirst(descripcion) : null,
             parseFloat(precio), imagen || null, parseInt(itbis_tasa) || 18, destacado ? 1 : 0);
         res.json({ id: result.lastInsertRowid });
     } catch (error) {
@@ -110,8 +111,8 @@ router.put('/items/:id', requireAuth, (req, res) => {
         const db = getDb();
         const updates = [];
         const params = [];
-        if (nombre !== undefined) { updates.push('nombre = ?'); params.push(nombre.trim()); }
-        if (descripcion !== undefined) { updates.push('descripcion = ?'); params.push(descripcion ? descripcion.trim() : null); }
+        if (nombre !== undefined) { updates.push('nombre = ?'); params.push(toTitleCase(nombre)); }
+        if (descripcion !== undefined) { updates.push('descripcion = ?'); params.push(descripcion ? capitalizeFirst(descripcion) : null); }
         if (precio !== undefined) { updates.push('precio = ?'); params.push(parseFloat(precio)); }
         if (imagen !== undefined) { updates.push('imagen = ?'); params.push(imagen || null); }
         if (disponible !== undefined) { updates.push('disponible = ?'); params.push(disponible ? 1 : 0); }

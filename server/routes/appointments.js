@@ -2,6 +2,7 @@ const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { enviarConfirmacionCita } = require('../utils/email');
+const { getRDDate } = require('../utils/timezone');
 
 const router = express.Router();
 
@@ -351,7 +352,7 @@ router.put('/:id', requireAuth, (req, res) => {
 
         // Validar fecha/hora no sea pasada si se está cambiando el horario (usando hora local)
         if (cambiandoHorario) {
-            const ahora = new Date();
+            const ahora = getRDDate();
             const [y, m, d] = nuevaFecha.split('-').map(Number);
             const [hh, mm] = nuevaHora.split(':').map(Number);
             const fechaCitaLocal = new Date(y, m - 1, d, hh, mm);

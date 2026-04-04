@@ -2,12 +2,10 @@
 async function renderSidebar() {
     const currentPage = window.location.pathname;
     
-    // Obtener tipo de negocio desde la API (siempre actualizado)
     let tipoNegocio = 'ambos';
     try {
         const config = await fetch('/api/config', { credentials: 'same-origin' }).then(r => r.json());
         if (config && config.tipo_negocio) tipoNegocio = config.tipo_negocio;
-        // Tambien actualizar sessionStorage
         try {
             const session = JSON.parse(sessionStorage.getItem('session'));
             if (session) { session.tipo_negocio = tipoNegocio; sessionStorage.setItem('session', JSON.stringify(session)); }
@@ -30,12 +28,11 @@ async function renderSidebar() {
         { href: '/pedidos', icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01', label: 'Pedidos', adminOnly: true, tipo: 'comida' },
         { href: '/notas', icon: 'M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', label: 'Notas C/D', adminOnly: true },
         { href: '/auditoria', icon: 'M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z', label: 'Auditoria', adminOnly: true },
-        { href: '/backup', icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4', label: 'Backup', adminOnly: true },
+        { href: '/backup', icon: 'M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4', label: 'Backup', superAdminOnly: true },
         { href: '/reportes', icon: 'M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z', label: 'Reportes' },
         { href: '/configuracion', icon: 'M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z', label: 'Configuración', adminOnly: true },
     ];
     
-    // Verificar si es admin o superadmin
     let isAdmin = false;
     let isSuperAdmin = false;
     try {
@@ -48,19 +45,17 @@ async function renderSidebar() {
     menuItems.forEach(item => {
         if (item.superAdminOnly && !isSuperAdmin) return;
         if (item.adminOnly && !isAdmin && !isSuperAdmin) return;
-        // Filtrar por tipo de negocio
         if (item.tipo && tipoNegocio !== 'ambos' && tipoNegocio !== item.tipo) return;
         
         const isActive = currentPage === item.href || currentPage.startsWith(item.href + '/');
         navHTML += `
-            <a href="${item.href}" class="nav-item${isActive ? ' active' : ''}">
+            <a href="${item.href}" class="nav-item${isActive ? ' active' : ''}" onclick="closeMobileMenu()">
                 <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="${item.icon}"></path></svg>
                 ${item.label}
             </a>
         `;
     });
     
-    // Obtener info del usuario
     let userName = 'Usuario';
     let userRole = 'Empleado';
     let userInitial = 'U';
@@ -74,7 +69,7 @@ async function renderSidebar() {
     } catch (e) {}
     
     const sidebarHTML = `
-        <aside class="sidebar">
+        <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
                 <h2>Nexora</h2>
                 <p>Panel de gestión</p>
@@ -97,7 +92,6 @@ async function renderSidebar() {
         </aside>
     `;
     
-    // Insertar el sidebar en el DOM
     const layout = document.querySelector('.layout');
     if (layout) {
         const existingSidebar = layout.querySelector('.sidebar');
@@ -107,16 +101,75 @@ async function renderSidebar() {
             layout.insertAdjacentHTML('afterbegin', sidebarHTML);
         }
     }
+    
+    // Crear botón hamburguesa y overlay
+    createMobileMenu();
 }
 
-// Función de logout
+function createMobileMenu() {
+    if (document.getElementById('hamburgerBtn')) return;
+    
+    const header = document.querySelector('.page-header') || document.querySelector('.dash-welcome');
+    if (!header) return;
+    
+    const hamburgerBtn = document.createElement('button');
+    hamburgerBtn.id = 'hamburgerBtn';
+    hamburgerBtn.className = 'hamburger-btn';
+    hamburgerBtn.setAttribute('aria-label', 'Abrir menú');
+    hamburgerBtn.innerHTML = `
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+        <span class="hamburger-line"></span>
+    `;
+    hamburgerBtn.addEventListener('click', toggleMobileMenu);
+    
+    header.insertBefore(hamburgerBtn, header.firstChild);
+    
+    const overlay = document.createElement('div');
+    overlay.id = 'sidebarOverlay';
+    overlay.className = 'sidebar-overlay';
+    overlay.addEventListener('click', closeMobileMenu);
+    document.body.appendChild(overlay);
+}
+
+function toggleMobileMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const btn = document.getElementById('hamburgerBtn');
+    if (!sidebar) return;
+    
+    const isOpen = sidebar.classList.contains('open');
+    if (isOpen) {
+        closeMobileMenu();
+    } else {
+        sidebar.classList.add('open');
+        overlay.classList.add('active');
+        btn.classList.add('active');
+        btn.setAttribute('aria-label', 'Cerrar menú');
+        document.body.style.overflow = 'hidden';
+    }
+}
+
+function closeMobileMenu() {
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('sidebarOverlay');
+    const btn = document.getElementById('hamburgerBtn');
+    if (sidebar) sidebar.classList.remove('open');
+    if (overlay) overlay.classList.remove('active');
+    if (btn) {
+        btn.classList.remove('active');
+        btn.setAttribute('aria-label', 'Abrir menú');
+    }
+    document.body.style.overflow = '';
+}
+
 function logout() {
+    closeMobileMenu();
     fetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
     sessionStorage.clear();
     window.location.href = '/';
 }
 
-// Ejecutar cuando el DOM esté listo
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', renderSidebar);
 } else {

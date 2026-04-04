@@ -3,9 +3,10 @@ const { getDb } = require('../database');
 const { requireAuth, requireSuperAdmin } = require('../middleware/auth');
 const fs = require('fs');
 const path = require('path');
+const { getRDDateString, getRDDate } = require('../utils/timezone');
 
 const router = express.Router();
-const BACKUP_DIR = path.join(__dirname, '..', '..', 'backups');
+const BACKUP_DIR = process.env.BACKUP_DIR || path.join(__dirname, '..', '..', 'backups');
 
 // Ensure backup directory exists
 if (!fs.existsSync(BACKUP_DIR)) {
@@ -39,7 +40,7 @@ router.post('/', requireSuperAdmin, (req, res) => {
     try {
         const db = getDb();
         const dbPath = db.prepare("PRAGMA database_list").get().file;
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const timestamp = getRDDate().toISOString().replace(/[:.]/g, '-');
         const backupName = `nexora_backup_${timestamp}.db`;
         const backupPath = path.join(BACKUP_DIR, backupName);
 

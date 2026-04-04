@@ -65,13 +65,14 @@ router.post('/calcular', requireAdmin, (req, res) => {
         const negocioId = req.session.negocioId;
 
         // Obtener cada linea de venta con su servicio y comision
-        const lineas = db.prepare(`
+        // Comisiones por servicio (usa comision_porcentaje del servicio)
+        const lineasServicios = db.prepare(`
             SELECT vd.id as detalle_id, vd.venta_id, vd.servicio_id, vd.cantidad,
                    vd.precio, vd.subtotal, vd.tipo_item,
                    v.user_id, v.fecha,
-                   u.nombre as empleado,
+                   u.nombre as empleado, u.comision_porcentaje,
                    s.nombre as servicio,
-                   COALESCE(s.comision_porcentaje, 0) as comision_porcentaje
+                   s.comision_porcentaje as servicio_comision
             FROM venta_detalles vd
             JOIN ventas v ON vd.venta_id = v.id
             JOIN usuarios u ON v.user_id = u.id
@@ -83,9 +84,32 @@ router.post('/calcular', requireAdmin, (req, res) => {
               AND s.comision_porcentaje > 0
         `).all(negocioId, desde, hasta);
 
+        // Comisiones por menu items (usa comision_porcentaje del empleado)
+        const lineasMenu = db.prepare(`
+            SELECT vd.id as detalle_id, vd.venta_id, vd.menu_item_id, vd.cantidad,
+                   vd.precio, vd.subtotal, vd.tipo_item,
+                   v.user_id, v.fecha,
+                   u.nombre as empleado, u.comision_porcentaje,
+                   m.nombre as servicio
+            FROM venta_detalles vd
+            JOIN ventas v ON vd.venta_id = v.id
+            JOIN usuarios u ON v.user_id = u.id
+            LEFT JOIN menu_items m ON vd.menu_item_id = m.id
+            WHERE v.negocio_id = ?
+              AND DATE(v.fecha) >= ? AND DATE(v.fecha) <= ?
+              AND v.metodo_pago != 'nota'
+              AND vd.tipo_item = 'menu'
+              AND u.comision_porcentaje > 0
+        `).all(negocioId, desde, hasta);
+
+        const lineas = [...lineasServicios, ...lineasMenu];
+
         let creadas = 0;
         lineas.forEach(l => {
-            const porcentaje = l.comision_porcentaje || 0;
+            // Para servicios usa la comision del servicio, para menu usa la del empleado
+            const porcentaje = l.tipo_item === 'servicio'
+                ? (l.servicio_comision || l.comision_porcentaje || 0)
+                : (l.comision_porcentaje || 0);
             if (porcentaje <= 0) return;
 
             const montoComision = Math.round((l.subtotal * porcentaje / 100) * 100) / 100;

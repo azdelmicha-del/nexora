@@ -3,6 +3,7 @@ const bcrypt = require('bcryptjs');
 const { getDb } = require('../database');
 const { requireAdmin, requireAuth } = require('../middleware/auth');
 const { formatters, validators, errorMessages } = require('../utils/validators');
+const { getRDDateString, getRDDate } = require('../utils/timezone');
 
 const router = express.Router();
 
@@ -316,7 +317,7 @@ router.post('/:id/reactivate', requireAdmin, (req, res) => {
         }
 
         db.prepare('UPDATE usuarios SET last_login = ?, estado = ? WHERE id = ?')
-            .run(new Date().toISOString(), 'activo', usuarioId);
+            .run(getRDDate().toISOString(), 'activo', usuarioId);
 
         res.json({ success: true, message: 'Usuario reactivado correctamente' });
     } catch (error) {

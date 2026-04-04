@@ -199,6 +199,7 @@
         </div>
     </div>
     
+    <script src="/js/common.js"></script>
     <script src="/js/api.js"></script>
     <script src="/js/sidebar.js"></script>
     <script>
@@ -656,17 +657,6 @@
                     showToast(error.message, 'error');
                 }
             });
-        }
-        
-        function toTitleCase(str) {
-            if (!str) return '';
-            return str.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-        }
-        
-        function capitalizeFirst(str) {
-            if (!str || !str.trim()) return '';
-            const s = str.trim();
-            return s.charAt(0).toUpperCase() + s.slice(1);
         }
         
         function formatCurrency(amount) {

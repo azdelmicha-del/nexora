@@ -233,6 +233,7 @@
         </div>
     </div>
     
+    <script src="/js/common.js"></script>
     <script src="/js/api.js"></script>
     <script>
         let editingId = null;
@@ -364,16 +365,6 @@
             
             document.getElementById('servicioForm').addEventListener('submit', handleSubmit);
         });
-        
-        function toTitleCase(str) {
-            return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
-        }
-        
-        function capitalizeFirst(str) {
-            if (!str || !str.trim()) return '';
-            const s = str.trim();
-            return s.charAt(0).toUpperCase() + s.slice(1);
-        }
         
         async function loadCategorias() {
             try {

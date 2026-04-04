@@ -6,6 +6,7 @@
 
 const { getDb } = require('../database');
 const { enviarRecordatorioCita } = require('../utils/email');
+const { getRDDateString, getRDDate } = require('../utils/timezone');
 
 let cronInterval = null;
 
@@ -29,9 +30,9 @@ function iniciarRecordatoriosCitas() {
 
 async function verificarYEnviarRecordatorios() {
     const db = getDb();
-    const manana = new Date();
+    const manana = getRDDate();
     manana.setDate(manana.getDate() + 1);
-    const mananaStr = manana.toISOString().split('T')[0];
+    const mananaStr = getRDDateString(manana);
 
     // Citas de manana con email que no han sido recordadas
     const citas = db.prepare(`

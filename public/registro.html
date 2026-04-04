@@ -502,6 +502,7 @@
         </section>
     </div>
 
+    <script src="/js/common.js"></script>
     <script src="/js/api.js"></script>
     <script>
         async function checkLicense() {
@@ -655,10 +656,6 @@
 
         registerForm.addEventListener('submit', async (e) => {
             e.preventDefault();
-            
-            function toTitleCase(str) {
-                return str.toLowerCase().replace(/(?:^|\s)\S/g, c => c.toUpperCase());
-            }
             
             const nombreNegocio = document.getElementById('nombreNegocio').value.trim().toUpperCase();
             const rncNegocio = document.getElementById('rncNegocio').value.replace(/[\s\-]/g, '').trim();

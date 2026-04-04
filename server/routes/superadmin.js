@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const { LICENSE_MASTER_KEY } = require('../config');
+const { getRDDateString, getRDDate } = require('../utils/timezone');
 
 const router = express.Router();
 
@@ -73,7 +74,7 @@ router.post('/login', (req, res) => {
         
         if (admin.login_attempts >= MAX_ATTEMPTS && admin.last_attempt) {
             const lastAttempt = new Date(admin.last_attempt);
-            const minutesSince = (new Date() - lastAttempt) / (1000 * 60);
+            const minutesSince = (getRDDate() - lastAttempt) / (1000 * 60);
             
             if (minutesSince < LOCKOUT_MINUTES) {
                 const minutesRemaining = Math.ceil(LOCKOUT_MINUTES - minutesSince);
@@ -93,7 +94,7 @@ router.post('/login', (req, res) => {
         if (!validPassword) {
             const newAttempts = (admin.login_attempts || 0) + 1;
             db.prepare('UPDATE super_admins SET login_attempts = ?, last_attempt = ? WHERE id = ?')
-                .run(newAttempts, new Date().toISOString(), admin.id);
+                .run(newAttempts, getRDDate().toISOString(), admin.id);
             
             if (newAttempts >= MAX_ATTEMPTS) {
                 return res.status(429).json({
@@ -256,17 +257,62 @@ router.put('/negocios/:id/estado', requireSuperAdmin, (req, res) => {
 router.delete('/negocios/:id', requireSuperAdmin, (req, res) => {
     try {
         const db = getDb();
+        const negocioId = parseInt(req.params.id);
         
-        // Soft delete - cambiar estado a eliminado
-        db.prepare('UPDATE negocios SET estado = ? WHERE id = ?').run('eliminado', req.params.id);
+        // Check if already soft-deleted
+        const negocio = db.prepare('SELECT id, estado FROM negocios WHERE id = ?').get(negocioId);
+        if (!negocio) {
+            return res.status(404).json({ error: 'Negocio no encontrado' });
+        }
         
-        // Desactivar todos los usuarios del negocio
-        db.prepare('UPDATE usuarios SET estado = ? WHERE negocio_id = ?').run('inactivo', req.params.id);
-        
-        res.json({ success: true, message: 'Negocio eliminado' });
+        if (negocio.estado === 'eliminado') {
+            // Hard delete - remove permanently
+            // Disable foreign keys temporarily to avoid constraint issues
+            db.exec('PRAGMA foreign_keys = OFF');
+            db.prepare('DELETE FROM log_auditoria WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM notificaciones WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM movimientos_inventario WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM chatbot_mensajes WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM chatbot_reglas WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM whatsapp_config WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM horario_negocio WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM sucursales WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM certificados_dgii WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM secuencias_ncf WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM config WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM conversaciones WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM puntos_lealtad WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM historial_puntos WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM comisiones WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM venta_detalles WHERE venta_id IN (SELECT id FROM ventas WHERE negocio_id = ?)').run(negocioId);
+            db.prepare('DELETE FROM ventas WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM notas_credito WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM pedidos_items WHERE pedido_id IN (SELECT id FROM pedidos WHERE negocio_id = ?)').run(negocioId);
+            db.prepare('DELETE FROM pedidos WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM menu_items WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM menu_categorias WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM productos WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM estado_resultado_items WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM citas WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM clientes WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM servicios WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM categorias WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM cajas_cerradas WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM usuarios WHERE negocio_id = ?').run(negocioId);
+            db.prepare('DELETE FROM negocios WHERE id = ?').run(negocioId);
+            db.exec('PRAGMA foreign_keys = ON');
+            
+            res.json({ success: true, message: 'Negocio eliminado permanentemente' });
+        } else {
+            // Soft delete - mark as eliminated
+            db.prepare('UPDATE negocios SET estado = ? WHERE id = ?').run('eliminado', negocioId);
+            db.prepare('UPDATE usuarios SET estado = ? WHERE negocio_id = ?').run('inactivo', negocioId);
+            
+            res.json({ success: true, message: 'Negocio marcado como eliminado' });
+        }
     } catch (error) {
         console.error('Error eliminando negocio:', error);
-        res.status(500).json({ error: 'Error del servidor' });
+        res.status(500).json({ error: 'Error del servidor: ' + error.message });
     }
 });
 
@@ -280,8 +326,8 @@ router.put('/negocios/:id/licencia', requireSuperAdmin, (req, res) => {
         }
         
         const db = getDb();
-        const fechaInicio = new Date().toISOString();
-        const fechaExpiracion = new Date();
+        const fechaInicio = getRDDate().toISOString();
+        const fechaExpiracion = getRDDate();
         fechaExpiracion.setDate(fechaExpiracion.getDate() + (dias || 30));
         
         db.prepare(`
@@ -322,7 +368,7 @@ router.put('/negocios/:id/trial-days', requireSuperAdmin, (req, res) => {
         // Calcular fecha de inicio para que queden exactamente X días (trial = 7 días)
         const TRIAL_DAYS = 7;
         const diasUsados = TRIAL_DAYS - dias_restantes;
-        const fechaInicio = new Date();
+        const fechaInicio = getRDDate();
         fechaInicio.setDate(fechaInicio.getDate() - diasUsados);
         
         db.prepare(`

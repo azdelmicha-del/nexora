@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const { getRDDateString } = require('../utils/timezone');
 
 const router = express.Router();
 
@@ -9,7 +10,7 @@ router.get('/', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const negocioId = req.session.negocioId;
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = getRDDateString();
         const mesActual = hoy.substring(0, 7); // YYYY-MM
 
         // Ventas hoy

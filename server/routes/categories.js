@@ -53,7 +53,7 @@ router.post('/', requireAdmin, (req, res) => {
             return res.status(400).json({ error: 'Nombre es requerido' });
         }
 
-        const nombreNormalizado = formatters.toUpperCase(nombre.trim());
+        const nombreNormalizado = formatters.toTitleCase(nombre.trim());
 
         const db = getDb();
 
@@ -90,7 +90,7 @@ router.put('/:id', requireAdmin, (req, res) => {
 
         if (nombre) {
             updates.push('nombre = ?');
-            values.push(formatters.toUpperCase(nombre.trim()));
+            values.push(formatters.toTitleCase(nombre.trim()));
         }
         if (estado && ['activo', 'inactivo'].includes(estado)) {
             updates.push('estado = ?');

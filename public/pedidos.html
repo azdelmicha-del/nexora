@@ -209,7 +209,7 @@
             container.innerHTML = filtrados.map(p => `
                 <div class="pedido-card ${p.estado ? 'estado-'+p.estado : ''}">
                     <div class="pedido-info">
-                        <span class="pedido-id">#${p.id}</span>
+                        <span class="pedido-id">#${p.numero_pedido > 0 ? p.numero_pedido : p.id}</span>
                         <span class="pedido-date">${fmtDate(p.fecha_creacion)}</span>
                         <span class="pedido-cliente">${esc(p.cliente_nombre)}</span>
                         <span class="pedido-total">${formatCurrency(p.total)}</span>
@@ -224,7 +224,7 @@
             const p = todosPedidos.find(x => x.id === id);
             if (!p) return;
 
-            document.getElementById('mpTitle').textContent = 'Pedido #' + p.id;
+            document.getElementById('mpTitle').textContent = 'Pedido #' + (p.numero_pedido > 0 ? p.numero_pedido : p.id);
             document.getElementById('mpSubtitle').textContent = fmtDate(p.fecha_creacion);
 
             let bodyHtml = `
@@ -307,16 +307,17 @@
 
             const itemsList = (p.items||[]).map(i => '- ' + i.nombre_item + ' x' + i.cantidad).join('\n');
             let msg = '';
+            const numPedido = p.numero_pedido > 0 ? p.numero_pedido : p.id;
             if (estado === 'confirmado') {
-                msg = '*PEDIDO CONFIRMADO*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + p.id + ' ha sido confirmado.\n\n*Items:*\n' + itemsList + '\n\n*Total: ' + formatCurrency(p.total) + '*\n\nTe avisaremos cuando este listo.';
+                msg = '*PEDIDO CONFIRMADO*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + numPedido + ' ha sido confirmado.\n\n*Items:*\n' + (p.items||[]).map(i => '- ' + i.nombre_item + ' x' + i.cantidad).join('\n') + '\n\n*Total: ' + formatCurrency(p.total) + '*\n\nTe avisaremos cuando este listo.';
             } else if (estado === 'preparando') {
-                msg = '*PEDIDO EN PREPARACION*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + p.id + ' esta siendo preparado.\n\n*Total: ' + formatCurrency(p.total) + '*\n\nPronto estara listo.';
+                msg = '*PEDIDO EN PREPARACION*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + numPedido + ' esta siendo preparado.\n\n*Total: ' + formatCurrency(p.total) + '*\n\nPronto estara listo.';
             } else if (estado === 'listo') {
-                msg = '*PEDIDO LISTO!*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + p.id + ' esta listo para ' + (p.tipo_entrega === 'domicilio' ? 'entrega' : 'retiro') + '.\n\n*Total: ' + formatCurrency(p.total) + '*';
+                msg = '*PEDIDO LISTO!*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + numPedido + ' esta listo para ' + (p.tipo_entrega === 'domicilio' ? 'entrega' : 'retiro') + '.\n\n*Total: ' + formatCurrency(p.total) + '*';
             } else if (estado === 'cancelado') {
-                msg = '*PEDIDO CANCELADO*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + p.id + ' ha sido cancelado.\n\nSi tienes alguna duda, contactanos.';
+                msg = '*PEDIDO CANCELADO*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + numPedido + ' ha sido cancelado.\n\nSi tienes alguna duda, contactanos.';
             } else if (estado === 'entregado') {
-                msg = '*PEDIDO ENTREGADO*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + p.id + ' ha sido entregado.\n\n*Total: ' + formatCurrency(p.total) + '*\n\nGracias por tu compra!';
+                msg = '*PEDIDO ENTREGADO*\n\nHola ' + p.cliente_nombre + ', tu pedido #' + numPedido + ' ha sido entregado.\n\n*Total: ' + formatCurrency(p.total) + '*\n\nGracias por tu compra!';
             }
 
             if (!msg) return;
@@ -562,7 +563,7 @@
         }
 
         function esc(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}
-        function fmtDate(d){if(!d)return'';try{const p=d.replace('T',' ').split(/[- :]/);return new Date(p[0],p[1]-1,p[2]).toLocaleDateString('es-DO',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit'});}catch(e){return d;}}
+        function fmtDate(d){if(!d)return'';try{const parts=d.split(/[- :]/);const h=parseInt(parts[3]||0);const m=parseInt(parts[4]||0);const dt=new Date(parts[0],parts[1]-1,parts[2],h,m);const ampm=h>=12?'p. m.':'a. m.';const h12=h%12||12;return dt.toLocaleDateString('es-DO',{day:'2-digit',month:'short'})+', '+String(h12).padStart(2,'0')+':'+String(m).padStart(2,'0')+' '+ampm;}catch(e){return d;}}
         function formatCurrency(a){return'RD$'+Number(a||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
     </script>
     <script src="/js/sidebar.js"></script>

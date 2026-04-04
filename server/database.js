@@ -1,6 +1,7 @@
 const Database = require('better-sqlite3');
 const fs = require('fs');
 const path = require('path');
+const { getRDDateString, getRDDate } = require('./utils/timezone');
 
 // En Render, usar ruta del disco persistente
 // El disco debe montarse en /opt/render/project/data
@@ -139,7 +140,7 @@ function initDatabase() {
     
     if (negociosSinFechaInicio.length > 0) {
         console.log(`Actualizando ${negociosSinFechaInicio.length} negocios sin fecha de inicio de trial`);
-        const fechaAhora = new Date().toISOString();
+        const fechaAhora = getRDDate().toISOString();
         negociosSinFechaInicio.forEach(n => {
             db.prepare('UPDATE negocios SET licencia_fecha_inicio = ? WHERE id = ?')
                 .run(fechaAhora, n.id);
@@ -836,6 +837,31 @@ function initDatabase() {
         console.log('Tabla pedidos_items creada.');
     }
 
+    // Fix: Add cliente_id and descuento to pedidos if missing
+    const pedidoFixCols = db.prepare("PRAGMA table_info(pedidos)").all();
+    const pedidoFixColNames = pedidoFixCols.map(c => c.name);
+    if (!pedidoFixColNames.includes('cliente_id')) {
+        db.exec("ALTER TABLE pedidos ADD COLUMN cliente_id INTEGER REFERENCES clientes(id)");
+        console.log('Columna cliente_id agregada a pedidos.');
+    }
+    if (!pedidoFixColNames.includes('descuento')) {
+        db.exec("ALTER TABLE pedidos ADD COLUMN descuento REAL DEFAULT 0");
+        console.log('Columna descuento agregada a pedidos.');
+    }
+    if (!pedidoFixColNames.includes('numero_pedido')) {
+        db.exec("ALTER TABLE pedidos ADD COLUMN numero_pedido INTEGER DEFAULT 0");
+        console.log('Columna numero_pedido agregada a pedidos.');
+    }
+    // Always renumber pedidos with numero_pedido=0 on startup (per negocio)
+    const negociosForRenumber = db.prepare('SELECT DISTINCT negocio_id FROM pedidos WHERE numero_pedido = 0').all();
+    negociosForRenumber.forEach(n => {
+        const pedidos = db.prepare('SELECT id FROM pedidos WHERE negocio_id = ? ORDER BY id ASC').all(n.negocio_id);
+        pedidos.forEach((p, idx) => {
+            db.prepare('UPDATE pedidos SET numero_pedido = ? WHERE id = ?').run(idx + 1, p.id);
+        });
+        if (pedidos.length > 0) console.log(`  Renumbered ${pedidos.length} pedidos for negocio ${n.negocio_id}`);
+    });
+
     // Config delivery en negocios
     const negDeliveryCols = db.prepare("PRAGMA table_info(negocios)").all();
     const negDeliveryColNames = negDeliveryCols.map(c => c.name);
@@ -904,9 +930,9 @@ function initDatabase() {
 
 function limpiarVentasAntiguas() {
     try {
-        const hace30Dias = new Date();
+        const hace30Dias = getRDDate();
         hace30Dias.setDate(hace30Dias.getDate() - 30);
-        const fechaLimite = hace30Dias.toISOString().split('T')[0];
+        const fechaLimite = getRDDateString(hace30Dias);
         
         const ventasAntiguas = db.prepare(`
             SELECT id FROM ventas WHERE fecha < ?
@@ -962,7 +988,7 @@ function iniciarTrialNegocio(negocioId) {
             return licencia.fechaInicio;
         }
         
-        const fechaInicio = new Date().toISOString();
+        const fechaInicio = getRDDate().toISOString();
         db.prepare(`
             UPDATE negocios SET licencia_fecha_inicio = ? WHERE id = ?
         `).run(fechaInicio, negocioId);
@@ -976,8 +1002,8 @@ function iniciarTrialNegocio(negocioId) {
 
 function activarLicenciaNegocio(negocioId, plan, dias, hardwareId) {
     try {
-        const fechaInicio = new Date();
-        const fechaExpiracion = new Date();
+        const fechaInicio = getRDDate();
+        const fechaExpiracion = getRDDate();
         fechaExpiracion.setDate(fechaExpiracion.getDate() + dias);
         
         db.prepare(`
@@ -1007,10 +1033,10 @@ function getDiasLicenciaNegocio(negocioId) {
     
     // Plan pagado (mensual, semestral, anual)
     if (licencia.plan && licencia.plan !== 'trial') {
-        if (licencia.fechaExpiracion) {
-            const expDate = new Date(licencia.fechaExpiracion);
-            const now = new Date();
-            const daysRemaining = Math.floor((expDate - now) / (1000 * 60 * 60 * 24));
+    if (licencia.fechaExpiracion) {
+        const expDate = new Date(licencia.fechaExpiracion);
+        const now = getRDDate();
+        const daysRemaining = Math.floor((expDate - now) / (1000 * 60 * 60 * 24));
             return { 
                 valid: daysRemaining > 0, 
                 type: licencia.plan, 
@@ -1035,7 +1061,7 @@ function getDiasLicenciaNegocio(negocioId) {
     if (licencia.fechaInicio) {
         const TRIAL_DAYS = 7;
         const startDate = new Date(licencia.fechaInicio);
-        const now = new Date();
+        const now = getRDDate();
         const daysUsed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
         const daysRemaining = TRIAL_DAYS - daysUsed;
         return { 
@@ -1090,7 +1116,7 @@ function getNextNCF(negocioId, tipoComprobante) {
             const nuevaSecuencia = existente.secuencia_actual + 1;
             localDb.prepare(
                 'UPDATE secuencias_ncf SET secuencia_actual = ?, fecha_ultima_emision = ? WHERE id = ?'
-            ).run(nuevaSecuencia, new Date().toISOString(), existente.id);
+            ).run(nuevaSecuencia, getRDDate().toISOString(), existente.id);
             
             return `${prefijo}${String(nuevaSecuencia).padStart(10, '0')}`;
         }
@@ -1098,7 +1124,7 @@ function getNextNCF(negocioId, tipoComprobante) {
         // Crear nueva secuencia
         localDb.prepare(
             'INSERT INTO secuencias_ncf (negocio_id, tipo_comprobante, prefijo, secuencia_actual, fecha_ultima_emision) VALUES (?, ?, ?, 1, ?)'
-        ).run(negocioId, tipoComprobante, prefijo, new Date().toISOString());
+        ).run(negocioId, tipoComprobante, prefijo, getRDDate().toISOString());
         
         return `${prefijo}0000000001`;
     } catch (error) {

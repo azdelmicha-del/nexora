@@ -23,6 +23,13 @@ const formatters = {
         return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
     },
 
+    // CapitalizeFirst: Primera letra en mayúscula, resto intacto (Calle principal #45)
+    capitalizeFirst: (str) => {
+        if (!str) return '';
+        const trimmed = str.trim();
+        return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+    },
+
     // Email: Minúsculas y sin espacios
     toEmail: (str) => {
         if (!str) return '';
@@ -35,6 +42,9 @@ const formatters = {
         return str.replace(/\D/g, '');
     }
 };
+
+// Exportación individual para desestructuración directa
+const { toTitleCase, toUpperCase, capitalize, capitalizeFirst, toEmail, toPhone } = formatters;
 
 // Validadores
 const validators = {
@@ -80,4 +90,4 @@ const errorMessages = {
     emailNoPermitido: 'Dominio de email no permitido. Use @gmail.com, @hotmail.com, @yahoo.com, @outlook.com o @live.com'
 };
 
-module.exports = { formatters, validators, errorMessages };
+module.exports = { formatters, validators, errorMessages, toTitleCase, toUpperCase, capitalize, capitalizeFirst, toEmail, toPhone };

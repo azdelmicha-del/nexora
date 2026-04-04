@@ -7,6 +7,7 @@
  */
 
 const { round2, formatAmountXML, formatDateXML, generarSecuenciaECF, generarCodigoSeguridad, TIPOS_ECF } = require('./dgii');
+const { getRDDateString } = require('./timezone');
 
 /**
  * Generar XML de Factura de Consumo (e-CF 32) o Crédito Fiscal (e-CF 31)
@@ -122,8 +123,7 @@ function generarXMLCreditoFiscal(datos) {
  */
 function formatarFechaXML(fechaStr) {
     if (!fechaStr) {
-        const d = new Date();
-        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        return getRDDateString();
     }
     
     // Si ya tiene formato datetime, extraer solo la fecha

@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('../database');
+const { getRDDateString, getRDDate } = require('../utils/timezone');
 
 const router = express.Router();
 
@@ -94,7 +95,7 @@ router.post('/registrar', async (req, res) => {
         const adminNombreNormalizado = toTitleCase(nombreAdmin.trim());
         const emailNormalizado = email.toLowerCase().trim();
         
-        const fechaInicio = new Date().toISOString();
+        const fechaInicio = getRDDate().toISOString();
         
         // Generar slug automatico
         let slug = createSlug(nombreNegocio);
@@ -181,7 +182,7 @@ router.post('/login', async (req, res) => {
         
         if (user.login_attempts >= MAX_ATTEMPTS && user.last_attempt) {
             const lastAttempt = new Date(user.last_attempt);
-            const minutesSince = (new Date() - lastAttempt) / (1000 * 60);
+            const minutesSince = (getRDDate() - lastAttempt) / (1000 * 60);
             
             if (minutesSince < LOCKOUT_MINUTES) {
                 const minutesRemaining = Math.ceil(LOCKOUT_MINUTES - minutesSince);
@@ -204,7 +205,7 @@ router.post('/login', async (req, res) => {
         
         const INACTIVITY_DAYS = 30;
         const lastLogin = user.last_login ? new Date(user.last_login) : new Date(user.fecha_creacion);
-        const daysSinceLastLogin = Math.floor((new Date() - lastLogin) / (1000 * 60 * 60 * 24));
+        const daysSinceLastLogin = Math.floor((getRDDate() - lastLogin) / (1000 * 60 * 60 * 24));
         
         if (daysSinceLastLogin > INACTIVITY_DAYS) {
             return res.status(403).json({ 
@@ -217,7 +218,7 @@ router.post('/login', async (req, res) => {
         if (!validPassword) {
             const newAttempts = (user.login_attempts || 0) + 1;
             db.prepare('UPDATE usuarios SET login_attempts = ?, last_attempt = ? WHERE id = ?')
-                .run(newAttempts, new Date().toISOString(), user.id);
+                .run(newAttempts, getRDDate().toISOString(), user.id);
             
             if (newAttempts >= MAX_ATTEMPTS) {
                 return res.status(429).json({
@@ -237,7 +238,7 @@ router.post('/login', async (req, res) => {
         // Resetear intentos en login exitoso
         db.prepare('UPDATE usuarios SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(user.id);
         
-        db.prepare('UPDATE usuarios SET last_login = ? WHERE id = ?').run(new Date().toISOString(), user.id);
+        db.prepare('UPDATE usuarios SET last_login = ? WHERE id = ?').run(getRDDate().toISOString(), user.id);
 
         req.session.userId = user.id;
         req.session.negocioId = user.negocio_id;

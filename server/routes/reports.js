@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
+const { getRDDateString, getRDDate } = require('../utils/timezone');
 
 const router = express.Router();
 
@@ -9,8 +10,7 @@ router.get('/ventas', requireAuth, (req, res) => {
         const db = getDb();
         const negocioId = req.session.negocioId;
         const { desde, hasta } = req.query;
-        const ahora = new Date();
-        const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+        const hoy = getRDDateString();
 
         // La caja siempre está abierta para nuevas ventas
         let where = 'WHERE v.negocio_id = ?';
@@ -244,7 +244,7 @@ router.get('/606', requireAuth, (req, res) => {
         const { mes, anio } = req.query;
 
         // Default: mes actual
-        const now = new Date();
+        const now = getRDDate();
         const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
         const anioFilt = anio ? parseInt(anio) : now.getFullYear();
 
@@ -299,7 +299,7 @@ router.get('/607', requireAuth, (req, res) => {
         const negocioId = req.session.negocioId;
         const { mes, anio } = req.query;
 
-        const now = new Date();
+        const now = getRDDate();
         const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
         const anioFilt = anio ? parseInt(anio) : now.getFullYear();
 
@@ -439,7 +439,7 @@ router.get('/export/606', requireAuth, (req, res) => {
         const db = getDb();
         const negocioId = req.session.negocioId;
         const { mes, anio } = req.query;
-        const now = new Date();
+        const now = getRDDate();
         const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
         const anioFilt = anio ? parseInt(anio) : now.getFullYear();
 
@@ -478,7 +478,7 @@ router.get('/export/607', requireAuth, (req, res) => {
         const db = getDb();
         const negocioId = req.session.negocioId;
         const { mes, anio } = req.query;
-        const now = new Date();
+        const now = getRDDate();
         const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
         const anioFilt = anio ? parseInt(anio) : now.getFullYear();
 
@@ -519,8 +519,7 @@ router.get('/servicios', requireAuth, (req, res) => {
         const db = getDb();
         const negocioId = req.session.negocioId;
         const { desde, hasta } = req.query;
-        const ahora = new Date();
-        const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+        const hoy = getRDDateString();
 
         // La caja siempre está abierta para nuevas ventas
         let where = 'WHERE v.negocio_id = ?';
@@ -721,8 +720,7 @@ router.get('/citas', requireAuth, (req, res) => {
 router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
     try {
         const db = getDb();
-        const ahora = new Date();
-        const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+        const hoy = getRDDateString();
 
         // Ventas sin cuadre (turno actual)
         const resumen = db.prepare(`
@@ -849,9 +847,8 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
 router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
     try {
         const db = getDb();
-        const ahora = new Date();
-        const hoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
-        const inicioMes = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-01`;
+        const hoy = getRDDateString();
+        const inicioMes = `${getRDDate().getFullYear()}-${String(getRDDate().getMonth() + 1).padStart(2, '0')}-01`;
         
         const tipo = req.body.tipo || 'dia';
         const fechaPersonalizada = req.body.fecha || null;
@@ -1080,9 +1077,9 @@ router.get('/cuadre/historial', requireAuth, requireAdmin, (req, res) => {
         const db = getDb();
 
         // Solo mostrar cuadres de los últimos 7 días
-        const hace7dias = new Date();
+        const hace7dias = getRDDate();
         hace7dias.setDate(hace7dias.getDate() - 7);
-        const fechaMin = hace7dias.toISOString().split('T')[0];
+        const fechaMin = getRDDateString(hace7dias);
 
         const historial = db.prepare(`
             SELECT cc.*, u.nombre as usuario
@@ -1202,9 +1199,9 @@ router.get('/cuadre/detalles/:fecha', requireAuth, requireAdmin, (req, res) => {
 router.delete('/cuadre/cleanup', requireAuth, requireAdmin, (req, res) => {
     try {
         const db = getDb();
-        const fechaLimite = new Date();
+        const fechaLimite = getRDDate();
         fechaLimite.setDate(fechaLimite.getDate() - 7);
-        const fechaLimiteStr = `${fechaLimite.getFullYear()}-${String(fechaLimite.getMonth() + 1).padStart(2, '0')}-${String(fechaLimite.getDate()).padStart(2, '0')}`;
+        const fechaLimiteStr = getRDDateString(fechaLimite);
 
         // Primero desvincular las ventas de los cuadres antiguos
         db.prepare(`

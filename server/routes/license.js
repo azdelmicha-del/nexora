@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const license = require('../license');
 const { LICENSE_MASTER_KEY } = require('../config');
+const { getRDDateString, getRDDate } = require('../utils/timezone');
 
 function isAuthorized(req) {
     const masterKey = req.headers['x-master-key'];
@@ -122,7 +123,7 @@ router.post('/keys/generate', (req, res) => {
             plan: plan,
             planName: planInfo.name,
             planDays: planInfo.days,
-            created: new Date().toISOString()
+            created: getRDDate().toISOString()
         });
     }
     
@@ -283,10 +284,10 @@ router.post('/businesses/:id/renew', (req, res) => {
         return res.status(404).json({ error: 'Negocio no encontrado' });
     }
     
-    const hoy = new Date().toISOString().split('T')[0];
-    const expiracion = new Date();
+    const hoy = getRDDateString();
+    const expiracion = getRDDate();
     expiracion.setDate(expiracion.getDate() + parseInt(dias));
-    const fechaExpiracion = expiracion.toISOString().split('T')[0];
+    const fechaExpiracion = getRDDateString(expiracion);
     
     db.prepare(`
         UPDATE negocios 

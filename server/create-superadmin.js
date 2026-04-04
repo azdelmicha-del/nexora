@@ -1,14 +1,18 @@
 const Database = require('better-sqlite3');
 const bcrypt = require('bcryptjs');
 const path = require('path');
+const fs = require('fs');
 
-const dbPath = path.join(__dirname, 'db', 'nexora.db');
+const dbDir = process.env.DB_DIR || path.join(__dirname, 'db');
+if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+}
+const dbPath = path.join(dbDir, 'nexora.db');
 const db = new Database(dbPath);
 
-// Configuración del super administrador
 const SUPER_ADMIN_CONFIG = {
-    email: 'azdelmicha@gmail.com',
-    password: 'Admin20261',  // Cambiar esta contraseña
+    email: process.env.SUPERADMIN_EMAIL || 'azdelmicha@gmail.com',
+    password: process.env.SUPERADMIN_PASSWORD || 'Admin20261',
     nombre: 'Arsedo Zabala - Super Admin'
 };
 

@@ -118,7 +118,7 @@ app.use(session({
     saveUninitialized: false,
     cookie: {
         httpOnly: true,
-        secure: false,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax',
         maxAge: 24 * 60 * 60 * 1000
     }
@@ -272,7 +272,14 @@ app.get('/booking/:slug', (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'booking.html'));
 });
 
+app.get('/health', (req, res) => {
+    const { getRDDate } = require('./utils/timezone');
+    res.json({ status: 'ok', time: getRDDate().toISOString(), timezone: 'America/Santo_Domingo' });
+});
+
 app.listen(PORT, () => {
-    console.log(`Nexora ejecutándose en http://localhost:${PORT}`);
+    console.log(`Nexora ejecutándose en puerto ${PORT}`);
+    console.log(`Zona horaria: ${process.env.TZ || 'America/Santo_Domingo'} (UTC-4)`);
+    console.log(`DB_DIR: ${process.env.DB_DIR || path.join(__dirname, 'db')}`);
     iniciarRecordatoriosCitas();
 });

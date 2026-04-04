@@ -1,4 +1,32 @@
 /* Shared helpers for admin pages */
+
+/* ── Text formatting utilities (centralized) ── */
+window.toTitleCase = function(str) {
+    if (!str) return '';
+    return String(str).trim().toLowerCase().replace(/(?:^|\s)\S/g, function(c) { return c.toUpperCase(); });
+};
+
+window.capitalizeFirst = function(str) {
+    if (!str) return '';
+    const s = String(str).trim();
+    return s.charAt(0).toUpperCase() + s.slice(1);
+};
+
+window.toUpperCase = function(str) {
+    if (!str) return '';
+    return String(str).trim().toUpperCase();
+};
+
+window.toPhone = function(str) {
+    if (!str) return '';
+    return str.replace(/\D/g, '');
+};
+
+window.toEmail = function(str) {
+    if (!str) return '';
+    return str.trim().toLowerCase();
+};
+
 (function(){
   if (typeof window.verDetalle === 'function') return;
   window.verDetalle = async function(id){

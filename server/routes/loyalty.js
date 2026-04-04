@@ -1,6 +1,7 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth } = require('../middleware/auth');
+const { getRDDateString } = require('../utils/timezone');
 
 const router = express.Router();
 
@@ -55,11 +56,11 @@ router.post('/puntos', requireAuth, (req, res) => {
             const nuevosPuntos = existente.puntos + puntos;
             const nivel = nuevosPuntos >= 5000 ? 'platino' : nuevosPuntos >= 2000 ? 'oro' : nuevosPuntos >= 500 ? 'plata' : 'bronce';
             db.prepare('UPDATE puntos_lealtad SET puntos = ?, nivel = ?, ultima_actividad = ? WHERE id = ?')
-                .run(nuevosPuntos, nivel, new Date().toISOString().split('T')[0], existente.id);
+                .run(nuevosPuntos, nivel, getRDDateString(), existente.id);
         } else {
             const nivel = puntos >= 5000 ? 'platino' : puntos >= 2000 ? 'oro' : puntos >= 500 ? 'plata' : 'bronce';
             db.prepare('INSERT INTO puntos_lealtad (negocio_id, cliente_id, puntos, nivel, ultima_actividad) VALUES (?, ?, ?, ?, ?)')
-                .run(negocioId, cliente_id, puntos, nivel, new Date().toISOString().split('T')[0]);
+                .run(negocioId, cliente_id, puntos, nivel, getRDDateString());
         }
 
         // Historial

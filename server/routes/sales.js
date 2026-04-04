@@ -3,6 +3,7 @@ const { getDb, getNextNCF } = require('../database');
 const { requireAuth } = require('../middleware/auth');
 const { logAudit } = require('../middleware/audit');
 const { round2, validateDocumento, generarCodigoSeguridad, calcularTotalesVenta } = require('../utils/dgii');
+const { getRDTimestamp, getRDDateString, getRDDate } = require('../utils/timezone');
 const QRCode = require('qrcode');
 
 const router = express.Router();
@@ -70,8 +71,7 @@ router.post('/', requireAuth, (req, res) => {
         // La caja siempre está abierta para nuevas ventas
         // No verificamos cajas_cerradas porque el historial se mantiene aparte
 
-        const ahora = new Date();
-        const fechaLocal = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')} ${String(ahora.getHours()).padStart(2, '0')}:${String(ahora.getMinutes()).padStart(2, '0')}:${String(ahora.getSeconds()).padStart(2, '0')}`;
+        const fechaLocal = getRDTimestamp();
 
         // ── Calcular totales con ITBIS individual por servicio ─────────────────
         // calcularTotalesVenta lee la itbis_tasa de cada servicio desde la DB,
@@ -169,11 +169,11 @@ router.post('/', requireAuth, (req, res) => {
                     const nuevosPuntos = plExistente.puntos + puntosGanados;
                     const nivel = nuevosPuntos >= 5000 ? 'platino' : nuevosPuntos >= 2000 ? 'oro' : nuevosPuntos >= 500 ? 'plata' : 'bronce';
                     db.prepare('UPDATE puntos_lealtad SET puntos = ?, nivel = ?, ultima_actividad = ? WHERE id = ?')
-                        .run(nuevosPuntos, nivel, new Date().toISOString().split('T')[0], plExistente.id);
+                        .run(nuevosPuntos, nivel, getRDDateString(), plExistente.id);
                 } else {
                     const nivel = puntosGanados >= 5000 ? 'platino' : puntosGanados >= 2000 ? 'oro' : puntosGanados >= 500 ? 'plata' : 'bronce';
                     db.prepare('INSERT INTO puntos_lealtad (negocio_id, cliente_id, puntos, nivel, ultima_actividad) VALUES (?, ?, ?, ?, ?)')
-                        .run(req.session.negocioId, cliente_id, puntosGanados, nivel, new Date().toISOString().split('T')[0]);
+                        .run(req.session.negocioId, cliente_id, puntosGanados, nivel, getRDDateString());
                 }
                 db.prepare('INSERT INTO historial_puntos (negocio_id, cliente_id, puntos, tipo, referencia) VALUES (?, ?, ?, ?, ?)')
                     .run(req.session.negocioId, cliente_id, puntosGanados, 'ganado', 'Venta #' + ventaId);
@@ -374,7 +374,7 @@ router.get('/:id/qr', requireAuth, (req, res) => {
 router.get('/resumen/dia', requireAuth, (req, res) => {
     try {
         const db = getDb();
-        const hoy = new Date().toISOString().split('T')[0];
+        const hoy = getRDDateString();
 
         const ventas = db.prepare(`
             SELECT COALESCE(SUM(total), 0) as total,
@@ -446,7 +446,7 @@ router.post('/nota-credito', requireAuth, (req, res) => {
             codigoSeg,
             montoAbs,
             motivo.trim(),
-            new Date().toISOString().split('T')[0]
+            getRDDateString()
         );
 
         res.json({

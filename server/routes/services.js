@@ -79,8 +79,8 @@ router.post('/', requireAdmin, (req, res) => {
             return res.status(400).json({ error: 'El nombre es requerido' });
         }
 
-        nombre = formatters.capitalize(nombre.trim());
-        descripcion = descripcion ? descripcion.trim() : null;
+        nombre = formatters.toTitleCase(nombre.trim());
+        descripcion = descripcion ? formatters.capitalizeFirst(descripcion.trim()) : null;
 
         if (precio === undefined || precio === null || isNaN(precio)) {
             return res.status(400).json({ error: 'El precio debe ser un número válido' });
@@ -161,10 +161,10 @@ router.put('/:id', requireAdmin, (req, res) => {
         const servicioId = req.params.id;
 
         if (nombre) {
-            nombre = formatters.capitalize(nombre.trim());
+            nombre = formatters.toTitleCase(nombre.trim());
         }
         if (descripcion) {
-            descripcion = descripcion.trim();
+            descripcion = formatters.capitalizeFirst(descripcion.trim());
         }
 
         if (nombre && nombre.length > 100) {

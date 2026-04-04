@@ -1,5 +1,6 @@
 const express = require('express');
 const { getDb } = require('../database');
+const { toTitleCase } = require('../utils/validators');
 const router = express.Router();
 
 // Función para obtener la hora actual en la zona horaria del negocio
@@ -235,7 +236,7 @@ router.post('/appointments', (req, res) => {
         
         if (!cliente) {
             const result = db.prepare(`INSERT INTO clientes (negocio_id, nombre, telefono, email) VALUES (?, ?, ?, ?)`)
-                .run(negocio.id, nombre, whatsapp, email || null);
+                .run(negocio.id, toTitleCase(nombre), whatsapp, email || null);
             cliente = { id: result.lastInsertRowid };
         }
 

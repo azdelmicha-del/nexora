@@ -1,6 +1,7 @@
 const fs = require('fs');
 const path = require('path');
 const { getDb } = require('./database');
+const { getRDDate } = require('./utils/timezone');
 
 // Función para hacer backup automático de la BD
 function autoBackup() {
@@ -14,7 +15,7 @@ function autoBackup() {
         }
         
         // Nombre del backup con timestamp
-        const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+        const timestamp = getRDDate().toISOString().replace(/[:.]/g, '-');
         const backupPath = path.join(backupDir, `nexora-backup-${timestamp}.db`);
         
         // Hacer backup usando el método de better-sqlite3
