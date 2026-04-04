@@ -695,6 +695,55 @@ function initDatabase() {
     }
 
     // ── Migracion v6: Menu Digital y Pedidos ────────────────────────────────
+    // Fix: Rebuild venta_detalles to include 'menu' in tipo_item CHECK constraint
+    // ALTER TABLE cannot modify CHECK constraints in SQLite
+    const vdCheckCols = db.prepare("PRAGMA table_info(venta_detalles)").all();
+    const vdCheckColNames = vdCheckCols.map(c => c.name);
+    const hasMenuItem = vdCheckColNames.includes('menu_item_id');
+    const hasTipoItem = vdCheckColNames.includes('tipo_item');
+    
+    // Check if we need to rebuild (has tipo_item but not menu_item_id, or old constraint)
+    if (hasTipoItem && !hasMenuItem) {
+        try {
+            db.exec(`
+                CREATE TABLE venta_detalles_new (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    venta_id INTEGER NOT NULL,
+                    servicio_id INTEGER DEFAULT NULL,
+                    producto_id INTEGER DEFAULT NULL,
+                    menu_item_id INTEGER DEFAULT NULL,
+                    tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto', 'menu')),
+                    cantidad INTEGER DEFAULT 1,
+                    precio REAL NOT NULL,
+                    subtotal REAL NOT NULL,
+                    itbis_monto REAL DEFAULT 0
+                )
+            `);
+            db.exec(`
+                INSERT INTO venta_detalles_new (id, venta_id, servicio_id, producto_id, menu_item_id, tipo_item, cantidad, precio, subtotal, itbis_monto)
+                SELECT id, venta_id, servicio_id, producto_id, NULL, tipo_item, cantidad, precio, subtotal, itbis_monto
+                FROM venta_detalles
+            `);
+            db.exec('DROP TABLE venta_detalles');
+            db.exec('ALTER TABLE venta_detalles_new RENAME TO venta_detalles');
+            console.log('Tabla venta_detalles reconstruida con menu_item_id y CHECK actualizado.');
+        } catch (e) {
+            console.error('Error reconstruyendo venta_detalles:', e.message);
+        }
+    } else if (!hasMenuItem) {
+        db.exec("ALTER TABLE venta_detalles ADD COLUMN menu_item_id INTEGER REFERENCES menu_items(id)");
+        console.log('Columna menu_item_id agregada a venta_detalles.');
+    }
+    if (!hasTipoItem) {
+        db.exec("ALTER TABLE venta_detalles ADD COLUMN tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto', 'menu'))");
+        console.log('Columna tipo_item agregada a venta_detalles.');
+    }
+    if (!vdCheckColNames.includes('producto_id')) {
+        db.exec("ALTER TABLE venta_detalles ADD COLUMN producto_id INTEGER REFERENCES productos(id)");
+        console.log('Columna producto_id agregada a venta_detalles.');
+    }
+
+    // Menu categorias
     const menuCatCols = db.prepare("PRAGMA table_info(menu_categorias)").all();
     if (menuCatCols.length === 0) {
         db.exec(`
