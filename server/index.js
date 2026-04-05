@@ -108,10 +108,18 @@ app.use(require('express-fileupload')({
 }));
 app.use(sanitizeInput);
 
+const sessionDir = process.env.NODE_ENV === 'production'
+    ? (process.env.DB_DIR || path.join(__dirname, 'db'))
+    : path.join(__dirname, 'db');
+
+if (!require('fs').existsSync(sessionDir)) {
+    require('fs').mkdirSync(sessionDir, { recursive: true });
+}
+
 app.use(session({
     store: new SQLiteStore({
         db: 'sessions.db',
-        dir: path.join(__dirname, 'db')
+        dir: sessionDir
     }),
     secret: SESSION_SECRET,
     resave: false,

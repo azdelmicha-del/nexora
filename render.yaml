@@ -7,19 +7,11 @@ services:
     buildCommand: npm install
     startCommand: node server/index.js
     healthCheckPath: /health
-    disk:
-      name: nexora-data
-      mountPath: /opt/render/project/data
-      sizeGB: 1
     envVars:
       - key: NODE_ENV
         value: production
       - key: TZ
         value: America/Santo_Domingo
-      - key: DB_DIR
-        value: /opt/render/project/data
-      - key: BACKUP_DIR
-        value: /opt/render/project/data/backups
       - key: SESSION_SECRET
         generateValue: true
       - key: PORT
