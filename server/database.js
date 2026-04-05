@@ -24,6 +24,23 @@ function initDatabase() {
         fs.mkdirSync(dbDir, { recursive: true });
     }
     
+    // MIGRACIÓN: Si la BD existe en la ruta vieja pero no en la nueva, copiarla
+    // Esto debe hacerse ANTES de abrir la BD para preservar datos existentes
+    const oldDbPath = path.join(__dirname, 'db', 'nexora.db');
+    if (!fs.existsSync(dbPath) && fs.existsSync(oldDbPath)) {
+        console.log('⚠️  Migrando BD desde ruta antigua a disco persistente...');
+        console.log('   De:', oldDbPath);
+        console.log('   A:', dbPath);
+        fs.copyFileSync(oldDbPath, dbPath);
+        const oldWal = oldDbPath + '-wal';
+        const newWal = dbPath + '-wal';
+        if (fs.existsSync(oldWal)) fs.copyFileSync(oldWal, newWal);
+        const oldShm = oldDbPath + '-shm';
+        const newShm = dbPath + '-shm';
+        if (fs.existsSync(oldShm)) fs.copyFileSync(oldShm, newShm);
+        console.log('✅ BD migrada exitosamente');
+    }
+    
     if (!fs.existsSync(schemaPath)) {
         console.error('ERROR: schema.sql no encontrado en:', schemaPath);
         throw new Error('schema.sql no encontrado');
