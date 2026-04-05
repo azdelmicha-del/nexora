@@ -87,10 +87,10 @@ const globalLimiter = rateLimit({
 });
 app.use('/api', globalLimiter);
 
-// Rate-limit estricto para autenticacion: 10 req/15min por IP
+// Rate-limit estricto para autenticacion: 20 req/15min por IP
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 10,
+    max: 20,
     standardHeaders: true,
     legacyHeaders: false,
     message: { error: 'Demasiados intentos de acceso. Espera 15 minutos.' }
@@ -108,13 +108,9 @@ app.use(require('express-fileupload')({
 }));
 app.use(sanitizeInput);
 
-const sessionDir = process.env.NODE_ENV === 'production'
-    ? (process.env.DB_DIR || path.join(__dirname, 'db'))
-    : path.join(__dirname, 'db');
-
-if (!require('fs').existsSync(sessionDir)) {
-    require('fs').mkdirSync(sessionDir, { recursive: true });
-}
+// Trust proxy para detectar HTTPS correctamente en Render
+// Sin esto, las cookies secure no se guardan detrás del load balancer
+app.set('trust proxy', 1);
 
 app.use(session({
     store: new SQLiteStore({
