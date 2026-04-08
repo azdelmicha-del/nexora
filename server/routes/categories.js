@@ -118,11 +118,15 @@ router.delete('/:id', requireAdmin, (req, res) => {
         const categoriaId = req.params.id;
         const db = getDb();
 
-        const categoria = db.prepare('SELECT id FROM categorias WHERE id = ? AND negocio_id = ?')
+        const categoria = db.prepare('SELECT id, estado FROM categorias WHERE id = ? AND negocio_id = ?')
             .get(categoriaId, req.session.negocioId);
 
         if (!categoria) {
             return res.status(404).json({ error: 'Categoría no encontrada' });
+        }
+
+        if (categoria.estado === 'inactivo') {
+            return res.status(400).json({ error: 'Esta categoría ya está desactivada' });
         }
 
         // Verificar si tiene servicios activos vinculados
@@ -137,18 +141,14 @@ router.delete('/:id', requireAdmin, (req, res) => {
             });
         }
 
-        // Desvincular servicios inactivos (poner categoria_id = NULL)
-        db.prepare('UPDATE servicios SET categoria_id = NULL WHERE categoria_id = ? AND estado = ?')
-            .run(categoriaId, 'inactivo');
-
-        // Ahora sí se puede eliminar la categoría
-        db.prepare('DELETE FROM categorias WHERE id = ? AND negocio_id = ?')
+        // Soft delete: cambiar estado a inactivo
+        db.prepare("UPDATE categorias SET estado = 'inactivo' WHERE id = ? AND negocio_id = ?")
             .run(categoriaId, req.session.negocioId);
 
-        res.json({ success: true, message: 'Categoría eliminada correctamente' });
+        res.json({ success: true, message: 'Categoría desactivada correctamente' });
     } catch (error) {
-        console.error('Error al eliminar categoría:', error);
-        res.status(500).json({ error: 'Error al eliminar categoría' });
+        console.error('Error al desactivar categoría:', error);
+        res.status(500).json({ error: 'Error al desactivar categoría' });
     }
 });
 

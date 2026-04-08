@@ -1574,7 +1574,7 @@
         
         function imprimirDetalleVentas() {
             if (!datosCuadreActual || !datosCuadreActual.ventas || datosCuadreActual.ventas.length === 0) {
-                alert('No hay ventas para imprimir');
+                showModalError('No hay ventas para imprimir', 'Sin Datos');
                 return;
             }
             

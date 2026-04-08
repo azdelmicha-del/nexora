@@ -78,14 +78,16 @@
             document.body.removeChild(a);
         }
         async function restaurarBackup(nombre) {
-            if (!confirm('Restaurar "' + nombre + '"? Deberas reiniciar el servidor despues.')) return;
+            const ok = await showConfirm('Restaurar Backup', 'Restaurar "' + nombre + '"? Deberás reiniciar el servidor después.');
+            if (!ok) return;
             try {
                 await apiCall('/backup/restore', { method: 'POST', body: JSON.stringify({ nombre }) });
                 showToast('Backup restaurado. Reinicia el servidor.', 'success');
             } catch (e) { showToast(e.message, 'error'); }
         }
         async function eliminarBackup(nombre) {
-            if (!confirm('Eliminar "' + nombre + '"?')) return;
+            const ok = await showConfirm('Eliminar Backup', 'Eliminar "' + nombre + '"?');
+            if (!ok) return;
             try {
                 await apiCall('/backup/' + encodeURIComponent(nombre), { method: 'DELETE' });
                 showToast('Backup eliminado', 'success');

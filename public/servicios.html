@@ -404,13 +404,13 @@
                         <td>${formatCurrency(s.precio)}</td>
                         <td>${formatDuracion(s.duracion)}</td>
                         <td>${s.comision_porcentaje > 0 ? '<span style="background:#ede9fe;color:#5b21b6;padding:2px 8px;border-radius:10px;font-size:0.78rem;font-weight:700;">'+s.comision_porcentaje+'%</span>' : '<span class="text-muted">—</span>'}</td>
-                        <td><span style="font-size:0.78rem;color:#8b5cf6;">${s.itbis_tasa || 18}%</span></td>
+                        <td><span style="font-size:0.78rem;color:#8b5cf6;">${(s.itbis_tasa !== null && s.itbis_tasa !== undefined) ? s.itbis_tasa : 18}%</span></td>
                         <td>${s.categoria || '<span class="text-muted">-</span>'}</td>
                         <td><span class="badge badge-${s.estado === 'activo' ? 'success' : 'danger'}">${s.estado}</span></td>
                         <td class="actions">
                             ${sessionStorage.getItem('userRol') === 'admin' ? 
                                 `<button class="btn btn-secondary btn-sm" onclick="editServicio(${s.id})">Editar</button>
-                                 <button class="btn btn-danger btn-sm" onclick="deleteServicio(${s.id}, '${nombreEsc}')">Eliminar</button>` : 
+                                 <button class="btn btn-danger btn-sm" onclick="deleteServicio(${s.id}, '${nombreEsc}')">Desactivar</button>` : 
                                 ''}
                         </td>
                     </tr>
@@ -564,13 +564,14 @@
         }
         
         async function deleteServicio(id, nombre) {
-            if (!confirm(`¿Está seguro que desea eliminar el servicio "${nombre}"?`)) return;
+            const ok = await showConfirm('Desactivar Servicio', `¿Está seguro que desea desactivar el servicio "${nombre}"?`);
+            if (!ok) return;
             try {
                 await apiCall(`/services/${id}`, { method: 'DELETE' });
-                showToast('Servicio eliminado correctamente', 'success');
+                showToast('Servicio desactivado correctamente', 'success');
                 await loadServicios();
             } catch (error) {
-                showToast(error.message || 'Error al eliminar servicio', 'error');
+                showToast(error.message || 'Error al desactivar servicio', 'error');
             }
         }
         

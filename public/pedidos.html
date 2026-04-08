@@ -6,30 +6,130 @@
     <title>Nexora - Pedidos</title>
     <link rel="stylesheet" href="/css/styles.css">
     <style>
-        .pedido-tabs { display:flex; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap; }
-        .pedido-tab { padding:0.5rem 1rem; border:2px solid var(--gray-200); border-radius:20px; background:white; cursor:pointer; font-size:0.82rem; font-weight:600; transition:all 0.2s; }
-        .pedido-tab.active { border-color:#667eea; background:#667eea; color:#fff; }
-        .pedido-tab .count { background:rgba(255,255,255,0.3); padding:1px 6px; border-radius:10px; font-size:0.72rem; }
-        .pedido-tab:not(.active) .count { background:var(--gray-200); }
+        .estado-btn {
+            padding: 0.5rem 1rem;
+            border: 1px solid var(--gray-300);
+            border-radius: 9999px;
+            background: white;
+            cursor: pointer;
+            font-size: 0.875rem;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .estado-btn.active { background: var(--primary); color: white; border-color: var(--primary); }
+        .estado-btn.pendiente { border-color: #f59e0b; color: #b45309; }
+        .estado-btn.pendiente.active { background: #f59e0b; color: #fff; }
+        .estado-btn.confirmado { border-color: #3b82f6; color: #1d4ed8; }
+        .estado-btn.confirmado.active { background: #3b82f6; color: #fff; }
+        .estado-btn.preparando { border-color: #8b5cf6; color: #6d28d9; }
+        .estado-btn.preparando.active { background: #8b5cf6; color: #fff; }
+        .estado-btn.listo { border-color: #10b981; color: #047857; }
+        .estado-btn.listo.active { background: #10b981; color: #fff; }
+        .estado-btn.entregado { border-color: #6366f1; color: #4338ca; }
+        .estado-btn.entregado.active { background: #6366f1; color: #fff; }
+        .estado-btn.cancelado { border-color: #ef4444; color: #b91c1c; }
+        .estado-btn.cancelado.active { background: #ef4444; color: #fff; }
+        .pedidos-actions {
+            display: flex;
+            justify-content: flex-end;
+            margin-top: 0.65rem;
+            min-height: 38px;
+        }
+        .btn-limpiar-finalizados {
+            border: 1px solid #fca5a5;
+            background: #fff1f2;
+            color: #b91c1c;
+            border-radius: 999px;
+            padding: 0.5rem 0.9rem;
+            font-size: 0.78rem;
+            font-weight: 800;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .btn-limpiar-finalizados:hover { background: #ffe4e6; border-color: #f87171; }
+
+        .pedidos-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+            gap: 1.25rem;
+            margin-top: 1.5rem;
+            align-items: start;
+        }
 
         .pedido-card {
-            background:white; border-radius:14px; padding:1rem 1.25rem;
-            box-shadow:0 2px 10px rgba(0,0,0,0.05); margin-bottom:0.75rem;
-            display:flex; align-items:center; justify-content:space-between;
-            border-left:4px solid #667eea; transition:all 0.2s;
+            position: relative;
+            background: radial-gradient(circle at top right, #f0fdf4, #ffffff 52%);
+            border-radius: 24px;
+            padding: 1.2rem;
+            border: 1px solid #dbe7f5;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.08);
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+            cursor: pointer;
         }
-        .pedido-card:hover { box-shadow:0 4px 16px rgba(0,0,0,0.1); }
-        .pedido-card.estado-confirmado { border-left-color:#3b82f6; }
-        .pedido-card.estado-preparando { border-left-color:#f59e0b; }
-        .pedido-card.estado-listo { border-left-color:#10b981; }
-        .pedido-card.estado-entregado { border-left-color:#8b5cf6; }
-        .pedido-card.estado-cancelado { border-left-color:#ef4444; opacity:0.6; }
+        .pedido-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 34px rgba(15, 23, 42, 0.14);
+            border-color: #b7d2f2;
+        }
+        .pedido-card::before {
+            content: "";
+            position: absolute;
+            left: 0.8rem;
+            right: 0.8rem;
+            top: 0;
+            height: 4px;
+            border-radius: 0 0 999px 999px;
+            background: #94a3b8;
+        }
+        .pedido-card.pendiente::before { background: linear-gradient(90deg, #fbbf24, #f59e0b); }
+        .pedido-card.confirmado::before { background: linear-gradient(90deg, #60a5fa, #2563eb); }
+        .pedido-card.preparando::before { background: linear-gradient(90deg, #f59e0b, #ea580c); }
+        .pedido-card.listo::before { background: linear-gradient(90deg, #34d399, #059669); }
+        .pedido-card.entregado::before { background: linear-gradient(90deg, #38bdf8, #0284c7); }
+        .pedido-card.cancelado { opacity: 0.8; }
+        .pedido-card.cancelado::before { background: linear-gradient(90deg, #fca5a5, #ef4444); }
 
-        .pedido-info { display:flex; align-items:center; gap:1rem; flex:1; min-width:0; }
-        .pedido-id { font-weight:700; font-size:1rem; color:var(--gray-800); white-space:nowrap; }
-        .pedido-date { font-size:0.78rem; color:var(--gray-400); white-space:nowrap; }
-        .pedido-cliente { font-size:0.85rem; color:var(--gray-600); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-        .pedido-total { font-weight:700; color:#10b981; font-size:0.95rem; white-space:nowrap; margin-left:0.5rem; }
+        .pc-header { display: flex; justify-content: space-between; align-items: center; gap: 0.75rem; }
+        .pc-id { font-weight: 900; font-size: 1.25rem; color: #0f172a; letter-spacing: 0.01em; }
+        .pc-time { font-size: 0.8rem; color: #475569; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+        .pc-cliente { font-weight: 800; font-size: 1.02rem; color: #0f172a; }
+        .pc-items { font-size: 0.88rem; color: #334155; background: #f8fafc; padding: 0.75rem; border-radius: 12px; line-height: 1.45; }
+
+        .pc-footer { display: flex; justify-content: space-between; align-items: center; border-top: 1px solid #e2e8f0; padding-top: 0.8rem; margin-top: 0.1rem; }
+        .pc-type { font-size: 0.72rem; padding: 5px 11px; border-radius: 20px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; }
+        .pc-type.domicilio { background: #dbeafe; color: #1d4ed8; }
+        .pc-type.retiro { background: #ecfeff; color: #155e75; }
+        .pc-total { font-weight: 900; color: #047857; font-size: 1.2rem; }
+        .pc-facturado { font-size: 0.78rem; color: #166534; font-weight: 700; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 10px; padding: 0.55rem 0.65rem; }
+
+        .pc-actions { display: flex; gap: 0.5rem; margin-top: 0.2rem; }
+        .pc-btn {
+            flex: 1;
+            padding: 0.62rem;
+            border-radius: 999px;
+            border: none;
+            font-size: 0.8rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: transform 0.15s ease, box-shadow 0.2s ease;
+            text-align: center;
+        }
+        .pc-btn:hover { transform: translateY(-1px); }
+        .pc-btn-primary { background: #2563eb; color: #fff; }
+        .pc-btn-primary:hover { box-shadow: 0 8px 16px rgba(37, 99, 235, 0.28); }
+        .pc-btn-success { background: #10b981; color: #fff; }
+        .pc-btn-success:hover { box-shadow: 0 8px 16px rgba(16, 185, 129, 0.28); }
+        .pc-btn-warning { background: #f59e0b; color: #fff; }
+        .pc-btn-warning:hover { box-shadow: 0 8px 16px rgba(245, 158, 11, 0.28); }
+        .pc-btn-view { background: #0f172a; color: #fff; }
+        .pc-btn-view:hover { box-shadow: 0 8px 16px rgba(15, 23, 42, 0.25); }
+        .pc-btn-invoice { background: linear-gradient(135deg, #10b981, #059669); color: #fff; }
+        .pc-btn-invoice:hover { box-shadow: 0 8px 16px rgba(16, 185, 129, 0.28); }
+        .pc-btn-whatsapp { background: #22c55e; color: #fff; flex: 0 0 40px; display: flex; align-items: center; justify-content: center; border-radius: 50%; font-size: 1.2rem; }
+        .pc-btn-whatsapp:hover { box-shadow: 0 8px 16px rgba(34, 197, 94, 0.28); }
 
         .estado-badge { padding:3px 10px; border-radius:20px; font-size:0.68rem; font-weight:700; text-transform:uppercase; white-space:nowrap; }
         .estado-pendiente { background:#fef3c7; color:#92400e; }
@@ -38,13 +138,6 @@
         .estado-listo { background:#d1fae5; color:#065f46; }
         .estado-entregado { background:#ede9fe; color:#5b21b6; }
         .estado-cancelado { background:#fee2e2; color:#991b1b; }
-
-        .btn-ver-detalle {
-            padding:0.5rem 1rem; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
-            color:#fff; border:none; border-radius:10px; font-size:0.82rem; font-weight:600;
-            cursor:pointer; transition:all 0.2s; white-space:nowrap; margin-left:0.75rem;
-        }
-        .btn-ver-detalle:hover { transform:translateY(-1px); box-shadow:0 4px 12px rgba(102,126,234,0.4); }
 
         /* Modal premium */
         .modal-pedido-overlay {
@@ -62,7 +155,7 @@
         .modal-pedido-overlay.active .modal-pedido { transform:scale(1) translateY(0); }
 
         .modal-pedido-header {
-            background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);
+            background: linear-gradient(135deg, #0f172a 0%, #0ea5a0 100%);
             padding:1.5rem 1.5rem 1.25rem; border-radius:24px 24px 0 0;
             color:#fff; position:relative;
         }
@@ -86,20 +179,20 @@
 
         .mp-items { background:var(--gray-50); border-radius:12px; padding:0.75rem 1rem; margin:0.75rem 0; }
         .mp-item { display:flex; justify-content:space-between; padding:0.35rem 0; font-size:0.85rem; }
-        .mp-item-name { color:var(--gray-700); }
-        .mp-item-price { font-weight:600; }
-        .mp-total { display:flex; justify-content:space-between; padding:0.75rem 0 0; border-top:2px solid var(--gray-200); margin-top:0.5rem; font-weight:700; font-size:1.05rem; }
+        .mp-item-name { color:var(--gray-700); font-weight:600; }
+        .mp-item-price { font-weight:700; }
+        .mp-total { display:flex; justify-content:space-between; padding:0.75rem 0 0; border-top:2px solid var(--gray-200); margin-top:0.5rem; font-weight:800; font-size:1.15rem; }
         .mp-total .amount { color:#10b981; }
 
         .mp-notas { background:#fffbeb; border:1px solid #fde68a; border-radius:10px; padding:0.75rem; margin-top:0.75rem; font-size:0.85rem; color:var(--gray-700); }
-        .mp-facturado { background:#f0fdf4; border:1px solid #a7f3d0; border-radius:10px; padding:0.75rem; margin-top:0.75rem; font-size:0.85rem; color:#065f46; }
+        .mp-facturado { background:#f0fdf4; border:1px solid #a7f3d0; border-radius:10px; padding:0.75rem; margin-top:0.75rem; font-size:0.85rem; color:#065f46; font-weight:700; }
 
         .modal-pedido-actions {
             padding:1rem 1.5rem 1.5rem; display:flex; flex-wrap:wrap; gap:0.5rem;
         }
         .mp-btn {
-            flex:1; min-width:120px; padding:0.75rem; border:none; border-radius:12px;
-            font-size:0.85rem; font-weight:600; cursor:pointer; transition:all 0.2s;
+            flex:1; min-width:120px; padding:0.75rem; border:none; border-radius:50px;
+            font-size:0.85rem; font-weight:700; cursor:pointer; transition:all 0.2s;
             font-family:inherit; text-align:center;
         }
         .mp-btn:hover { transform:translateY(-1px); }
@@ -118,14 +211,19 @@
         .mp-btn-close { background:var(--gray-100); color:var(--gray-600); }
         .mp-btn-close:hover { background:var(--gray-200); }
 
-        @media (max-width:600px) {
-            .pedido-card { flex-direction:column; align-items:flex-start; gap:0.75rem; padding:1rem; }
-            .pedido-info { flex-wrap:wrap; }
-            .pedido-total { margin-left:0; }
-            .btn-ver-detalle { margin-left:0; width:100%; text-align:center; }
+        .pedido-filtros { display:flex; gap:0.5rem; margin-bottom:1rem; flex-wrap:wrap; }
+
+        @media (max-width: 1024px) {
+            .pedidos-grid { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
             .modal-pedido { max-width:100%; margin:0.5rem; border-radius:20px; }
             .modal-pedido-header { border-radius:20px 20px 0 0; }
+        }
+
+        @media (max-width: 768px) {
+            .pedidos-grid { grid-template-columns: 1fr; gap: 1rem; }
             .mp-btn { min-width:100%; }
+            .pc-actions { flex-wrap: wrap; }
+            .pc-btn-whatsapp { flex: 1; border-radius: 999px; }
         }
     </style>
 </head>
@@ -135,8 +233,9 @@
             <div class="page-header">
                 <h1>Pedidos</h1>
             </div>
-            <div class="pedido-tabs" id="estadoTabs"></div>
-            <div id="pedidosList"></div>
+            <div class="pedido-filtros" id="estadoTabs"></div>
+            <div class="pedidos-actions" id="pedidosActions"></div>
+            <div class="pedidos-grid" id="pedidosList"></div>
         </main>
     </div>
 
@@ -169,6 +268,7 @@
         let negocioNombre = '';
         let negocioDireccion = '';
         let negocioTelefono = '';
+        let negocioLogo = '';
 
         document.addEventListener('DOMContentLoaded', async () => {
             const ok = await requireLicense(); if (!ok) return;
@@ -178,6 +278,7 @@
                 negocioNombre = config.nombre || '';
                 negocioDireccion = config.direccion || '';
                 negocioTelefono = config.telefono || '';
+                negocioLogo = config.logo || '';
             } catch(e) {}
             renderTabs();
             await loadPedidos();
@@ -186,11 +287,27 @@
         function renderTabs() {
             document.getElementById('estadoTabs').innerHTML = estados.map(e => {
                 const count = e.key ? todosPedidos.filter(p => p.estado === e.key).length : todosPedidos.length;
-                return `<button class="pedido-tab ${filtroActual===e.key?'active':''}" onclick="setFiltro('${e.key}')" style="${filtroActual===e.key?`border-color:${e.color};background:${e.color};`:''}">${e.label} <span class="count">${count}</span></button>`;
+                const activeCls = filtroActual === e.key ? 'active' : '';
+                return `<button class="estado-btn ${e.key || 'todos'} ${activeCls}" onclick="setFiltro('${e.key}')">${e.label} (${count})</button>`;
             }).join('');
+
+            renderActions();
         }
 
         function setFiltro(key) { filtroActual = key; renderTabs(); renderPedidos(); }
+
+        function renderActions() {
+            const actionsEl = document.getElementById('pedidosActions');
+            if (!actionsEl) return;
+
+            if (filtroActual === 'entregado' || filtroActual === 'cancelado') {
+                const etiqueta = filtroActual === 'entregado' ? 'entregados' : 'cancelados';
+                actionsEl.innerHTML = `<button class="btn-limpiar-finalizados" onclick="limpiarPedidosFinalizados('${filtroActual}', event)">Limpiar ${etiqueta}</button>`;
+                return;
+            }
+
+            actionsEl.innerHTML = '';
+        }
 
         async function loadPedidos() {
             try {
@@ -205,19 +322,40 @@
         function renderPedidos() {
             const container = document.getElementById('pedidosList');
             const filtrados = filtroActual ? todosPedidos.filter(p => p.estado === filtroActual) : todosPedidos;
-            if (!filtrados.length) { container.innerHTML = '<p style="text-align:center;padding:3rem;color:var(--gray-400);">No hay pedidos</p>'; return; }
-            container.innerHTML = filtrados.map(p => `
-                <div class="pedido-card ${p.estado ? 'estado-'+p.estado : ''}">
-                    <div class="pedido-info">
-                        <span class="pedido-id">#${p.numero_pedido > 0 ? p.numero_pedido : p.id}</span>
-                        <span class="pedido-date">${fmtDate(p.fecha_creacion)}</span>
-                        <span class="pedido-cliente">${esc(p.cliente_nombre)}</span>
-                        <span class="pedido-total">${formatCurrency(p.total)}</span>
-                    </div>
-                    <span class="estado-badge estado-${p.estado}">${p.estado}</span>
-                    <button class="btn-ver-detalle" onclick="openModalPedido(${p.id})">Ver detalle</button>
-                </div>
-            `).join('');
+
+            if (!filtrados.length) {
+                container.innerHTML = '<div style="grid-column:1/-1;text-align:center;padding:3rem;color:var(--gray-400);">No hay pedidos en este estado</div>';
+                return;
+            }
+
+            container.innerHTML = filtrados.map(p => {
+                const esDomicilio = p.tipo_entrega === 'domicilio';
+                const itemsResumen = (p.items || []).map(i => `${i.cantidad}x ${i.nombre_item}`).join(', ');
+                const horaCorta = fmtDate(p.fecha_creacion).split(',')[1] || '';
+
+                return `
+                    <article class="pedido-card ${p.estado}" onclick="openModalPedido(${p.id})">
+                        <div class="pc-header">
+                            <span class="pc-id">#${p.numero_pedido > 0 ? p.numero_pedido : p.id}</span>
+                            <span class="estado-badge estado-${p.estado}">${p.estado}</span>
+                        </div>
+                        <div class="pc-time">🕒 ${horaCorta.trim() || 'Hora no disponible'}</div>
+                        <div class="pc-cliente">${esc(p.cliente_nombre)}</div>
+                        <div class="pc-items">${esc(itemsResumen || 'Sin detalles de productos')}</div>
+                        <div class="pc-footer">
+                            <span class="pc-type ${esDomicilio ? 'domicilio' : 'retiro'}">${esDomicilio ? '🚗 Delivery' : '🛍️ Retiro'}</span>
+                            <span class="pc-total">${formatCurrency(p.total)}</span>
+                        </div>
+                        ${p.venta_id ? `<div class="pc-facturado">✅ Facturado: ${esc(p.venta_ecf || 'E-CF')}</div>` : ''}
+                        <div class="pc-actions" onclick="event.stopPropagation()">
+                            <button class="pc-btn pc-btn-view" onclick="openModalPedido(${p.id})">Ver pedido</button>
+                            <button class="pc-btn pc-btn-whatsapp" onclick="enviarNotificacionWhatsApp(${p.id}, '${p.estado}')" title="Avisar por WhatsApp">
+                                <svg width="20" height="20" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
+                            </button>
+                        </div>
+                    </article>
+                `;
+            }).join('');
         }
 
         function openModalPedido(id) {
@@ -259,22 +397,14 @@
 
             document.getElementById('mpBody').innerHTML = bodyHtml;
 
-            // Action buttons
+            // Action buttons siempre visibles
             let actionsHtml = '';
-            if (p.estado === 'pendiente') {
-                actionsHtml += `<button class="mp-btn mp-btn-confirm" onclick="cambiarEstado(${p.id},'confirmado')">Confirmar</button>`;
-                actionsHtml += `<button class="mp-btn mp-btn-prepare" onclick="cambiarEstado(${p.id},'preparando')">Preparar</button>`;
-                actionsHtml += `<button class="mp-btn mp-btn-cancel" onclick="cambiarEstado(${p.id},'cancelado')">Cancelar</button>`;
-            } else if (p.estado === 'confirmado') {
-                actionsHtml += `<button class="mp-btn mp-btn-prepare" onclick="cambiarEstado(${p.id},'preparando')">Preparar</button>`;
-            } else if (p.estado === 'preparando') {
-                actionsHtml += `<button class="mp-btn mp-btn-ready" onclick="cambiarEstado(${p.id},'listo')">Listo</button>`;
-            } else if (p.estado === 'listo') {
-                actionsHtml += `<button class="mp-btn mp-btn-deliver" onclick="cambiarEstado(${p.id},'entregado')">Entregado</button>`;
-            }
-            if (p.estado !== 'cancelado' && !p.venta_id) {
-                actionsHtml += `<button class="mp-btn mp-btn-invoice" onclick="facturarPedido(${p.id})">Facturar</button>`;
-            }
+            actionsHtml += `<button class="mp-btn mp-btn-confirm" onclick="cambiarEstado(${p.id},'confirmado')">Confirmar</button>`;
+            actionsHtml += `<button class="mp-btn mp-btn-prepare" onclick="cambiarEstado(${p.id},'preparando')">Preparar</button>`;
+            actionsHtml += `<button class="mp-btn mp-btn-ready" onclick="cambiarEstado(${p.id},'listo')">Listo</button>`;
+            actionsHtml += `<button class="mp-btn mp-btn-deliver" onclick="cambiarEstado(${p.id},'entregado')">Entregado</button>`;
+            actionsHtml += `<button class="mp-btn mp-btn-cancel" onclick="cambiarEstado(${p.id},'cancelado')">Cancelar</button>`;
+            actionsHtml += `<button class="mp-btn mp-btn-invoice" onclick="facturarPedido(${p.id})">Facturar</button>`;
             actionsHtml += `<button class="mp-btn mp-btn-close" onclick="closeModalPedido()">Cerrar</button>`;
 
             document.getElementById('mpActions').innerHTML = actionsHtml;
@@ -285,6 +415,57 @@
             document.getElementById('modalPedido').classList.remove('active');
         }
 
+        async function limpiarPedidosFinalizados(estado, event) {
+            if (event) event.stopPropagation();
+
+            const textos = {
+                entregado: 'entregados',
+                cancelado: 'cancelados'
+            };
+            const tipoTexto = textos[estado] || 'finalizados';
+
+            const overlay = document.createElement('div');
+            overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);backdrop-filter:blur(3px);z-index:10020;display:flex;align-items:center;justify-content:center;padding:1rem;';
+
+            const modal = document.createElement('div');
+            modal.style.cssText = 'background:#fff;border-radius:18px;width:min(92vw,420px);box-shadow:0 22px 50px rgba(0,0,0,0.25);overflow:hidden;';
+            modal.innerHTML = `
+                <div style="padding:1rem 1.2rem;border-bottom:1px solid #e2e8f0;background:#fff7ed;">
+                    <h3 style="margin:0;font-size:1rem;color:#9a3412;">Limpiar pedidos ${tipoTexto}</h3>
+                    <p style="margin:0.35rem 0 0;color:#7c2d12;font-size:0.86rem;">Se eliminarán de esta lista y no aparecerán más en Pedidos.</p>
+                </div>
+                <div style="padding:1rem 1.2rem;display:flex;gap:0.55rem;">
+                    <button id="btnCancelarLimpieza" style="flex:1;padding:0.7rem;border:1px solid #d1d5db;background:#fff;border-radius:10px;font-weight:700;cursor:pointer;">Cancelar</button>
+                    <button id="btnConfirmarLimpieza" style="flex:1;padding:0.7rem;border:none;background:linear-gradient(135deg,#ef4444,#dc2626);color:#fff;border-radius:10px;font-weight:700;cursor:pointer;">Limpiar</button>
+                </div>
+            `;
+
+            overlay.appendChild(modal);
+            document.body.appendChild(overlay);
+
+            const cerrar = () => overlay.remove();
+            overlay.addEventListener('click', (e) => { if (e.target === overlay) cerrar(); });
+            modal.querySelector('#btnCancelarLimpieza').addEventListener('click', cerrar);
+            modal.querySelector('#btnConfirmarLimpieza').addEventListener('click', async () => {
+                const btn = modal.querySelector('#btnConfirmarLimpieza');
+                btn.disabled = true;
+                btn.textContent = 'Limpiando...';
+                btn.style.opacity = '0.7';
+
+                try {
+                    const r = await apiCall(`/pedidos/finalizados?estado=${encodeURIComponent(estado)}`, { method: 'DELETE' });
+                    cerrar();
+                    await loadPedidos();
+                    showToast(`Pedidos ${tipoTexto} limpiados: ${r.eliminados || 0}`, 'success');
+                } catch (e) {
+                    showToast(e.message || 'No se pudo limpiar pedidos', 'error');
+                    btn.disabled = false;
+                    btn.textContent = 'Limpiar';
+                    btn.style.opacity = '1';
+                }
+            });
+        }
+
         async function cambiarEstado(id, estado) {
             try {
                 await apiCall(`/pedidos/${id}/estado`, { method:'PUT', body:JSON.stringify({ estado }) });
@@ -292,9 +473,6 @@
                 await loadPedidos();
                 openModalPedido(id);
                 enviarNotificacionWhatsApp(id, estado);
-                if (estado === 'entregado') {
-                    setTimeout(() => facturarPedido(id), 1000);
-                }
             } catch(e) { showToast(e.message, 'error'); }
         }
 
@@ -395,6 +573,7 @@
                 <div id="reciboContent" style="width:340px;background:#fff;border-radius:16px;overflow:hidden;font-family:'Segoe UI',system-ui,sans-serif;">
                     <!-- Header con gradiente -->
                     <div style="background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:20px 16px;text-align:center;color:#fff;">
+                        ${negocioLogo ? `<img src="${esc(negocioLogo)}" alt="Logo" style="max-width:56px;max-height:56px;border-radius:12px;background:#fff;padding:4px;margin:0 auto 8px;display:block;">` : ''}
                         <div style="font-size:20px;font-weight:800;letter-spacing:0.5px;">${esc(negocioNombre || 'MI NEGOCIO')}</div>
                         ${negocioDireccion ? `<div style="font-size:10px;opacity:0.85;margin-top:4px;">${esc(negocioDireccion)}</div>` : ''}
                         ${negocioTelefono ? `<div style="font-size:10px;opacity:0.85;">Tel: ${esc(negocioTelefono)}</div>` : ''}
@@ -463,7 +642,7 @@
             `;
 
             const modal = document.createElement('div');
-            modal.style.cssText = 'background:#fff;border-radius:24px;width:min(92vw,380px);box-shadow:0 20px 60px rgba(0,0,0,0.25);transform:scale(0.9);transition:transform 0.3s ease;overflow:hidden;';
+            modal.style.cssText = 'background:#fff;border-radius:24px;width:min(92vw,380px);max-height:92vh;box-shadow:0 20px 60px rgba(0,0,0,0.25);transform:scale(0.9);transition:transform 0.3s ease;overflow:hidden;display:flex;flex-direction:column;';
             modal.innerHTML = `
                 <div style="background:linear-gradient(135deg,#10b981,#059669);padding:1.25rem;color:#fff;text-align:center;position:relative;">
                     <button onclick="document.getElementById('reciboOverlay').remove()" style="position:absolute;top:10px;right:10px;width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
@@ -471,7 +650,7 @@
                     <h3 style="margin:0;font-size:1rem;font-weight:700;">Factura Generada</h3>
                     <p style="margin:2px 0 0;font-size:0.78rem;opacity:0.85;">NCF: ${ncf}</p>
                 </div>
-                <div style="padding:1.25rem;">
+                <div style="padding:1.25rem;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;scrollbar-width:thin;">
                     <div style="display:flex;justify-content:center;margin-bottom:1rem;">${reciboHTML}</div>
                     <div style="display:flex;gap:0.5rem;">
                         <button onclick="imprimirRecibo()" style="flex:1;padding:0.65rem;background:#667eea;color:#fff;border:none;border-radius:10px;font-size:0.82rem;font-weight:600;cursor:pointer;font-family:inherit;">&#128424; Imprimir</button>
@@ -528,12 +707,8 @@
                 // Intentar Web Share API (movil)
                 if (navigator.share && navigator.canShare) {
                     const file = new File([blob], fileName, { type: 'image/png' });
-                    const shareData = {
-                        title: 'Factura ' + ncf,
-                        text: 'Factura de ' + (negocioNombre || 'Mi Negocio') + ' - Total: ' + total,
-                        files: [file]
-                    };
-                    if (navigator.canShare(shareData)) {
+                    const shareData = { files: [file] };
+                    if (navigator.canShare({ files: [file] })) {
                         await navigator.share(shareData);
                         showToast('Factura compartida!', 'success');
                         return;
@@ -550,9 +725,16 @@
                 document.body.removeChild(a);
                 URL.revokeObjectURL(url);
 
+                if (navigator.clipboard && window.ClipboardItem) {
+                    navigator.clipboard.write([
+                        new ClipboardItem({ 'image/png': blob })
+                    ]).then(() => {
+                        showToast('Imagen copiada. Pégala en WhatsApp (Ctrl+V)', 'info');
+                    }).catch(() => {});
+                }
+
                 // Abrir WhatsApp con el numero del cliente
-                const msg = 'Hola ' + cliente + ', aqui tiene su factura de ' + (negocioNombre || 'Mi Negocio') + '.\nNCF: ' + ncf + '\nTotal: ' + total + '\n\nGracias por su compra!';
-                const waUrl = 'https://wa.me/1' + tel + '?text=' + encodeURIComponent(msg);
+                const waUrl = 'https://wa.me/1' + tel;
                 window.open(waUrl, '_blank');
 
                 showToast('Imagen descargada. Adjuntala en el chat de WhatsApp.', 'success');

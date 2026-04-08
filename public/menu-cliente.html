@@ -394,6 +394,7 @@
         <div class="powered-by">Menu digital por <a href="https://nexora-alid.onrender.com" target="_blank">Nexora</a></div>
     </div>
 
+    <script src="/js/api.js"></script>
     <script>
         let menuData = null;
         let cart = [];
@@ -409,7 +410,20 @@
                 menuData = await res.json();
                 negocioTelefono = menuData.negocio.telefono || '';
                 document.getElementById('business-name').textContent = menuData.negocio.nombre;
-                document.getElementById('business-info').textContent = menuData.negocio.delivery_activo ? 'Delivery disponible \u00B7 ' + formatCurrency(menuData.negocio.delivery_costo) + ' envio' : 'Retiro en local';
+                const logoEl = document.getElementById('business-logo');
+                if (menuData.negocio.logo) {
+                    logoEl.innerHTML = `<img src="${esc(menuData.negocio.logo)}" alt="Logo ${esc(menuData.negocio.nombre)}">`;
+                } else {
+                    logoEl.innerHTML = '&#127860;';
+                }
+                if (menuData.negocio.delivery_activo) {
+                    const costo = formatCurrency(menuData.negocio.delivery_costo || 0);
+                    const tiempo = menuData.negocio.delivery_tiempo || 30;
+                    const minimo = formatCurrency(menuData.negocio.delivery_minimo || 0);
+                    document.getElementById('business-info').textContent = `Delivery disponible · ${costo} envio · ${tiempo} min · Minimo ${minimo}`;
+                } else {
+                    document.getElementById('business-info').textContent = 'Retiro en local';
+                }
                 if (menuData.negocio.delivery_activo) {
                     document.getElementById('opt-domicilio').style.display = '';
                 } else {
@@ -454,8 +468,25 @@
             if (!item) return;
             const idx = cart.findIndex(c => c.menu_item_id === id);
             if (idx >= 0) { cart.splice(idx, 1); }
-            else { cart.push({ menu_item_id: id, nombre: item.nombre, precio: item.precio, cantidad: 1 }); }
+            else {
+                cart.push({
+                    menu_item_id: id,
+                    nombre: item.nombre,
+                    precio: item.precio,
+                    cantidad: 1,
+                    itbis_tasa: (item.itbis_tasa !== null && item.itbis_tasa !== undefined) ? item.itbis_tasa : 18
+                });
+            }
             renderMenu();
+        }
+
+        function calcularItbisCart() {
+            if (!cart.length) return 0;
+            return cart.reduce((s, i) => {
+                const tasa = (i.itbis_tasa !== null && i.itbis_tasa !== undefined) ? i.itbis_tasa : 18;
+                const lineBase = (i.precio || 0) * (i.cantidad || 1);
+                return s + (lineBase * (tasa / 100));
+            }, 0);
         }
 
         function changeQty(id, delta) {
@@ -494,7 +525,8 @@
         function updateEntregaSummary() {
             const subtotal = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
             const costoEnvio = deliveryType === 'domicilio' ? (menuData.negocio.delivery_costo || 0) : 0;
-            const total = subtotal + costoEnvio;
+            const itbis = calcularItbisCart();
+            const total = subtotal + itbis + costoEnvio;
             document.getElementById('summary2-items').textContent = cart.reduce((s, i) => s + i.cantidad, 0) + ' items';
             document.getElementById('summary2-subtotal').textContent = formatCurrency(subtotal);
             if (costoEnvio > 0) {
@@ -535,7 +567,8 @@
         function updatePreview() {
             const subtotal = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
             const costoEnvio = deliveryType === 'domicilio' ? (menuData.negocio.delivery_costo || 0) : 0;
-            const total = subtotal + costoEnvio;
+            const itbis = calcularItbisCart();
+            const total = subtotal + itbis + costoEnvio;
             document.getElementById('preview-negocio').textContent = menuData.negocio.nombre;
             document.getElementById('preview-items').textContent = cart.map(i => `${i.nombre} x${i.cantidad}`).join(', ');
             document.getElementById('preview-entrega').textContent = deliveryType === 'domicilio' ? 'A Domicilio' : 'Retiro en Local';
@@ -559,11 +592,11 @@
         }
 
         async function getUbicacion() {
-            if (!navigator.geolocation) { alert('Tu navegador no soporta geolocalizacion'); return; }
+            if (!navigator.geolocation) { showModalError('Tu navegador no soporta geolocalización', 'Ubicación'); return; }
             navigator.geolocation.getCurrentPosition(pos => {
                 document.getElementById('clienteUbicacion').value = pos.coords.latitude + ',' + pos.coords.longitude;
-                alert('Ubicacion capturada');
-            }, () => alert('No se pudo obtener la ubicacion'));
+                showToast('Ubicación capturada', 'success');
+            }, () => showModalError('No se pudo obtener la ubicación', 'Ubicación'));
         }
 
         function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
@@ -574,11 +607,21 @@
         document.getElementById('btn-next-entrega').addEventListener('click', () => {
             const nombre = document.getElementById('clienteNombre').value.trim();
             const telefono = document.getElementById('clienteTelefono').value.replace(/\D/g, '');
-            if (!nombre) { alert('Ingresa tu nombre'); return; }
-            if (telefono.length !== 10) { alert('El telefono debe tener 10 digitos'); return; }
+            if (!nombre) { showModalError('Ingresa tu nombre', 'Validación'); return; }
+            if (telefono.length !== 10) { showModalError('El teléfono debe tener 10 dígitos', 'Validación'); return; }
             const prefijo = telefono.substring(0, 3);
-            if (!['809', '829', '849'].includes(prefijo)) { alert('El telefono debe comenzar con 809, 829 o 849'); return; }
-            if (deliveryType === 'domicilio' && !document.getElementById('clienteDireccion').value.trim()) { alert('Ingresa la direccion de entrega'); return; }
+            if (!['809', '829', '849'].includes(prefijo)) { showModalError('El teléfono debe comenzar con 809, 829 o 849', 'Validación'); return; }
+            if (deliveryType === 'domicilio' && !document.getElementById('clienteDireccion').value.trim()) { showModalError('Ingresa la dirección de entrega', 'Validación'); return; }
+
+            if (deliveryType === 'domicilio') {
+                const subtotal = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
+                const minimo = Number(menuData.negocio.delivery_minimo || 0);
+                if (subtotal < minimo) {
+                    showModalError(`El pedido mínimo para delivery es ${formatCurrency(minimo)}. Seleccione más pedidos para poder pedir a domicilio.`, 'Monto Mínimo');
+                    return;
+                }
+            }
+
             goToSection('preview');
         });
         document.getElementById('submit-btn').addEventListener('click', enviarPedido);
@@ -627,14 +670,15 @@
 
                 if (!res.ok) throw new Error(data.error || 'Error al enviar pedido');
 
-                const subtotal = cart.reduce((s, i) => s + i.precio * i.cantidad, 0);
-                const costoEnvio = deliveryType === 'domicilio' ? (menuData.negocio.delivery_costo || 0) : 0;
-                const total = subtotal + costoEnvio;
+                const subtotal = Number(data.subtotal || 0);
+                const itbis = Number(data.itbis || 0);
+                const costoEnvio = Number(data.costo_envio || 0);
+                const total = Number(data.total || 0);
 
                 const E = String.fromCodePoint;
                 const itemsText = cart.map(i => `- ${i.nombre} x${i.cantidad} = ${formatCurrency(i.precio * i.cantidad)}`).join('\n');
                 const deliveryText = deliveryType === 'domicilio' ? `- Domicilio: ${direccion || 'Sin direccion'}` : '- Retiro en local';
-                const waMsg = `*NUEVO PEDIDO #${data.numero_pedido || data.pedido_id}*\n\n${itemsText}\n\n${deliveryText}\n\n*Total: ${formatCurrency(total)}*\n\nNombre: ${nombre}\nTel: ${telefono}`;
+                const waMsg = `*NUEVO PEDIDO #${data.numero_pedido || data.pedido_id}*\n\n${itemsText}\n\n${deliveryText}\n\nSubtotal: ${formatCurrency(subtotal)}\nITBIS: ${formatCurrency(itbis)}\nEnvio: ${formatCurrency(costoEnvio)}\n*Total: ${formatCurrency(total)}*\n\nNombre: ${nombre}\nTel: ${telefono}`;
                 const negocioTelClean = (data.negocio_telefono || negocioTelefono).replace(/\D/g, '');
                 const waNumber = negocioTelClean ? `1${negocioTelClean}` : '';
                 const waUrl = `https://wa.me/${waNumber}?text=${encodeURIComponent(waMsg)}`;
@@ -646,7 +690,7 @@
                 document.getElementById('modal-whatsapp').href = waUrl;
                 document.getElementById('modal-overlay').classList.add('active');
             } catch(e) {
-                alert(e.message);
+                showModalError(e.message || 'Error al enviar pedido', 'Pedido');
                 btn.disabled = false;
                 btn.textContent = 'Confirmar Pedido';
             }

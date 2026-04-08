@@ -3,9 +3,13 @@ async function renderSidebar() {
     const currentPage = window.location.pathname;
     
     let tipoNegocio = 'ambos';
+    let negocioNombre = 'Nexora';
+    let negocioLogo = '';
     try {
         const config = await fetch('/api/config', { credentials: 'same-origin' }).then(r => r.json());
         if (config && config.tipo_negocio) tipoNegocio = config.tipo_negocio;
+        if (config && config.nombre) negocioNombre = config.nombre;
+        if (config && config.logo) negocioLogo = config.logo;
         try {
             const session = JSON.parse(sessionStorage.getItem('session'));
             if (session) { session.tipo_negocio = tipoNegocio; sessionStorage.setItem('session', JSON.stringify(session)); }
@@ -71,7 +75,8 @@ async function renderSidebar() {
     const sidebarHTML = `
         <aside class="sidebar" id="sidebar">
             <div class="sidebar-header">
-                <h2>Nexora</h2>
+                ${negocioLogo ? `<img src="${negocioLogo}" alt="Logo" style="width:52px;height:52px;object-fit:contain;border-radius:12px;background:#fff;margin:0 auto 0.5rem;display:block;">` : ''}
+                <h2>${negocioNombre}</h2>
                 <p>Panel de gestión</p>
             </div>
             
@@ -110,7 +115,6 @@ function createMobileMenu() {
     if (document.getElementById('hamburgerBtn')) return;
     
     const header = document.querySelector('.page-header') || document.querySelector('.dash-welcome');
-    if (!header) return;
     
     const hamburgerBtn = document.createElement('button');
     hamburgerBtn.id = 'hamburgerBtn';
@@ -122,8 +126,16 @@ function createMobileMenu() {
         <span class="hamburger-line"></span>
     `;
     hamburgerBtn.addEventListener('click', toggleMobileMenu);
-    
-    header.insertBefore(hamburgerBtn, header.firstChild);
+
+    if (header) {
+        header.insertBefore(hamburgerBtn, header.firstChild);
+    } else {
+        hamburgerBtn.style.position = 'fixed';
+        hamburgerBtn.style.top = '12px';
+        hamburgerBtn.style.left = '12px';
+        hamburgerBtn.style.zIndex = '1002';
+        document.body.appendChild(hamburgerBtn);
+    }
     
     const overlay = document.createElement('div');
     overlay.id = 'sidebarOverlay';

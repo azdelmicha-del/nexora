@@ -2,6 +2,7 @@ const express = require('express');
 const session = require('express-session');
 const SQLiteStore = require('connect-sqlite3')(session);
 const path = require('path');
+const fs = require('fs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { initDatabase } = require('./database');
@@ -51,11 +52,46 @@ if (!config.SESSION_SECRET) {
     console.log('✅ SESSION_SECRET configurado correctamente.');
 }
 
+const dbDir = process.env.DB_DIR || path.join(__dirname, 'db');
+const dbPath = path.join(dbDir, 'nexora.db');
+const sessionDir = process.env.NODE_ENV === 'production' ? dbDir : path.join(__dirname, 'db');
+const backupDir = process.env.BACKUP_DIR || path.join(dbDir, 'backups');
+
+function logStorageRuntime() {
+    const dbDirAbs = path.resolve(dbDir);
+    const sessionDirAbs = path.resolve(sessionDir);
+    const backupDirAbs = path.resolve(backupDir);
+    const dbPathAbs = path.resolve(dbPath);
+
+    const sessionAligned = sessionDirAbs === dbDirAbs || sessionDirAbs.startsWith(dbDirAbs + path.sep);
+    const backupAligned = backupDirAbs === dbDirAbs || backupDirAbs.startsWith(dbDirAbs + path.sep);
+
+    console.log('📦 Runtime storage paths');
+    console.log('   DB_DIR:', dbDirAbs);
+    console.log('   DB_PATH:', dbPathAbs);
+    console.log('   SESSION_DIR:', sessionDirAbs);
+    console.log('   BACKUP_DIR:', backupDirAbs);
+    console.log('   DB_EXISTS:', fs.existsSync(dbPathAbs));
+
+    if (process.env.NODE_ENV === 'production' && (!sessionAligned || !backupAligned)) {
+        console.error('❌ Inconsistencia de almacenamiento: BD/Sesiones/Backups no están alineados');
+        console.error('   sessionAligned:', sessionAligned, 'backupAligned:', backupAligned);
+    } else {
+        console.log('✅ Almacenamiento coherente: BD, sesiones y backups alineados');
+    }
+}
+
 initDatabase();
 initLicense();
 
 // Backup automático al iniciar (protección de datos)
-const { autoBackup, checkDatabaseIntegrity } = require('./backup-protection');
+const { autoBackup, checkDatabaseIntegrity, getBackupDir } = require('./backup-protection');
+if (path.resolve(getBackupDir()) !== path.resolve(backupDir)) {
+    console.error('❌ Inconsistencia BACKUP_DIR detectada entre index y backup-protection');
+    console.error('   index BACKUP_DIR:', backupDir);
+    console.error('   backup-protection BACKUP_DIR:', getBackupDir());
+}
+logStorageRuntime();
 checkDatabaseIntegrity();
 autoBackup();
 
@@ -112,12 +148,8 @@ app.use(sanitizeInput);
 // Sin esto, las cookies secure no se guardan detrás del load balancer
 app.set('trust proxy', 1);
 
-const sessionDir = process.env.NODE_ENV === 'production'
-    ? (process.env.DB_DIR || path.join(__dirname, 'db'))
-    : path.join(__dirname, 'db');
-
-if (!require('fs').existsSync(sessionDir)) {
-    require('fs').mkdirSync(sessionDir, { recursive: true });
+if (!fs.existsSync(sessionDir)) {
+    fs.mkdirSync(sessionDir, { recursive: true });
 }
 
 app.use(session({

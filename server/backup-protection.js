@@ -3,11 +3,20 @@ const path = require('path');
 const { getDb } = require('./database');
 const { getRDDate } = require('./utils/timezone');
 
+function getBackupDir() {
+    if (process.env.BACKUP_DIR) {
+        return process.env.BACKUP_DIR;
+    }
+
+    const baseDbDir = process.env.DB_DIR || path.join(__dirname, 'db');
+    return path.join(baseDbDir, 'backups');
+}
+
 // Función para hacer backup automático de la BD
 function autoBackup() {
     try {
         const db = getDb();
-        const backupDir = path.join(__dirname, 'db', 'backups');
+        const backupDir = getBackupDir();
         
         // Crear directorio de backups si no existe
         if (!fs.existsSync(backupDir)) {
@@ -83,5 +92,6 @@ function checkDatabaseIntegrity() {
 module.exports = { 
     autoBackup, 
     cleanOldBackups,
-    checkDatabaseIntegrity
+    checkDatabaseIntegrity,
+    getBackupDir
 };

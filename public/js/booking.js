@@ -24,17 +24,6 @@ const ICONOS_CATEGORIA = {
     'DEFAULT': '✨'
 };
 
-function toTitleCase(str) {
-    if (!str) return '';
-    return str.toLowerCase().replace(/\b\w/g, l => l.toUpperCase());
-}
-
-function capitalizeFirst(str) {
-    if (!str || !str.trim()) return '';
-    const s = str.trim();
-    return s.charAt(0).toUpperCase() + s.slice(1);
-}
-
 document.addEventListener('DOMContentLoaded', () => {
     slug = window.location.pathname.split('/booking/')[1];
     if (!slug) {
@@ -213,7 +202,7 @@ function configurarFecha() {
     fi.max = `${maxYear}-${maxMonth}-${maxDay}`;
 }
 
-async function cargarHorarios() {
+async function cargarHorarios(autoAjustado = false) {
     const fecha = document.getElementById('fecha').value;
     const hc = document.getElementById('horarios-container');
     const hg = document.getElementById('horarios-grid');
@@ -245,7 +234,15 @@ async function cargarHorarios() {
         if (!resp.ok) throw new Error(data.error);
         
         if (!data.horarios.length) {
-            hg.innerHTML = '<div class="no-horarios">No hay horarios disponibles</div>';
+            if (data.bloqueadoPorAnticipacion && data.fechaSugerida && !autoAjustado) {
+                document.getElementById('fecha').value = data.fechaSugerida;
+                showError(data.mensaje || 'Hoy ya no hay disponibilidad por anticipación mínima. Mostrando próxima fecha disponible.');
+                await cargarHorarios(true);
+                return;
+            }
+
+            const mensaje = data.mensaje || 'No hay horarios disponibles';
+            hg.innerHTML = '<div class="no-horarios">' + mensaje + '</div>';
             return;
         }
         
@@ -300,6 +297,11 @@ function updateProgressBar(step) {
 }
 
 function goToSection(name) {
+    if (name === 'datos' && (!selectedHora || !selectedHora.hora)) {
+        showError('Selecciona un horario disponible antes de continuar');
+        return;
+    }
+
     document.querySelectorAll('.form-section').forEach(s => s.classList.remove('show'));
     document.getElementById('section-' + name).classList.add('show');
     hideError();
@@ -332,13 +334,32 @@ function goToSection(name) {
 function validateDatos() {
     const nombre = document.getElementById('nombre').value.trim();
     const whatsapp = document.getElementById('whatsapp').value.trim();
+    const email = document.getElementById('email').value.trim().toLowerCase();
     if (!nombre) { showError('Ingresa tu nombre'); return false; }
     if (!whatsapp) { showError('Ingresa tu WhatsApp'); return false; }
+
+    // Email opcional: si se escribe, debe ser de un dominio permitido
+    if (email) {
+        const regex = /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/;
+        const dominiosPermitidos = ['@gmail.com', '@hotmail.com', '@hotmail.es'];
+        const dominioValido = dominiosPermitidos.some(d => email.endsWith(d));
+
+        if (!regex.test(email) || !dominioValido) {
+            showError('Si agregas email, debe ser @gmail.com, @hotmail.com o @hotmail.es');
+            return false;
+        }
+    }
+
     hideError();
     return true;
 }
 
 function showPreview() {
+    if (!selectedHora || !selectedHora.hora) {
+        showError('Selecciona un horario disponible antes de continuar');
+        return;
+    }
+
     const fecha = document.getElementById('fecha').value;
     // Parsear como fecha local, no UTC
     const [year, month, day] = fecha.split('-').map(Number);
@@ -359,6 +380,11 @@ function showPreview() {
 }
 
 async function submitBooking() {
+    if (!selectedService || !selectedHora || !selectedHora.hora) {
+        showError('Debes seleccionar servicio y horario antes de confirmar la cita');
+        return;
+    }
+
     const btn = document.getElementById('submit-btn');
     btn.disabled = true;
     btn.textContent = 'Procesando...';
@@ -564,7 +590,10 @@ function resetForm() {
     document.getElementById('search-service').value = '';
     filterServices();
     hideError();
-    document.getElementById('success-screen').classList.remove('show');
+    const successScreen = document.getElementById('success-screen');
+    if (successScreen) {
+        successScreen.classList.remove('show');
+    }
     document.getElementById('form-container').classList.remove('hidden');
     document.getElementById('business-header').style.display = 'block';
     goToSection('servicio');

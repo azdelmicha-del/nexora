@@ -2,20 +2,16 @@ const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { enviarConfirmacionCita } = require('../utils/email');
-const { getRDDate } = require('../utils/timezone');
+const { getRDDate, getRDDateString } = require('../utils/timezone');
 
 const router = express.Router();
 
-// Función para obtener la hora actual en la zona horaria del negocio
-function getHoraNegocio(db, negocioId) {
-    const config = db.prepare('SELECT zona_horaria FROM negocios WHERE id = ?').get(negocioId);
-    const zonaHoraria = config ? config.zona_horaria : -4; // Default: UTC-4 (República Dominicana)
-    
-    const ahoraUTC = new Date();
-    const ahoraLocal = new Date(ahoraUTC.getTime() + (zonaHoraria * 60 * 60 * 1000));
-    
+// Hora actual en RD (forzada para consistencia local/render)
+function getHoraNegocio() {
+    const ahoraLocal = getRDDate();
+
     return {
-        fecha: `${ahoraLocal.getFullYear()}-${String(ahoraLocal.getMonth() + 1).padStart(2, '0')}-${String(ahoraLocal.getDate()).padStart(2, '0')}`,
+        fecha: getRDDateString(ahoraLocal),
         hora: ahoraLocal.getHours(),
         minuto: ahoraLocal.getMinutes(),
         horaMinutos: ahoraLocal.getHours() * 60 + ahoraLocal.getMinutes(),
@@ -129,7 +125,6 @@ router.post('/', requireAuth, (req, res) => {
         `).get(req.session.negocioId);
 
         const bufferMin = config.buffer_entre_citas || 0;
-        const zonaHoraria = config.zona_horaria || -4;
         const duracionMinima = config.duracion_minima_cita || 30;
         const tiempoAnticipacion = config.tiempo_anticipacion || 0;
 
@@ -162,23 +157,19 @@ router.post('/', requireAuth, (req, res) => {
         // Calcular hora de fin de la cita
         const horaFin = `${Math.floor(finMin / 60).toString().padStart(2, '0')}:${(finMin % 60).toString().padStart(2, '0')}`;
 
-        // REGLA 2: Validar que la fecha/hora no sea pasada (usando zona horaria del negocio)
-        // Convertir la hora de la cita a UTC para comparar
-        const [y, m, d] = fecha.split('-').map(Number);
+        // REGLA 2: Validar que la fecha/hora no sea pasada (hora RD)
         const [hh, mm] = hora.split(':').map(Number);
-        
-        // 14:10 en RD (UTC-4) = 18:10 UTC
-        const fechaCitaUTC = Date.UTC(y, m - 1, d, hh, mm) - (zonaHoraria * 60 * 60 * 1000);
-        const ahoraUTC = Date.now();
-        
-        if (fechaCitaUTC < ahoraUTC) {
+
+        const horaCitaMin = (hh * 60) + mm;
+        const ahoraRD = getHoraNegocio();
+
+        if (fecha < ahoraRD.fecha || (fecha === ahoraRD.fecha && horaCitaMin < ahoraRD.horaMinutos)) {
             return res.status(400).json({ error: 'No se pueden crear citas en fechas u horas pasadas' });
         }
 
         // REGLA 2.1: Validar tiempo de anticipación
         if (tiempoAnticipacion > 0) {
-            const milisegundosAnticipacion = tiempoAnticipacion * 60 * 1000;
-            if (fechaCitaUTC < ahoraUTC + milisegundosAnticipacion) {
+            if (fecha === ahoraRD.fecha && horaCitaMin < (ahoraRD.horaMinutos + tiempoAnticipacion)) {
                 return res.status(400).json({ error: `Debe agendar con al menos ${tiempoAnticipacion} minutos de anticipación` });
             }
         }
@@ -352,12 +343,11 @@ router.put('/:id', requireAuth, (req, res) => {
 
         // Validar fecha/hora no sea pasada si se está cambiando el horario (usando hora local)
         if (cambiandoHorario) {
-            const ahora = getRDDate();
-            const [y, m, d] = nuevaFecha.split('-').map(Number);
             const [hh, mm] = nuevaHora.split(':').map(Number);
-            const fechaCitaLocal = new Date(y, m - 1, d, hh, mm);
-            
-            if (fechaCitaLocal < ahora) {
+            const horaCitaMin = (hh * 60) + mm;
+            const ahoraRD = getHoraNegocio();
+
+            if (nuevaFecha < ahoraRD.fecha || (nuevaFecha === ahoraRD.fecha && horaCitaMin < ahoraRD.horaMinutos)) {
                 return res.status(400).json({ error: 'No se pueden agendar citas en fechas u horas pasadas' });
             }
         }
@@ -470,7 +460,7 @@ router.get('/horarios/disponibles', requireAuth, (req, res) => {
         const bufferMin = config.buffer_entre_citas || 0;
 
         // Usar zona horaria del negocio para determinar si es hoy
-        const horaNegocio = getHoraNegocio(db, req.session.negocioId);
+        const horaNegocio = getHoraNegocio();
         const esFechaHoy = (
             horaNegocio.fechaObj.getFullYear() === year &&
             (horaNegocio.fechaObj.getMonth() + 1) === month &&

@@ -3,7 +3,7 @@ const { getDb } = require('../database');
 const { requireAuth } = require('../middleware/auth');
 const { round2, generarCodigoSeguridad } = require('../utils/dgii');
 const { getNextNCF } = require('../database');
-const { getRDDateString, getRDDate } = require('../utils/timezone');
+const { getRDDateString, getRDDate, getRDTimestamp } = require('../utils/timezone');
 const { toTitleCase } = require('../utils/validators');
 
 const router = express.Router();
@@ -189,6 +189,61 @@ router.put('/:id', requireAuth, (req, res) => {
     }
 });
 
+// DELETE /api/pedidos/finalizados?estado=entregado|cancelado — Limpiar pedidos finalizados
+router.delete('/finalizados', requireAuth, (req, res) => {
+    try {
+        const estado = req.query.estado;
+        const permitidos = ['entregado', 'cancelado'];
+        let estados = permitidos;
+
+        if (estado) {
+            if (!permitidos.includes(estado)) {
+                return res.status(400).json({ error: 'Estado invalido para limpieza' });
+            }
+            estados = [estado];
+        }
+
+        const db = getDb();
+        const placeholders = estados.map(() => '?').join(',');
+        const params = [req.session.negocioId, ...estados];
+
+        const limpiar = db.transaction(() => {
+            db.prepare(`
+                DELETE FROM pedidos_items
+                WHERE pedido_id IN (
+                    SELECT id FROM pedidos
+                    WHERE negocio_id = ? AND estado IN (${placeholders})
+                )
+            `).run(...params);
+
+            const result = db.prepare(`
+                DELETE FROM pedidos
+                WHERE negocio_id = ? AND estado IN (${placeholders})
+            `).run(...params);
+
+            return result.changes || 0;
+        });
+
+        const eliminados = limpiar();
+
+        db.prepare(`
+            INSERT INTO log_auditoria (negocio_id, user_id, accion, tabla, registro_id, detalle, ip, user_agent)
+            VALUES (?, ?, 'DELETE', 'pedidos', NULL, ?, ?, ?)
+        `).run(
+            req.session.negocioId,
+            req.session.userId,
+            `Limpieza de pedidos finalizados (${estados.join(',')}): ${eliminados}`,
+            req.ip,
+            req.headers['user-agent'] || ''
+        );
+
+        res.json({ success: true, eliminados, estados });
+    } catch (error) {
+        console.error('Error al limpiar pedidos finalizados:', error);
+        res.status(500).json({ error: 'Error al limpiar pedidos finalizados' });
+    }
+});
+
 // ── Facturacion directa (usada por auto-facturar y endpoint manual) ──────────
 
 function facturarPedidoDirecto(db, negocioId, userId, pedidoId) {
@@ -238,8 +293,9 @@ function facturarPedidoDirecto(db, negocioId, userId, pedidoId) {
         `).run(ventaResult.lastInsertRowid, ip.menu_item_id, ip.cantidad, ip.precio, ip.subtotal, itbisItem);
     });
 
-    // Vincular pedido con venta
-    db.prepare('UPDATE pedidos SET venta_id = ? WHERE id = ?').run(ventaResult.lastInsertRowid, pedido.id);
+    // Vincular pedido con venta y marcarlo como entregado
+    db.prepare('UPDATE pedidos SET venta_id = ?, estado = ? WHERE id = ?')
+        .run(ventaResult.lastInsertRowid, 'entregado', pedido.id);
 
     // Notification
     db.prepare(`
@@ -263,8 +319,34 @@ function facturarPedidoDirecto(db, negocioId, userId, pedidoId) {
 router.post('/:id/facturar', requireAuth, (req, res) => {
     try {
         const db = getDb();
-        const venta = facturarPedidoDirecto(db, req.session.negocioId, req.session.userId, parseInt(req.params.id));
-        if (!venta) return res.status(400).json({ error: 'No se pudo facturar el pedido' });
+        const pedidoId = parseInt(req.params.id, 10);
+        const pedido = db.prepare('SELECT id, estado, venta_id FROM pedidos WHERE id = ? AND negocio_id = ?')
+            .get(pedidoId, req.session.negocioId);
+
+        if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
+        if (pedido.estado === 'cancelado') return res.status(400).json({ error: 'No se puede facturar un pedido cancelado' });
+
+        if (pedido.venta_id) {
+            if (pedido.estado !== 'entregado') {
+                db.prepare('UPDATE pedidos SET estado = ? WHERE id = ? AND negocio_id = ?')
+                    .run('entregado', pedidoId, req.session.negocioId);
+            }
+            const ventaExistente = db.prepare('SELECT * FROM ventas WHERE id = ?').get(pedido.venta_id);
+            return res.json({ success: true, venta: ventaExistente, already_facturada: true });
+        }
+
+        const venta = facturarPedidoDirecto(db, req.session.negocioId, req.session.userId, pedidoId);
+        if (!venta) {
+            const pedidoActualizado = db.prepare('SELECT venta_id FROM pedidos WHERE id = ? AND negocio_id = ?')
+                .get(pedidoId, req.session.negocioId);
+            if (pedidoActualizado && pedidoActualizado.venta_id) {
+                db.prepare('UPDATE pedidos SET estado = ? WHERE id = ? AND negocio_id = ?')
+                    .run('entregado', pedidoId, req.session.negocioId);
+                const ventaExistente = db.prepare('SELECT * FROM ventas WHERE id = ?').get(pedidoActualizado.venta_id);
+                return res.json({ success: true, venta: ventaExistente, already_facturada: true });
+            }
+            return res.status(400).json({ error: 'No se pudo facturar el pedido' });
+        }
         res.json({ success: true, venta });
     } catch (error) {
         console.error('Error al facturar pedido:', error);
@@ -277,12 +359,26 @@ router.post('/:id/facturar', requireAuth, (req, res) => {
 router.post('/public/:negocioSlug', (req, res) => {
     try {
         const db = getDb();
-        const negocio = db.prepare('SELECT id, telefono FROM negocios WHERE slug = ?').get(req.params.negocioSlug);
+        const negocio = db.prepare(`
+            SELECT id, telefono, delivery_activo, delivery_costo, delivery_tiempo, delivery_minimo
+            FROM negocios WHERE slug = ?
+        `).get(req.params.negocioSlug);
         if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
 
         const { cliente_nombre, cliente_telefono, cliente_direccion, cliente_ubicacion, tipo_entrega, items, notas, descuento } = req.body;
         if (!cliente_nombre || !items || items.length === 0) {
             return res.status(400).json({ error: 'Nombre e items requeridos' });
+        }
+
+        const entregaTipo = tipo_entrega || 'domicilio';
+        const esDomicilio = entregaTipo === 'domicilio';
+
+        if (esDomicilio && !negocio.delivery_activo) {
+            return res.status(400).json({ error: 'El negocio no tiene delivery habilitado' });
+        }
+
+        if (esDomicilio && !cliente_direccion?.trim()) {
+            return res.status(400).json({ error: 'La dirección es obligatoria para pedidos a domicilio' });
         }
 
         // Crear o buscar cliente
@@ -300,7 +396,9 @@ router.post('/public/:negocioSlug', (req, res) => {
 
             const cantidad = parseInt(item.cantidad) || 1;
             const itemSubtotal = menuItem.precio * cantidad;
-            const tasa = menuItem.itbis_tasa || 18;
+            const tasa = (menuItem.itbis_tasa !== null && menuItem.itbis_tasa !== undefined)
+                ? menuItem.itbis_tasa
+                : 18;
             // Distribuir descuento proporcionalmente antes de calcular ITBIS
             const descuentoProp = descuentoVal > 0 ? (itemSubtotal / (items.reduce((s, i) => {
                 const mi = db.prepare('SELECT precio FROM menu_items WHERE id = ?').get(i.menu_item_id);
@@ -314,17 +412,40 @@ router.post('/public/:negocioSlug', (req, res) => {
             itemsData.push({ menu_item_id: menuItem.id, nombre: menuItem.nombre, cantidad, precio: menuItem.precio, subtotal: itemSubtotal });
         }
 
-        const costoEnvio = tipo_entrega === 'domicilio' ? (db.prepare('SELECT delivery_costo FROM negocios WHERE id = ?').get(negocio.id).delivery_costo || 0) : 0;
+        const deliveryMinimo = Math.max(0, parseFloat(negocio.delivery_minimo) || 0);
+        if (esDomicilio && subtotal < deliveryMinimo) {
+            return res.status(400).json({ error: `El pedido mínimo para delivery es RD$${deliveryMinimo.toFixed(2)}. Seleccione más pedidos para poder pedir a domicilio.` });
+        }
+
+        const costoEnvio = esDomicilio ? (parseFloat(negocio.delivery_costo) || 0) : 0;
         const total = subtotal + totalItbis + costoEnvio - descuentoVal;
 
         // Get next sequential number for this negocio
         const maxNum = db.prepare('SELECT COALESCE(MAX(numero_pedido), 0) as max_num FROM pedidos WHERE negocio_id = ?').get(negocio.id);
         const numeroPedido = maxNum.max_num + 1;
 
+        const fechaPedido = getRDTimestamp();
         const pedidoResult = db.prepare(`
-            INSERT INTO pedidos (negocio_id, cliente_id, cliente_nombre, cliente_telefono, cliente_direccion, cliente_ubicacion, tipo_entrega, costo_envio, subtotal, descuento, itbis, total, notas, numero_pedido)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(negocio.id, clienteId, toTitleCase(cliente_nombre), cliente_telefono || null, cliente_direccion || null, cliente_ubicacion || null, tipo_entrega || 'domicilio', costoEnvio, subtotal, descuentoVal, totalItbis, total, notas || null, numeroPedido);
+            INSERT INTO pedidos (negocio_id, cliente_id, cliente_nombre, cliente_telefono, cliente_direccion, cliente_ubicacion, tipo_entrega, costo_envio, subtotal, descuento, itbis, total, notas, numero_pedido, fecha, fecha_creacion)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        `).run(
+            negocio.id,
+            clienteId,
+            toTitleCase(cliente_nombre),
+            cliente_telefono || null,
+            cliente_direccion || null,
+            cliente_ubicacion || null,
+            entregaTipo,
+            costoEnvio,
+            subtotal,
+            descuentoVal,
+            totalItbis,
+            total,
+            notas || null,
+            numeroPedido,
+            fechaPedido,
+            fechaPedido
+        );
 
         itemsData.forEach(item => {
             db.prepare(`
@@ -354,7 +475,7 @@ router.post('/public/:negocioSlug', (req, res) => {
 router.get('/public/:negocioSlug/menu', (req, res) => {
     try {
         const db = getDb();
-        const negocio = db.prepare('SELECT id, nombre, telefono, delivery_activo, delivery_costo, delivery_tiempo, delivery_minimo FROM negocios WHERE slug = ?').get(req.params.negocioSlug);
+        const negocio = db.prepare('SELECT id, nombre, telefono, logo, delivery_activo, delivery_costo, delivery_tiempo, delivery_minimo FROM negocios WHERE slug = ?').get(req.params.negocioSlug);
         if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
 
         const categorias = db.prepare(`

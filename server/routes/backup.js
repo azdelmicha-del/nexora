@@ -26,7 +26,7 @@ router.get('/', requireSuperAdmin, (req, res) => {
                     fecha: stat.mtime.toISOString()
                 };
             })
-            .sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            .sort((a, b) => b.fecha.localeCompare(a.fecha));
 
         res.json(files);
     } catch (error) {

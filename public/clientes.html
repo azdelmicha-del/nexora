@@ -398,7 +398,8 @@
         }
         
         async function deleteCliente(id, nombre) {
-            if (!confirm(`¿Está seguro que desea eliminar el cliente "${nombre}"?`)) return;
+            const ok = await showConfirm('Eliminar Cliente', `¿Está seguro que desea eliminar el cliente "${nombre}"?`);
+            if (!ok) return;
             try {
                 await apiCall(`/clients/${id}`, { method: 'DELETE' });
                 showToast('Cliente eliminado correctamente', 'success');

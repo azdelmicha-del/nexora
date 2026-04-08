@@ -128,9 +128,9 @@
                         <td>${formatDate(c.fecha_creacion)}</td>
                         <td class="actions">
                             ${sessionStorage.getItem('userRol') === 'admin' ? 
-                                `<button class="btn btn-secondary btn-sm" onclick="editCategoria(${c.id})">Editar</button>
-                                 <button class="btn btn-danger btn-sm" onclick="deleteCategoria(${c.id}, '${nombreEsc}')">Eliminar</button>` : 
-                                ''}
+                                 `<button class="btn btn-secondary btn-sm" onclick="editCategoria(${c.id})">Editar</button>
+                                 <button class="btn btn-danger btn-sm" onclick="deleteCategoria(${c.id}, '${nombreEsc}')">Desactivar</button>` : 
+                                 ''}
                         </td>
                     </tr>
                 `}).join('');
@@ -211,18 +211,18 @@
         
         async function deleteCategoria(id, nombre) {
             showModalConfirm(
-                `¿Está seguro que desea eliminar la categoría "${nombre}"?`,
+                `¿Está seguro que desea desactivar la categoría "${nombre}"?`,
                 async () => {
                     try {
                         await apiCall(`/categories/${id}`, { method: 'DELETE' });
-                        showModalSuccess('Categoría eliminada correctamente', '¡Eliminada!');
+                        showModalSuccess('Categoría desactivada correctamente', '¡Desactivada!');
                         await loadCategorias();
                     } catch (error) {
-                        showModalError(error.message || 'Error al eliminar categoría');
+                        showModalError(error.message || 'Error al desactivar categoría');
                     }
                 },
                 null,
-                'Eliminar Categoría'
+                'Desactivar Categoría'
             );
         }
         

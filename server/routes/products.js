@@ -4,6 +4,7 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { formatters } = require('../utils/validators');
 
 const router = express.Router();
+const ITBIS_PERMITIDOS = [0, 8, 16, 18];
 
 // GET /api/products — Listar productos
 router.get('/', requireAuth, (req, res) => {
@@ -91,7 +92,12 @@ router.post('/', requireAuth, (req, res) => {
         costo = parseFloat(costo) || 0;
         stock = parseInt(stock) || 0;
         stock_minimo = parseInt(stock_minimo) || 5;
-        itbis_tasa = parseInt(itbis_tasa) || 18;
+        itbis_tasa = (itbis_tasa !== undefined && itbis_tasa !== null)
+            ? parseInt(itbis_tasa, 10)
+            : 18;
+        if (!ITBIS_PERMITIDOS.includes(itbis_tasa)) {
+            return res.status(400).json({ error: 'itbis_tasa debe ser 0, 8, 16 o 18' });
+        }
 
         const db = getDb();
 
@@ -196,8 +202,12 @@ router.put('/:id', requireAuth, (req, res) => {
             values.push(categoria ? categoria.trim() : null);
         }
         if (itbis_tasa !== undefined) {
+            const tasaPUT = parseInt(itbis_tasa, 10);
+            if (!ITBIS_PERMITIDOS.includes(tasaPUT)) {
+                return res.status(400).json({ error: 'itbis_tasa debe ser 0, 8, 16 o 18' });
+            }
             updates.push('itbis_tasa = ?');
-            values.push(parseInt(itbis_tasa));
+            values.push(tasaPUT);
         }
         if (estado !== undefined) {
             updates.push('estado = ?');

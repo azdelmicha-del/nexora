@@ -210,7 +210,8 @@
         }
 
         async function pagarComision(id) {
-            if (!confirm('Marcar esta comision como pagada?')) return;
+            const ok = await showConfirm('Pagar Comisión', '¿Marcar esta comisión como pagada?');
+            if (!ok) return;
             try {
                 await apiCall(`/commissions/${id}/pagar`, { method: 'PUT' });
                 showToast('Comision marcada como pagada', 'success');
@@ -219,7 +220,8 @@
         }
 
         async function pagarTodas(userId) {
-            if (!confirm('Pagar TODAS las comisiones pendientes de este empleado?')) return;
+            const ok = await showConfirm('Pagar Todas las Comisiones', '¿Pagar TODAS las comisiones pendientes de este empleado?');
+            if (!ok) return;
             try {
                 const result = await apiCall('/commissions/pagar-todas', {
                     method: 'PUT',

@@ -227,7 +227,7 @@
                 document.getElementById('stock_minimo').value = p.stock_minimo;
                 document.getElementById('codigo_barras').value = p.codigo_barras || '';
                 document.getElementById('categoria').value = p.categoria || '';
-                document.getElementById('itbis_tasa').value = p.itbis_tasa || 18;
+                document.getElementById('itbis_tasa').value = (p.itbis_tasa !== null && p.itbis_tasa !== undefined) ? p.itbis_tasa : 18;
                 document.getElementById('estado').value = p.estado;
                 document.getElementById('descripcion').value = p.descripcion || '';
             } catch (error) { showToast(error.message, 'error'); }
@@ -263,7 +263,8 @@
         }
 
         async function deleteProducto(id, nombre) {
-            if (!confirm(`Eliminar "${nombre}"?`)) return;
+            const ok = await showConfirm('Eliminar Producto', `¿Eliminar "${nombre}"?`);
+            if (!ok) return;
             try {
                 await apiCall(`/products/${id}`, { method: 'DELETE' });
                 showToast('Producto eliminado', 'success');

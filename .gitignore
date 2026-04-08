@@ -56,5 +56,9 @@ PROMPT_MAESTRO.md
 # Backup de superadmin
 public/superadmin.backup.html
 
+# Uploads generados en runtime
+public/uploads/logos/*
+!public/uploads/logos/.gitkeep
+
 # Render secrets (no incluir credenciales reales)
 # render.yaml SI se incluye en el repo

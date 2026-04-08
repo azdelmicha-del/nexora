@@ -3,8 +3,21 @@ const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { getRDDateString, getRDDate } = require('../utils/timezone');
 const { toTitleCase, capitalizeFirst } = require('../utils/validators');
+const path = require('path');
+const fs = require('fs');
 
 const router = express.Router();
+
+function getLogoUploadsDir() {
+    return path.join(__dirname, '..', '..', 'public', 'uploads', 'logos');
+}
+
+function getOldLogoPathIfManaged(logoValue) {
+    if (!logoValue || typeof logoValue !== 'string') return null;
+    if (!logoValue.startsWith('/uploads/logos/')) return null;
+    const fileName = path.basename(logoValue);
+    return path.join(getLogoUploadsDir(), fileName);
+}
 
 router.get('/', requireAuth, (req, res) => {
     try {
@@ -76,6 +89,71 @@ router.put('/', requireAdmin, (req, res) => {
     } catch (error) {
         console.error('Error al actualizar configuración:', error);
         res.status(500).json({ error: 'Error al actualizar configuración' });
+    }
+});
+
+router.post('/logo', requireAuth, requireAdmin, (req, res) => {
+    try {
+        if (!req.files || !req.files.logo) {
+            return res.status(400).json({ error: 'Debe seleccionar un archivo de logo' });
+        }
+
+        const logoFile = req.files.logo;
+        const ext = path.extname(logoFile.name || '').toLowerCase();
+        const allowedExt = ['.png', '.jpg', '.jpeg', '.webp'];
+        const allowedMime = ['image/png', 'image/jpeg', 'image/webp'];
+
+        if (!allowedExt.includes(ext) || !allowedMime.includes(logoFile.mimetype)) {
+            return res.status(400).json({ error: 'Formato invalido. Use PNG, JPG o WEBP' });
+        }
+
+        const db = getDb();
+        const negocio = db.prepare('SELECT logo FROM negocios WHERE id = ?').get(req.session.negocioId);
+        if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
+
+        const uploadsDir = getLogoUploadsDir();
+        if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+
+        const fileName = `logo-${req.session.negocioId}-${Date.now()}${ext}`;
+        const absolutePath = path.join(uploadsDir, fileName);
+        const relativePath = `/uploads/logos/${fileName}`;
+
+        logoFile.mv(absolutePath, (err) => {
+            if (err) {
+                console.error('Error guardando logo:', err);
+                return res.status(500).json({ error: 'No se pudo guardar el logo' });
+            }
+
+            const oldLogoPath = getOldLogoPathIfManaged(negocio.logo);
+            if (oldLogoPath && fs.existsSync(oldLogoPath)) {
+                try { fs.unlinkSync(oldLogoPath); } catch (_) {}
+            }
+
+            db.prepare('UPDATE negocios SET logo = ? WHERE id = ?').run(relativePath, req.session.negocioId);
+            res.json({ success: true, logo: relativePath });
+        });
+    } catch (error) {
+        console.error('Error subiendo logo:', error);
+        res.status(500).json({ error: 'Error al subir logo' });
+    }
+});
+
+router.delete('/logo', requireAuth, requireAdmin, (req, res) => {
+    try {
+        const db = getDb();
+        const negocio = db.prepare('SELECT logo FROM negocios WHERE id = ?').get(req.session.negocioId);
+        if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
+
+        const oldLogoPath = getOldLogoPathIfManaged(negocio.logo);
+        if (oldLogoPath && fs.existsSync(oldLogoPath)) {
+            try { fs.unlinkSync(oldLogoPath); } catch (_) {}
+        }
+
+        db.prepare('UPDATE negocios SET logo = NULL WHERE id = ?').run(req.session.negocioId);
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error eliminando logo:', error);
+        res.status(500).json({ error: 'Error al eliminar logo' });
     }
 });
 

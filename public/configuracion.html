@@ -102,6 +102,38 @@
             font-size: 0.95rem;
             margin: 0;
         }
+        .logo-upload-box {
+            border: 1px dashed var(--gray-300);
+            border-radius: 14px;
+            padding: 1rem;
+            background: #f8fafc;
+        }
+        .logo-preview-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.85rem;
+            margin-bottom: 0.75rem;
+        }
+        .logo-preview {
+            width: 72px;
+            height: 72px;
+            border-radius: 14px;
+            border: 1px solid #dbe7f5;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            color: #64748b;
+            font-size: 0.74rem;
+            font-weight: 700;
+        }
+        .logo-preview img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            background: #fff;
+        }
     </style>
 </head>
 <body>
@@ -160,6 +192,22 @@
                                 <div class="form-group">
                                     <label for="direccion">Dirección</label>
                                     <input type="text" id="direccion" name="direccion">
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <label>Logo del negocio</label>
+                                <div class="logo-upload-box">
+                                    <div class="logo-preview-wrap">
+                                        <div id="logoPreview" class="logo-preview">Sin logo</div>
+                                        <div style="font-size:0.8rem;color:var(--gray-500);line-height:1.4;">
+                                            Sube una imagen para usarla en recibos y encabezados.
+                                            <br>Formatos: PNG, JPG, WEBP (max 5MB).
+                                        </div>
+                                    </div>
+                                    <div style="display:flex;gap:0.55rem;flex-wrap:wrap;">
+                                        <input type="file" id="logoInput" accept="image/png,image/jpeg,image/webp" style="flex:1;min-width:220px;">
+                                        <button type="button" class="btn btn-secondary" onclick="eliminarLogoNegocio()">Quitar logo</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -500,6 +548,8 @@
     
     <script src="/js/api.js"></script>
     <script>
+        let currentLogo = '';
+
         document.addEventListener('DOMContentLoaded', async () => {
             const session = await checkSession();
             if (!session || !session.authenticated) {
@@ -518,6 +568,11 @@
             }
             
             await loadConfig();
+
+            const logoInput = document.getElementById('logoInput');
+            if (logoInput) {
+                logoInput.addEventListener('change', onLogoSelected);
+            }
             
             document.getElementById('configForm').addEventListener('submit', handleSubmit);
         });
@@ -532,6 +587,8 @@
                 document.getElementById('telefono').value = config.telefono || '';
                 document.getElementById('email').value = config.email || '';
                 document.getElementById('direccion').value = config.direccion || '';
+                currentLogo = config.logo || '';
+                renderLogoPreview();
                 
                 // Tipo de negocio
                 const tipoNegocio = config.tipo_negocio || 'ambos';
@@ -591,6 +648,71 @@
             const s = str.trim();
             return s.charAt(0).toUpperCase() + s.slice(1);
         }
+
+        function renderLogoPreview() {
+            const preview = document.getElementById('logoPreview');
+            if (!preview) return;
+            if (currentLogo) {
+                preview.innerHTML = `<img src="${currentLogo}" alt="Logo del negocio">`;
+            } else {
+                preview.textContent = 'Sin logo';
+            }
+        }
+
+        async function onLogoSelected(event) {
+            const file = event.target.files && event.target.files[0];
+            if (!file) return;
+
+            const allowedTypes = ['image/png', 'image/jpeg', 'image/webp'];
+            if (!allowedTypes.includes(file.type)) {
+                showToast('Formato invalido. Usa PNG, JPG o WEBP', 'error');
+                event.target.value = '';
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('logo', file);
+
+            try {
+                const res = await fetch('/api/config/logo', {
+                    method: 'POST',
+                    body: formData,
+                    credentials: 'same-origin'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'No se pudo subir el logo');
+
+                currentLogo = data.logo || '';
+                renderLogoPreview();
+                showToast('Logo actualizado correctamente', 'success');
+            } catch (error) {
+                showToast(error.message || 'Error al subir logo', 'error');
+            } finally {
+                event.target.value = '';
+            }
+        }
+
+        async function eliminarLogoNegocio() {
+            if (!currentLogo) {
+                showToast('No hay logo para eliminar', 'info');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/config/logo', {
+                    method: 'DELETE',
+                    credentials: 'same-origin'
+                });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || 'No se pudo eliminar el logo');
+
+                currentLogo = '';
+                renderLogoPreview();
+                showToast('Logo eliminado correctamente', 'success');
+            } catch (error) {
+                showToast(error.message || 'Error al eliminar logo', 'error');
+            }
+        }
         
         async function handleSubmit(e) {
             e.preventDefault();
@@ -617,6 +739,7 @@
                 telefono: document.getElementById('telefono').value,
                 email: document.getElementById('email').value.toLowerCase().trim(),
                 direccion: capitalizeFirst(document.getElementById('direccion').value),
+                logo: currentLogo || null,
                 tipo_negocio: document.getElementById('tipo_negocio').value || 'ambos',
                 whatsapp_negocio: document.getElementById('whatsapp_negocio').value.replace(/\D/g, '') || null,
                 hora_apertura: document.getElementById('hora_apertura').value,
@@ -636,7 +759,7 @@
                     method: 'PUT',
                     body: JSON.stringify(data)
                 });
-                showModalError('Configuración guardada correctamente', 'success');
+                showModalSuccess('Configuración guardada correctamente', 'Configuración guardada');
             } catch (error) {
                 showModalError(error.message);
             }
@@ -704,7 +827,7 @@
                 errorEl.style.display = 'none';
                 updateFullUrl();
                 generateQRConfig();
-                alert('Link actualizado correctamente!');
+                showModalSuccess('Link actualizado correctamente', 'Éxito');
             } catch (error) {
                 errorEl.textContent = 'Error al guardar';
                 errorEl.style.display = 'block';
@@ -714,7 +837,7 @@
         function copiarLinkCompleto() {
             const url = window.location.origin + '/booking/' + currentSlug;
             navigator.clipboard.writeText(url).then(() => {
-                alert('Link copiado!');
+                showToast('Link copiado', 'success');
             });
         }
         
@@ -875,7 +998,8 @@
         }
         
         async function eliminarCertificado() {
-            if (!confirm('¿Está seguro de eliminar el certificado?')) return;
+            const ok = await showConfirm('Eliminar Certificado', '¿Está seguro de eliminar el certificado?');
+            if (!ok) return;
             
             try {
                 const res = await fetch('/api/config/certificado', { method: 'DELETE' });

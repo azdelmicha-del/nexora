@@ -139,6 +139,60 @@
         }
         .copy-btn:hover { background: rgba(255,255,255,0.3); }
 
+        .menu-quick-actions {
+            margin-top: 1.5rem;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            border-radius: 18px;
+            padding: 1.25rem;
+            box-shadow: 0 14px 30px rgba(15,23,42,0.24);
+            color: #fff;
+            border: 1px solid rgba(255,255,255,0.08);
+        }
+        .menu-quick-actions h3 {
+            margin: 0 0 0.25rem;
+            font-size: 1rem;
+            font-weight: 700;
+        }
+        .menu-quick-actions p {
+            margin: 0;
+            font-size: 0.84rem;
+            color: rgba(255,255,255,0.8);
+        }
+        .menu-quick-actions-buttons {
+            margin-top: 0.9rem;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.65rem;
+        }
+        .quick-btn {
+            border: none;
+            border-radius: 14px;
+            min-height: 48px;
+            padding: 0.75rem 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-family: inherit;
+        }
+        .quick-btn:hover {
+            transform: translateY(-1px);
+        }
+        .quick-btn-item {
+            background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+            color: #fff;
+            box-shadow: 0 8px 18px rgba(34,197,94,0.32);
+        }
+        .quick-btn-cat {
+            background: #fff;
+            color: #111827;
+        }
+
+        @media (max-width: 768px) {
+            .menu-quick-actions-buttons {
+                grid-template-columns: 1fr;
+            }
+        }
+
         /* Image upload styles */
         .imagen-upload-container {
             border: 2px dashed var(--gray-300);
@@ -188,10 +242,6 @@
         <main class="main-content">
             <div class="page-header">
                 <h1>Menu Digital</h1>
-                <div style="display:flex;gap:0.5rem;">
-                    <button class="btn btn-secondary" onclick="openCatModal()">+ Categoria</button>
-                    <button class="btn btn-primary" onclick="openItemModal()">+ Item del Menu</button>
-                </div>
             </div>
 
             <div class="delivery-config mb-4">
@@ -224,6 +274,15 @@
                         <button class="copy-btn" onclick="copyMenuLink()">📋 Copiar</button>
                     </div>
                 </div>
+
+                <div class="menu-quick-actions">
+                    <h3>Acciones Rapidas del Menu</h3>
+                    <p>Agrega categorías e items de forma visible y rápida.</p>
+                    <div class="menu-quick-actions-buttons">
+                        <button class="quick-btn quick-btn-item" onclick="openItemModal()">+ Item del Menu</button>
+                        <button class="quick-btn quick-btn-cat" onclick="openCatModal()">+ Categoria</button>
+                    </div>
+                </div>
             </div>
 
             <div class="menu-tabs">
@@ -237,6 +296,7 @@
             <div id="tabCategorias" style="display:none;">
                 <div style="display:grid;gap:0.75rem;" id="categoriasList"></div>
             </div>
+
         </main>
     </div>
 
@@ -326,7 +386,7 @@
                     delivery_tiempo: parseInt(document.getElementById('deliveryTiempo').value)||30,
                     delivery_minimo: parseFloat(document.getElementById('deliveryMinimo').value)||0
                 })});
-            } catch(e) {}
+            } catch(e) { showToast(e.message || 'Error al guardar configuración de delivery', 'error'); }
         }
         function copyMenuLink() {
             const input = document.getElementById('menuLink');
@@ -464,7 +524,8 @@
             } catch(err) { showToast(err.message,'error'); }
         }
         async function deleteCat(id) {
-            if (!confirm('Eliminar esta categoria?')) return;
+            const ok = await showConfirm('Eliminar Categoría', '¿Eliminar esta categoría?');
+            if (!ok) return;
             try { await apiCall(`/menu/categorias/${id}`, {method:'DELETE'}); await loadCategorias(); } catch(e) { showToast(e.message,'error'); }
         }
         // Items
@@ -486,7 +547,7 @@
                 document.getElementById('itemDesc').value=it.descripcion||'';
                 document.getElementById('itemPrecio').value=it.precio;
                 document.getElementById('itemCategoria').value=it.categoria_id||'';
-                document.getElementById('itemItbis').value=it.itbis_tasa||18;
+                document.getElementById('itemItbis').value = (it.itbis_tasa !== null && it.itbis_tasa !== undefined) ? it.itbis_tasa : 18;
                 document.getElementById('itemDestacado').checked=!!it.destacado;
                 document.getElementById('itemDisponible').checked=!!it.disponible;
                 document.getElementById('itemModalTitle').textContent='Editar Item';
@@ -516,7 +577,8 @@
             } catch(err) { showToast(err.message,'error'); }
         }
         async function deleteItem(id, nombre) {
-            if (!confirm(`Eliminar "${nombre}"?`)) return;
+            const ok = await showConfirm('Eliminar Item', `¿Eliminar "${nombre}"?`);
+            if (!ok) return;
             try { await apiCall(`/menu/items/${id}`, {method:'DELETE'}); await loadItems(); } catch(e) { showToast(e.message,'error'); }
         }
         function esc(t){if(!t)return'';const d=document.createElement('div');d.textContent=t;return d.innerHTML;}

@@ -1,23 +1,17 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { toTitleCase } = require('../utils/validators');
+const { getRDDate, getRDDateString } = require('../utils/timezone');
 const router = express.Router();
 
-// Función para obtener la hora actual en la zona horaria del negocio
-function getHoraNegocio(db, negocioId) {
-    const config = db.prepare('SELECT zona_horaria FROM negocios WHERE id = ?').get(negocioId);
-    const zonaHoraria = config ? config.zona_horaria : -4; // Default: UTC-4 (República Dominicana)
-    
-    const ahoraUTC = new Date();
-    const ahoraLocal = new Date(ahoraUTC.getTime() + (zonaHoraria * 60 * 60 * 1000));
-    
+function getRDNowInfo() {
+    const ahoraRD = getRDDate();
     return {
-        fecha: `${ahoraLocal.getFullYear()}-${String(ahoraLocal.getMonth() + 1).padStart(2, '0')}-${String(ahoraLocal.getDate()).padStart(2, '0')}`,
-        hora: ahoraLocal.getHours(),
-        minuto: ahoraLocal.getMinutes(),
-        horaMinutos: ahoraLocal.getHours() * 60 + ahoraLocal.getMinutes(),
-        fechaObj: ahoraLocal,
-        zona_horaria: zonaHoraria
+        fecha: getRDDateString(ahoraRD),
+        hora: ahoraRD.getHours(),
+        minuto: ahoraRD.getMinutes(),
+        horaMinutos: ahoraRD.getHours() * 60 + ahoraRD.getMinutes(),
+        fechaObj: ahoraRD
     };
 }
 
@@ -62,7 +56,8 @@ router.get('/availability/:slug', (req, res) => {
         const { fecha, servicio_id } = req.query;
         
         const negocio = db.prepare(`
-            SELECT id, hora_apertura, hora_cierre, dias_laborales, permitir_solapamiento, buffer_entre_citas
+            SELECT id, hora_apertura, hora_cierre, dias_laborales, permitir_solapamiento, buffer_entre_citas,
+                   tiempo_anticipacion
             FROM negocios WHERE slug = ? AND estado = 'activo' AND booking_activo = 1
         `).get(req.params.slug);
 
@@ -94,16 +89,24 @@ router.get('/availability/:slug', (req, res) => {
         const bufferMin = negocio.buffer_entre_citas || 0;
 
         // Usar zona horaria del negocio
-        const horaNegocio = getHoraNegocio(db, negocio.id);
+        const horaNegocio = getRDNowInfo();
         const esHoy = fecha === horaNegocio.fecha;
         const horaActualMin = esHoy ? horaNegocio.horaMinutos : null;
+        const tiempoAnticipacion = negocio.tiempo_anticipacion || 0;
+        const minimoReservableMin = esHoy ? (horaNegocio.horaMinutos + tiempoAnticipacion) : null;
 
         const horarios = [];
         let actual = aperturaMin;
 
         while (actual < cierreMin) {
-            // Saltar horarios que terminarían antes o en el momento actual
-            if (horaActualMin !== null && actual + duracion <= horaActualMin) {
+            // Saltar horarios cuya hora de inicio ya pasó
+            if (horaActualMin !== null && actual < horaActualMin) {
+                actual += 5;
+                continue;
+            }
+
+            // Saltar horarios que violan tiempo de anticipación
+            if (minimoReservableMin !== null && actual < minimoReservableMin) {
                 actual += 5;
                 continue;
             }
@@ -131,6 +134,33 @@ router.get('/availability/:slug', (req, res) => {
 
             if (disponible) horarios.push({ hora: h, horaFin: hf });
             actual += 5;
+        }
+
+        if (!horarios.length && esHoy && minimoReservableMin !== null && minimoReservableMin >= cierreMin) {
+            const diasLaborales = negocio.dias_laborales.split(',').map(Number);
+            const siguiente = new Date(fecha + 'T12:00:00');
+            let fechaSugerida = null;
+
+            for (let i = 1; i <= 60; i++) {
+                const candidato = new Date(siguiente);
+                candidato.setDate(siguiente.getDate() + i);
+                let dia = candidato.getDay();
+                if (dia === 0) dia = 7;
+                if (diasLaborales.includes(dia)) {
+                    const y = candidato.getFullYear();
+                    const m = String(candidato.getMonth() + 1).padStart(2, '0');
+                    const d = String(candidato.getDate()).padStart(2, '0');
+                    fechaSugerida = `${y}-${m}-${d}`;
+                    break;
+                }
+            }
+
+            return res.json({
+                horarios,
+                bloqueadoPorAnticipacion: true,
+                mensaje: `Por la anticipación mínima de ${tiempoAnticipacion} minutos, hoy ya no hay horarios disponibles.`,
+                fechaSugerida
+            });
         }
 
         res.json({ horarios });
@@ -161,7 +191,6 @@ router.post('/appointments', (req, res) => {
             .get(servicio_id, negocio.id);
         if (!servicio) return res.status(404).json({ error: 'Servicio no encontrado' });
 
-        const zonaHoraria = negocio.zona_horaria || -4;
         const duracionMinima = negocio.duracion_minima_cita || 30;
         const tiempoAnticipacion = negocio.tiempo_anticipacion || 0;
 
@@ -170,22 +199,19 @@ router.post('/appointments', (req, res) => {
             return res.status(400).json({ error: `El servicio debe durar al menos ${duracionMinima} minutos` });
         }
 
-        // REGLA 1: Validar que la fecha/hora no sea pasada (usando zona horaria del negocio)
-        const [anio, mes, dia] = fecha.split('-').map(Number);
+        // REGLA 1: Validar que la fecha/hora no sea pasada (hora RD)
         const [hh, mm] = hora.split(':').map(Number);
-        
-        // 14:10 en RD (UTC-4) = 18:10 UTC
-        const fechaCitaUTC = Date.UTC(anio, mes - 1, dia, hh, mm) - (zonaHoraria * 60 * 60 * 1000);
-        const ahoraUTC = Date.now();
-        
-        if (fechaCitaUTC < ahoraUTC) {
+
+        const horaCitaMin = (hh * 60) + mm;
+        const ahoraRD = getRDNowInfo();
+
+        if (fecha < ahoraRD.fecha || (fecha === ahoraRD.fecha && horaCitaMin < ahoraRD.horaMinutos)) {
             return res.status(400).json({ error: 'No se pueden crear citas en fechas u horas pasadas' });
         }
 
         // Validar tiempo de anticipación
         if (tiempoAnticipacion > 0) {
-            const milisegundosAnticipacion = tiempoAnticipacion * 60 * 1000;
-            if (fechaCitaUTC < ahoraUTC + milisegundosAnticipacion) {
+            if (fecha === ahoraRD.fecha && horaCitaMin < (ahoraRD.horaMinutos + tiempoAnticipacion)) {
                 return res.status(400).json({ error: `Debe agendar con al menos ${tiempoAnticipacion} minutos de anticipación` });
             }
         }

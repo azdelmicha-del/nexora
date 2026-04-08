@@ -321,7 +321,8 @@
         }
         
         async function deleteUsuario(id, nombre) {
-            if (!confirm(`¿Está seguro que desea eliminar el usuario "${nombre}"?`)) return;
+            const ok = await showConfirm('Eliminar Usuario', `¿Está seguro que desea eliminar el usuario "${nombre}"?`);
+            if (!ok) return;
             try {
                 await apiCall(`/users/${id}`, { method: 'DELETE' });
                 showToast('Usuario eliminado correctamente', 'success');
@@ -332,7 +333,8 @@
         }
         
         async function reactivateUsuario(id) {
-            if (!confirm('¿Reactivar este usuario? Podrá iniciar sesión nuevamente.')) return;
+            const ok = await showConfirm('Reactivar Usuario', '¿Reactivar este usuario? Podrá iniciar sesión nuevamente.');
+            if (!ok) return;
             try {
                 await apiCall(`/users/${id}/reactivate`, { method: 'POST' });
                 showToast('Usuario reactivado correctamente', 'success');

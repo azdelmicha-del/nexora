@@ -4,6 +4,7 @@ const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { toTitleCase, capitalizeFirst } = require('../utils/validators');
 
 const router = express.Router();
+const ITBIS_PERMITIDOS = [0, 8, 16, 18];
 
 // ── Categorias del Menu ─────────────────────────────────────────────────────
 
@@ -92,12 +93,20 @@ router.post('/items', requireAuth, (req, res) => {
     try {
         const { categoria_id, nombre, descripcion, precio, imagen, itbis_tasa, destacado } = req.body;
         if (!nombre || !precio) return res.status(400).json({ error: 'Nombre y precio requeridos' });
+
+        const tasaFinal = (itbis_tasa !== undefined && itbis_tasa !== null)
+            ? parseInt(itbis_tasa, 10)
+            : 18;
+        if (!ITBIS_PERMITIDOS.includes(tasaFinal)) {
+            return res.status(400).json({ error: 'itbis_tasa debe ser 0, 8, 16 o 18' });
+        }
+
         const db = getDb();
         const result = db.prepare(`
             INSERT INTO menu_items (negocio_id, categoria_id, nombre, descripcion, precio, imagen, itbis_tasa, destacado)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `).run(req.session.negocioId, categoria_id || null, toTitleCase(nombre), descripcion ? capitalizeFirst(descripcion) : null,
-            parseFloat(precio), imagen || null, parseInt(itbis_tasa) || 18, destacado ? 1 : 0);
+            parseFloat(precio), imagen || null, tasaFinal, destacado ? 1 : 0);
         res.json({ id: result.lastInsertRowid });
     } catch (error) {
         console.error('Error:', error);
@@ -116,7 +125,14 @@ router.put('/items/:id', requireAuth, (req, res) => {
         if (precio !== undefined) { updates.push('precio = ?'); params.push(parseFloat(precio)); }
         if (imagen !== undefined) { updates.push('imagen = ?'); params.push(imagen || null); }
         if (disponible !== undefined) { updates.push('disponible = ?'); params.push(disponible ? 1 : 0); }
-        if (itbis_tasa !== undefined) { updates.push('itbis_tasa = ?'); params.push(parseInt(itbis_tasa)); }
+        if (itbis_tasa !== undefined) {
+            const tasaPUT = parseInt(itbis_tasa, 10);
+            if (!ITBIS_PERMITIDOS.includes(tasaPUT)) {
+                return res.status(400).json({ error: 'itbis_tasa debe ser 0, 8, 16 o 18' });
+            }
+            updates.push('itbis_tasa = ?');
+            params.push(tasaPUT);
+        }
         if (destacado !== undefined) { updates.push('destacado = ?'); params.push(destacado ? 1 : 0); }
         if (categoria_id !== undefined) { updates.push('categoria_id = ?'); params.push(categoria_id || null); }
         if (updates.length === 0) return res.status(400).json({ error: 'No hay campos' });
@@ -158,10 +174,15 @@ router.put('/config', requireAuth, (req, res) => {
     try {
         const { delivery_activo, delivery_costo, delivery_tiempo, delivery_minimo } = req.body;
         const db = getDb();
+        const deliveryActivo = delivery_activo ? 1 : 0;
+        const deliveryCosto = Math.max(0, parseFloat(delivery_costo) || 0);
+        const deliveryTiempo = Math.max(5, parseInt(delivery_tiempo) || 30);
+        const deliveryMinimo = Math.max(0, parseFloat(delivery_minimo) || 0);
+
         db.prepare(`
             UPDATE negocios SET delivery_activo=?, delivery_costo=?, delivery_tiempo=?, delivery_minimo=?
             WHERE id=?
-        `).run(delivery_activo?1:0, parseFloat(delivery_costo)||0, parseInt(delivery_tiempo)||30, parseFloat(delivery_minimo)||0, req.session.negocioId);
+        `).run(deliveryActivo, deliveryCosto, deliveryTiempo, deliveryMinimo, req.session.negocioId);
         res.json({ success: true });
     } catch (error) {
         console.error('Error:', error);

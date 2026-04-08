@@ -269,7 +269,8 @@ router.get('/:id', requireAuth, (req, res) => {
         const detalles = db.prepare(`
             SELECT vd.id, vd.cantidad, vd.precio, vd.subtotal, vd.itbis_monto,
                    vd.tipo_item,
-                   COALESCE(s.nombre, p.nombre, m.nombre) as servicio
+                   COALESCE(s.nombre, p.nombre, m.nombre) as servicio,
+                   COALESCE(s.itbis_tasa, p.itbis_tasa, m.itbis_tasa, 18) as itbis_tasa
             FROM venta_detalles vd
             LEFT JOIN servicios s ON vd.servicio_id = s.id
             LEFT JOIN productos p ON vd.producto_id = p.id

@@ -661,7 +661,7 @@ tr:hover {
     gap: 1.5rem;
 }
 
-@media (max-width: 768px) {
+@media (max-width: 1024px) {
     .hamburger-btn {
         display: flex;
     }
@@ -695,6 +695,9 @@ tr:hover {
         margin-bottom: 1rem;
     }
     
+}
+
+@media (max-width: 768px) {
     .grid-2 {
         grid-template-columns: 1fr;
     }

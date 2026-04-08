@@ -688,7 +688,8 @@
         }
         
         async function deleteKey(key) {
-            if (!confirm('¿Eliminar esta clave?')) return;
+            const ok = await showConfirm('Eliminar Clave', '¿Eliminar esta clave?');
+            if (!ok) return;
             
             try {
                 const res = await fetch(`/api/license/keys/${key}`, {
@@ -1034,7 +1035,8 @@
         
         async function toggleSuspender(id, suspender) {
             const accion = suspender ? 'suspender' : 'reactivar';
-            if (!confirm(`¿Estás seguro de ${accion} este negocio?`)) return;
+            const ok = await showConfirm('Confirmar Acción', `¿Estás seguro de ${accion} este negocio?`);
+            if (!ok) return;
             
             try {
                 const res = await fetch(`/api/license/businesses/${id}/suspend`, {
@@ -1059,9 +1061,14 @@
         }
         
         async function eliminarNegocio(id, nombre) {
-            if (!confirm(`¿ELIMINAR permanentemente "${nombre}"?\n\nEsta acción eliminará TODOS los datos: usuarios, clientes, servicios, ventas, etc.\n\nEsta acción NO se puede deshacer.`)) return;
-            
-            if (!confirm('¿CONFIRMAR eliminación? Escribe "SI" mentalmente y haz clic en Aceptar.')) return;
+            const firstOk = await showConfirm(
+                'Eliminar Negocio',
+                `¿ELIMINAR permanentemente "${nombre}"? Esta acción eliminará TODOS los datos y NO se puede deshacer.`
+            );
+            if (!firstOk) return;
+
+            const secondOk = await showConfirm('Confirmación Final', '¿Confirmar eliminación definitiva del negocio?');
+            if (!secondOk) return;
             
             try {
                 const res = await fetch(`/api/license/businesses/${id}`, {
