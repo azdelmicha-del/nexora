@@ -188,6 +188,40 @@ router.get('/businesses', (req, res) => {
     res.json(negocios);
 });
 
+// Must be defined BEFORE /businesses/:id to avoid Express treating "stats" as :id
+router.get('/businesses/stats/growth', (req, res) => {
+    if (!isAuthorized(req)) {
+        return res.status(403).json({ error: 'Acceso denegado' });
+    }
+    
+    const db = require('../database').getDb();
+    
+    const ultimosMeses = db.prepare(`
+        SELECT 
+            strftime('%Y-%m', fecha_creacion) as mes,
+            COUNT(*) as cantidad
+        FROM negocios
+        WHERE fecha_creacion >= DATE('now', '-12 months')
+        GROUP BY strftime('%Y-%m', fecha_creacion)
+        ORDER BY mes ASC
+    `).all();
+    
+    const resumen = db.prepare(`
+        SELECT 
+            COUNT(*) as total,
+            SUM(CASE WHEN licencia_plan != 'trial' AND licencia_plan IS NOT NULL THEN 1 ELSE 0 END) as activos,
+            SUM(CASE WHEN licencia_plan = 'trial' OR licencia_plan IS NULL THEN 1 ELSE 0 END) as en_trial,
+            SUM(CASE WHEN estado = 'suspendido' THEN 1 ELSE 0 END) as suspendidos
+        FROM negocios
+        WHERE estado != 'eliminado'
+    `).get();
+    
+    res.json({
+        mensual: ultimosMeses,
+        resumen
+    });
+});
+
 router.get('/businesses/:id', (req, res) => {
     if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
@@ -302,39 +336,6 @@ router.post('/businesses/:id/renew', (req, res) => {
         success: true, 
         message: `Licencia renovada: ${plan} (${dias} días)`,
         fechaExpiracion 
-    });
-});
-
-router.get('/businesses/stats/growth', (req, res) => {
-    if (!isAuthorized(req)) {
-        return res.status(403).json({ error: 'Acceso denegado' });
-    }
-    
-    const db = require('../database').getDb();
-    
-    const ultimosMeses = db.prepare(`
-        SELECT 
-            strftime('%Y-%m', fecha_creacion) as mes,
-            COUNT(*) as cantidad
-        FROM negocios
-        WHERE fecha_creacion >= DATE('now', '-12 months')
-        GROUP BY strftime('%Y-%m', fecha_creacion)
-        ORDER BY mes ASC
-    `).all();
-    
-    const resumen = db.prepare(`
-        SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN licencia_plan != 'trial' AND licencia_plan IS NOT NULL THEN 1 ELSE 0 END) as activos,
-            SUM(CASE WHEN licencia_plan = 'trial' OR licencia_plan IS NULL THEN 1 ELSE 0 END) as en_trial,
-            SUM(CASE WHEN estado = 'suspendido' THEN 1 ELSE 0 END) as suspendidos
-        FROM negocios
-        WHERE estado != 'eliminado'
-    `).get();
-    
-    res.json({
-        mensual: ultimosMeses,
-        resumen
     });
 });
 

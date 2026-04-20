@@ -177,7 +177,7 @@ router.get('/availability/:slug', (req, res) => {
 router.post('/appointments', (req, res) => {
     try {
         const db = getDb();
-        const { slug, servicio_id, fecha, hora, nombre, whatsapp, email, notas } = req.body;
+        const { slug, servicio_id, fecha, hora, nombre, whatsapp, email, notas, tipo_documento, documento } = req.body;
 
         // Validar campos requeridos
         if (!slug || !servicio_id || !fecha || !hora || !nombre || !whatsapp) {
@@ -269,7 +269,9 @@ router.post('/appointments', (req, res) => {
                 nombre,
                 telefono: whatsapp,
                 email,
-                notas
+                notas,
+                tipo_documento,
+                documento
             },
             { requireName: true, requirePhone: true, createIfMissing: true, updateMissingFields: true }
         );

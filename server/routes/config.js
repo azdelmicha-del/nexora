@@ -405,4 +405,15 @@ router.delete('/certificado', requireAuth, requireAdmin, (req, res) => {
     }
 });
 
+// Public endpoint — no auth needed, returns platform info for the footer bar
+router.get('/platform', (req, res) => {
+    try {
+        const db = getDb();
+        const cfg = db.prepare('SELECT system_name, version, edition, copyright_year, show_footer, custom_text FROM platform_config WHERE id = 1').get();
+        res.json(cfg || { system_name: 'Nexora', version: '1.0.0', edition: 'Pro', copyright_year: new Date().getFullYear(), show_footer: 1, custom_text: '' });
+    } catch (error) {
+        res.json({ system_name: 'Nexora', version: '1.0.0', edition: 'Pro', copyright_year: new Date().getFullYear(), show_footer: 1, custom_text: '' });
+    }
+});
+
 module.exports = router;

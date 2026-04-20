@@ -335,6 +335,9 @@ function validateDatos() {
     const nombre = document.getElementById('nombre').value.trim();
     const whatsapp = document.getElementById('whatsapp').value.trim();
     const email = document.getElementById('email').value.trim().toLowerCase();
+    const fiscalMode = document.getElementById('bookingFiscalMode').value;
+    const tipoDocumento = document.getElementById('bookingTipoDocumento').value;
+    const documento = document.getElementById('bookingDocumento').value.replace(/[^0-9]/g, '');
     if (!nombre) { showError('Ingresa tu nombre'); return false; }
     if (!whatsapp) { showError('Ingresa tu WhatsApp'); return false; }
 
@@ -350,8 +353,24 @@ function validateDatos() {
         }
     }
 
+    if (fiscalMode === 'si') {
+        if (!tipoDocumento) { showError('Selecciona el tipo de documento fiscal'); return false; }
+        if (documento.length !== 9 && documento.length !== 11) {
+            showError('El RNC o Cédula debe tener 9 u 11 dígitos');
+            return false;
+        }
+    }
+
     hideError();
     return true;
+}
+
+function toggleBookingFiscalFields() {
+    const mode = document.getElementById('bookingFiscalMode').value;
+    document.getElementById('bookingFiscalFields').style.display = mode === 'si' ? 'grid' : 'none';
+    if (mode !== 'si') {
+        document.getElementById('bookingDocumento').value = '';
+    }
 }
 
 function showPreview() {
@@ -374,6 +393,11 @@ function showPreview() {
     document.getElementById('preview-nombre').textContent = document.getElementById('nombre').value.trim();
     document.getElementById('preview-whatsapp').textContent = document.getElementById('whatsapp').value.trim();
     document.getElementById('preview-email').textContent = document.getElementById('email').value.trim() || '-';
+    const fiscalMode = document.getElementById('bookingFiscalMode').value;
+    const documento = document.getElementById('bookingDocumento').value.trim();
+    document.getElementById('preview-comprobante').textContent = fiscalMode === 'si' ? 'Fiscal' : 'Consumo';
+    document.getElementById('preview-documento-row').style.display = fiscalMode === 'si' && documento ? 'flex' : 'none';
+    document.getElementById('preview-documento').textContent = documento || '-';
     document.getElementById('preview-notas').textContent = document.getElementById('notas').value.trim() || '-';
     
     goToSection('preview');
@@ -398,7 +422,9 @@ async function submitBooking() {
         nombre: toTitleCase(document.getElementById('nombre').value.trim()),
         whatsapp: document.getElementById('whatsapp').value.trim(),
         email: document.getElementById('email').value.trim() || null,
-        notas: capitalizeFirst(document.getElementById('notas').value) || null
+        notas: capitalizeFirst(document.getElementById('notas').value) || null,
+        tipo_documento: document.getElementById('bookingFiscalMode').value === 'si' ? document.getElementById('bookingTipoDocumento').value : null,
+        documento: document.getElementById('bookingFiscalMode').value === 'si' ? document.getElementById('bookingDocumento').value.replace(/[^0-9]/g, '') : null
     };
     
     try {
@@ -429,7 +455,8 @@ function showSuccess(cita, formData) {
         '<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span style="color:#666;">Servicio:</span><span style="font-weight:600;">' + selectedService.nombre + '</span></div>' +
         '<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span style="color:#666;">Fecha:</span><span style="font-weight:600;">' + fechaStr + '</span></div>' +
         '<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span style="color:#666;">Hora:</span><span style="font-weight:600;">' + cita.hora_inicio + '</span></div>' +
-        '<div style="display:flex; justify-content:space-between; padding:8px 0;"><span style="color:#666;">Precio:</span><span style="font-weight:600; color:#667eea;">RD$' + Number(cita.precio).toFixed(2) + '</span></div>';
+        '<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #eee;"><span style="color:#666;">Precio:</span><span style="font-weight:600; color:#667eea;">RD$' + Number(cita.precio).toFixed(2) + '</span></div>' +
+        '<div style="display:flex; justify-content:space-between; padding:8px 0;"><span style="color:#666;">Comprobante:</span><span style="font-weight:600;">' + (formData.documento ? 'Fiscal' : 'Consumo') + (formData.documento ? ' · ' + formData.documento : '') + '</span></div>';
     
     document.getElementById('modal-summary').innerHTML = summaryHtml;
     

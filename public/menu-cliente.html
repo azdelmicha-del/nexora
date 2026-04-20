@@ -322,6 +322,26 @@
                         <label class="form-label">Telefono / WhatsApp <span class="form-required">*</span></label>
                         <input type="tel" class="form-input" id="clienteTelefono" placeholder="809-555-1234" maxlength="10" oninput="this.value=this.value.replace(/[^0-9]/g,'').substring(0,10)">
                     </div>
+                    <div class="form-group">
+                        <label class="form-label">Comprobante fiscal</label>
+                        <select class="form-input" id="clienteFiscalMode" onchange="toggleMenuFiscalFields()">
+                            <option value="no">No, venta de consumo</option>
+                            <option value="si">Si, agregar RNC/Cédula</option>
+                        </select>
+                    </div>
+                    <div id="menuFiscalFields" style="display:none; gap:12px; grid-template-columns:1fr 1.3fr;">
+                        <div class="form-group">
+                            <label class="form-label">Tipo de documento</label>
+                            <select class="form-input" id="clienteTipoDocumento">
+                                <option value="rnc">RNC</option>
+                                <option value="cedula">Cédula</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Documento</label>
+                            <input type="text" class="form-input" id="clienteDocumento" placeholder="RNC o Cédula">
+                        </div>
+                    </div>
                     <div id="domicilio-fields" style="display:none;">
                         <div class="form-group">
                             <label class="form-label">Direccion de Entrega <span class="form-required">*</span></label>
@@ -367,6 +387,8 @@
                     <hr style="margin:12px 0;border:none;border-top:1px solid #eee;">
                     <div class="preview-row"><span class="preview-label">Nombre</span><span class="preview-value" id="preview-nombre">-</span></div>
                     <div class="preview-row"><span class="preview-label">Telefono</span><span class="preview-value" id="preview-telefono">-</span></div>
+                    <div class="preview-row"><span class="preview-label">Comprobante</span><span class="preview-value" id="preview-comprobante">Consumo</span></div>
+                    <div class="preview-row" id="preview-documento-row" style="display:none;"><span class="preview-label">Documento</span><span class="preview-value" id="preview-documento">-</span></div>
                     <div class="preview-row" id="preview-dir-row" style="display:none;"><span class="preview-label">Direccion</span><span class="preview-value" id="preview-direccion">-</span></div>
                     <div class="preview-row"><span class="preview-label">Notas</span><span class="preview-value" id="preview-notas">-</span></div>
                     <span class="preview-edit" onclick="goToSection('entrega')">← Editar datos</span>
@@ -582,6 +604,11 @@
             document.getElementById('preview-total').textContent = formatCurrency(total);
             document.getElementById('preview-nombre').textContent = document.getElementById('clienteNombre').value;
             document.getElementById('preview-telefono').textContent = document.getElementById('clienteTelefono').value;
+            const fiscalMode = document.getElementById('clienteFiscalMode').value;
+            const documentoFiscal = document.getElementById('clienteDocumento').value.trim();
+            document.getElementById('preview-comprobante').textContent = fiscalMode === 'si' ? 'Fiscal' : 'Consumo';
+            document.getElementById('preview-documento-row').style.display = fiscalMode === 'si' && documentoFiscal ? '' : 'none';
+            document.getElementById('preview-documento').textContent = documentoFiscal || '-';
             if (deliveryType === 'domicilio') {
                 document.getElementById('preview-dir-row').style.display = '';
                 document.getElementById('preview-direccion').textContent = document.getElementById('clienteDireccion').value;
@@ -601,16 +628,24 @@
 
         function esc(t) { if (!t) return ''; const d = document.createElement('div'); d.textContent = t; return d.innerHTML; }
         function formatCurrency(a) { return 'RD$' + Number(a || 0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ','); }
+        function toggleMenuFiscalFields() {
+            const mode = document.getElementById('clienteFiscalMode').value;
+            document.getElementById('menuFiscalFields').style.display = mode === 'si' ? 'grid' : 'none';
+            if (mode !== 'si') document.getElementById('clienteDocumento').value = '';
+        }
 
         // Event listeners
         document.getElementById('btn-next-menu').addEventListener('click', () => goToSection('entrega'));
         document.getElementById('btn-next-entrega').addEventListener('click', () => {
             const nombre = document.getElementById('clienteNombre').value.trim();
             const telefono = document.getElementById('clienteTelefono').value.replace(/\D/g, '');
+            const fiscalMode = document.getElementById('clienteFiscalMode').value;
+            const documentoFiscal = document.getElementById('clienteDocumento').value.replace(/[^0-9]/g, '');
             if (!nombre) { showModalError('Ingresa tu nombre', 'Validación'); return; }
             if (telefono.length !== 10) { showModalError('El teléfono debe tener 10 dígitos', 'Validación'); return; }
             const prefijo = telefono.substring(0, 3);
             if (!['809', '829', '849'].includes(prefijo)) { showModalError('El teléfono debe comenzar con 809, 829 o 849', 'Validación'); return; }
+            if (fiscalMode === 'si' && documentoFiscal.length !== 9 && documentoFiscal.length !== 11) { showModalError('El RNC o Cédula debe tener 9 u 11 dígitos', 'Validación'); return; }
             if (deliveryType === 'domicilio' && !document.getElementById('clienteDireccion').value.trim()) { showModalError('Ingresa la dirección de entrega', 'Validación'); return; }
 
             if (deliveryType === 'domicilio') {
@@ -639,6 +674,9 @@
             const direccion = document.getElementById('clienteDireccion').value.trim() || null;
             const ubicacion = document.getElementById('clienteUbicacion').value || null;
             const notas = document.getElementById('clienteNotas').value.trim() || null;
+            const fiscalMode = document.getElementById('clienteFiscalMode').value;
+            const tipoDocumento = fiscalMode === 'si' ? document.getElementById('clienteTipoDocumento').value : null;
+            const documentoFiscal = fiscalMode === 'si' ? document.getElementById('clienteDocumento').value.replace(/[^0-9]/g, '') : null;
 
             const btn = document.getElementById('submit-btn');
             btn.disabled = true;
@@ -650,6 +688,8 @@
                     cliente_telefono: telefono,
                     cliente_direccion: direccion,
                     cliente_ubicacion: ubicacion,
+                    cliente_tipo_documento: tipoDocumento,
+                    cliente_documento: documentoFiscal,
                     tipo_entrega: deliveryType,
                     notas: notas,
                     items: cart.map(i => ({ menu_item_id: i.menu_item_id, nombre: i.nombre, cantidad: i.cantidad }))
@@ -706,6 +746,10 @@
             deliveryType = 'retiro';
             document.getElementById('clienteNombre').value = '';
             document.getElementById('clienteTelefono').value = '';
+            document.getElementById('clienteFiscalMode').value = 'no';
+            document.getElementById('clienteTipoDocumento').value = 'rnc';
+            document.getElementById('clienteDocumento').value = '';
+            toggleMenuFiscalFields();
             document.getElementById('clienteDireccion').value = '';
             document.getElementById('clienteNotas').value = '';
             document.getElementById('clienteUbicacion').value = '';

@@ -173,6 +173,18 @@ app.use(express.static(path.join(__dirname, '..', 'public')));
 app.use('/api/auth', authRoutes);
 app.use('/api/users', requireActiveLicense, usersRoutes);
 app.use('/api/config', requireActiveLicense, configRoutes);
+
+// Public platform info (footer bar) — no auth, no license check
+app.get('/api/platform', (req, res) => {
+    try {
+        const { getDb } = require('./database');
+        const db = getDb();
+        const cfg = db.prepare('SELECT system_name, version, edition, copyright_year, show_footer, custom_text FROM platform_config WHERE id = 1').get();
+        res.json(cfg || { system_name: 'Nexora', version: '1.0.0', edition: 'Pro', copyright_year: new Date().getFullYear(), show_footer: 1, custom_text: '' });
+    } catch (e) {
+        res.json({ system_name: 'Nexora', version: '1.0.0', edition: 'Pro', copyright_year: new Date().getFullYear(), show_footer: 1, custom_text: '' });
+    }
+});
 app.use('/api/services', requireActiveLicense, servicesRoutes);
 app.use('/api/categories', requireActiveLicense, categoriesRoutes);
 app.use('/api/clients', requireActiveLicense, clientsRoutes);

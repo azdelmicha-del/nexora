@@ -401,18 +401,11 @@
 
             document.getElementById('mpBody').innerHTML = bodyHtml;
 
-            // Action buttons siempre visibles
+            // Action buttons (set fijo solicitado para modal de pedido)
             let actionsHtml = '';
             actionsHtml += `<button class="mp-btn mp-btn-confirm" onclick="cambiarEstado(${p.id},'confirmado')">Confirmar</button>`;
-            actionsHtml += `<button class="mp-btn mp-btn-prepare" onclick="cambiarEstado(${p.id},'preparando')">Preparar</button>`;
-            actionsHtml += `<button class="mp-btn mp-btn-ready" onclick="cambiarEstado(${p.id},'listo')">Listo</button>`;
-            actionsHtml += `<button class="mp-btn mp-btn-deliver" onclick="cambiarEstado(${p.id},'entregado')">Entregado</button>`;
+            actionsHtml += `<button class="mp-btn mp-btn-invoice" onclick="facturarPedido(${p.id})">FACTURAR</button>`;
             actionsHtml += `<button class="mp-btn mp-btn-cancel" onclick="cambiarEstado(${p.id},'cancelado')">Cancelar</button>`;
-            if (p.estado === 'entregado' && !p.venta_id) {
-                actionsHtml += `<button class="mp-btn mp-btn-invoice" onclick="facturarPedido(${p.id})">Pasar a POS</button>`;
-            } else if (!p.venta_id) {
-                actionsHtml += `<button class="mp-btn mp-btn-close" disabled style="opacity:.7;cursor:not-allowed;">Disponible al entregar</button>`;
-            }
             actionsHtml += `<button class="mp-btn mp-btn-close" onclick="closeModalPedido()">Cerrar</button>`;
 
             document.getElementById('mpActions').innerHTML = actionsHtml;

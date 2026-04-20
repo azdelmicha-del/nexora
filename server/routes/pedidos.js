@@ -261,7 +261,9 @@ router.get('/:id/checkout-data', requireAuth, (req, res) => {
 
         if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
         if (pedido.estado === 'cancelado') return res.status(400).json({ error: 'No se puede facturar un pedido cancelado' });
-        if (pedido.estado !== 'entregado') return res.status(400).json({ error: 'Solo se puede enviar a POS un pedido entregado' });
+        if (!['confirmado', 'entregado'].includes(pedido.estado)) {
+            return res.status(400).json({ error: 'Solo se puede enviar a POS un pedido confirmado o entregado' });
+        }
         if (pedido.venta_id) return res.status(400).json({ error: 'Este pedido ya fue facturado' });
 
         const items = db.prepare(`
@@ -303,7 +305,7 @@ router.post('/public/:negocioSlug', (req, res) => {
         `).get(req.params.negocioSlug);
         if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
 
-        const { cliente_nombre, cliente_telefono, cliente_direccion, cliente_ubicacion, tipo_entrega, items, notas, descuento } = req.body;
+        const { cliente_nombre, cliente_telefono, cliente_direccion, cliente_ubicacion, cliente_tipo_documento, cliente_documento, tipo_entrega, items, notas, descuento } = req.body;
         if (!cliente_nombre || !cliente_telefono || !items || items.length === 0) {
             return res.status(400).json({ error: 'Nombre, celular e items requeridos' });
         }
@@ -326,7 +328,9 @@ router.post('/public/:negocioSlug', (req, res) => {
             {
                 nombre: cliente_nombre,
                 telefono: cliente_telefono,
-                notas
+                notas,
+                tipo_documento: cliente_tipo_documento,
+                documento: cliente_documento
             },
             { requireName: true, requirePhone: true, createIfMissing: true, updateMissingFields: true }
         );

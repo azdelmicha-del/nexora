@@ -60,7 +60,9 @@ router.post('/', requireAuth, (req, res) => {
             const pedido = db.prepare('SELECT id, estado, venta_id FROM pedidos WHERE id = ? AND negocio_id = ?')
                 .get(origenId, req.session.negocioId);
             if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado para facturar' });
-            if (pedido.estado !== 'entregado') return res.status(400).json({ error: 'El pedido debe estar entregado para facturar' });
+            if (!['confirmado', 'entregado'].includes(pedido.estado)) {
+                return res.status(400).json({ error: 'El pedido debe estar confirmado o entregado para facturar' });
+            }
             if (pedido.venta_id) return res.status(400).json({ error: 'Este pedido ya esta facturado' });
         }
 

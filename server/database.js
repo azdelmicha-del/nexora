@@ -985,6 +985,27 @@ function initDatabase() {
         console.log('Columna comision_porcentaje agregada a servicios.');
     }
 
+    // ── platform_config (superadmin-editable system info) ──────────────────
+    try {
+        db.exec(`
+            CREATE TABLE IF NOT EXISTS platform_config (
+                id INTEGER PRIMARY KEY CHECK (id = 1),
+                system_name TEXT NOT NULL DEFAULT 'Nexora',
+                version TEXT NOT NULL DEFAULT '1.0.0',
+                edition TEXT NOT NULL DEFAULT 'Pro',
+                copyright_year INTEGER NOT NULL DEFAULT 2026,
+                show_footer INTEGER NOT NULL DEFAULT 1,
+                custom_text TEXT DEFAULT ''
+            )
+        `);
+        const existing = db.prepare('SELECT id FROM platform_config WHERE id = 1').get();
+        if (!existing) {
+            db.prepare(
+                'INSERT INTO platform_config (id, system_name, version, edition, copyright_year, show_footer, custom_text) VALUES (1, ?, ?, ?, ?, 1, ?)'
+            ).run('Nexora', '1.0.0', 'Pro', new Date().getFullYear(), '');
+        }
+    } catch (e) { console.error('Error init platform_config:', e.message); }
+
     console.log('Base de datos inicializada');
     return db;
 }

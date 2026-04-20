@@ -197,6 +197,7 @@
                 <nav class="nav-tabs">
                     <button class="nav-tab active" onclick="switchMainTab('negocios')" id="tab-negocios">Negocios</button>
                     <button class="nav-tab" onclick="switchMainTab('licencias')" id="tab-licencias">Cuentas/Licencias</button>
+                    <button class="nav-tab" onclick="switchMainTab('sistema')" id="tab-sistema">Sistema</button>
                 </nav>
             </div>
             <div class="header-user">
@@ -361,6 +362,48 @@
                     </div>
                 </div>
 
+            </div>
+
+            <!-- VISTA: SISTEMA -->
+            <div id="view-sistema" style="display: none;">
+                <div class="card">
+                    <div class="card-header">
+                        <h2 class="card-title">Información del Sistema (Barra de pie de página)</h2>
+                    </div>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px;">
+                        <div>
+                            <label class="form-label">Nombre del Sistema</label>
+                            <input type="text" id="sf-system-name" class="form-control" placeholder="Nexora" maxlength="40">
+                        </div>
+                        <div>
+                            <label class="form-label">Versión</label>
+                            <input type="text" id="sf-version" class="form-control" placeholder="1.0.0" maxlength="20">
+                        </div>
+                        <div>
+                            <label class="form-label">Edición</label>
+                            <input type="text" id="sf-edition" class="form-control" placeholder="Pro" maxlength="30">
+                        </div>
+                        <div>
+                            <label class="form-label">Año Copyright</label>
+                            <input type="number" id="sf-year" class="form-control" placeholder="2026" min="2020" max="2099">
+                        </div>
+                        <div style="grid-column: span 2;">
+                            <label class="form-label">Texto adicional (opcional)</label>
+                            <input type="text" id="sf-custom" class="form-control" placeholder="Ej: Todos los derechos reservados" maxlength="80">
+                        </div>
+                        <div style="grid-column: span 2; display: flex; align-items: center; gap: 10px;">
+                            <input type="checkbox" id="sf-show" style="width:16px;height:16px;cursor:pointer;">
+                            <label for="sf-show" style="font-size:14px;cursor:pointer;">Mostrar barra de pie en todas las páginas</label>
+                        </div>
+                    </div>
+                    <div style="display:flex; gap:10px; align-items:center;">
+                        <button class="btn btn-primary" onclick="savePlatformConfig()" style="padding:10px 24px;">Guardar cambios</button>
+                        <span id="sf-msg" style="font-size:13px;"></span>
+                    </div>
+                    <div style="margin-top:20px; padding:12px 16px; background:#0f172a; border-radius:8px; color:#94a3b8; font-size:12px; font-family:monospace;" id="sf-preview">
+                        Vista previa: cargando...
+                    </div>
+                </div>
             </div>
         </div>
     </div>
@@ -602,11 +645,10 @@
         }
 
         function switchMainTab(tab) {
-            document.getElementById('tab-negocios').classList.remove('active');
-            document.getElementById('tab-licencias').classList.remove('active');
-            document.getElementById('view-negocios').style.display = 'none';
-            document.getElementById('view-licencias').style.display = 'none';
-            
+            ['negocios', 'licencias', 'sistema'].forEach(t => {
+                document.getElementById(`tab-${t}`).classList.remove('active');
+                document.getElementById(`view-${t}`).style.display = 'none';
+            });
             document.getElementById(`tab-${tab}`).classList.add('active');
             document.getElementById(`view-${tab}`).style.display = 'block';
 
@@ -618,7 +660,74 @@
                 if(document.getElementById('subtab-crecimiento').classList.contains('active')) {
                     loadGrowthData();
                 }
+            } else if (tab === 'sistema') {
+                loadPlatformConfig();
             }
+        }
+
+        async function loadPlatformConfig() {
+            try {
+                const res = await fetch('/api/superadmin/platform-config', { credentials: 'same-origin' });
+                const cfg = await res.json();
+                document.getElementById('sf-system-name').value = cfg.system_name || 'Nexora';
+                document.getElementById('sf-version').value = cfg.version || '1.0.0';
+                document.getElementById('sf-edition').value = cfg.edition || 'Pro';
+                document.getElementById('sf-year').value = cfg.copyright_year || new Date().getFullYear();
+                document.getElementById('sf-custom').value = cfg.custom_text || '';
+                document.getElementById('sf-show').checked = !!cfg.show_footer;
+                updateSFPreview();
+            } catch(e) { console.error('Error cargando platform config:', e); }
+        }
+
+        function updateSFPreview() {
+            const name = document.getElementById('sf-system-name').value.trim() || 'Nexora';
+            const ver  = document.getElementById('sf-version').value.trim() || '1.0.0';
+            const ed   = document.getElementById('sf-edition').value.trim();
+            const yr   = document.getElementById('sf-year').value || new Date().getFullYear();
+            const extra = document.getElementById('sf-custom').value.trim();
+            const show = document.getElementById('sf-show').checked;
+            let preview = show
+                ? `${name} | v${ver}${ed ? ' · ' + ed : ''} | © ${yr}${extra ? ' | ' + extra : ''}`
+                : '(barra oculta)';
+            document.getElementById('sf-preview').textContent = 'Vista previa: ' + preview;
+        }
+
+        ['sf-system-name','sf-version','sf-edition','sf-year','sf-custom','sf-show'].forEach(id => {
+            document.addEventListener('DOMContentLoaded', () => {
+                const el = document.getElementById(id);
+                if (el) el.addEventListener('input', updateSFPreview);
+            });
+        });
+
+        async function savePlatformConfig() {
+            const payload = {
+                system_name: document.getElementById('sf-system-name').value.trim(),
+                version: document.getElementById('sf-version').value.trim(),
+                edition: document.getElementById('sf-edition').value.trim(),
+                copyright_year: parseInt(document.getElementById('sf-year').value) || new Date().getFullYear(),
+                custom_text: document.getElementById('sf-custom').value.trim(),
+                show_footer: document.getElementById('sf-show').checked
+            };
+            const msg = document.getElementById('sf-msg');
+            try {
+                const res = await fetch('/api/superadmin/platform-config', {
+                    method: 'PUT',
+                    headers: { 'Content-Type': 'application/json' },
+                    credentials: 'same-origin',
+                    body: JSON.stringify(payload)
+                });
+                if (res.ok) {
+                    msg.style.color = '#10b981';
+                    msg.textContent = '✓ Guardado correctamente';
+                } else {
+                    msg.style.color = '#ef4444';
+                    msg.textContent = 'Error al guardar';
+                }
+            } catch(e) {
+                msg.style.color = '#ef4444';
+                msg.textContent = 'Error de conexión';
+            }
+            setTimeout(() => { msg.textContent = ''; }, 3000);
         }
 
         function switchSubTab(tab) {

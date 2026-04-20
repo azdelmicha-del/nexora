@@ -675,6 +675,26 @@
                         <input type="email" class="form-input" id="email" placeholder="tu@email.com">
                     </div>
                     <div class="form-group">
+                        <label class="form-label">Comprobante fiscal</label>
+                        <select class="form-input" id="bookingFiscalMode" onchange="toggleBookingFiscalFields()">
+                            <option value="no">No, venta de consumo</option>
+                            <option value="si">Si, agregar RNC/Cédula</option>
+                        </select>
+                    </div>
+                    <div class="form-row" id="bookingFiscalFields" style="display:none;">
+                        <div class="form-group">
+                            <label class="form-label">Tipo de documento</label>
+                            <select class="form-input" id="bookingTipoDocumento">
+                                <option value="rnc">RNC</option>
+                                <option value="cedula">Cédula</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label class="form-label">Documento</label>
+                            <input type="text" class="form-input" id="bookingDocumento" placeholder="RNC o Cédula">
+                        </div>
+                    </div>
+                    <div class="form-group">
                         <label class="form-label">Notas</label>
                         <textarea class="form-input form-textarea" id="notas" placeholder="Algo que debamos saber..."></textarea>
                     </div>
@@ -703,6 +723,8 @@
                     <div class="preview-row"><span class="preview-label">Nombre</span><span class="preview-value" id="preview-nombre">-</span></div>
                     <div class="preview-row"><span class="preview-label">WhatsApp</span><span class="preview-value" id="preview-whatsapp">-</span></div>
                     <div class="preview-row"><span class="preview-label">Email</span><span class="preview-value" id="preview-email">-</span></div>
+                    <div class="preview-row"><span class="preview-label">Comprobante</span><span class="preview-value" id="preview-comprobante">Consumo</span></div>
+                    <div class="preview-row" id="preview-documento-row" style="display:none;"><span class="preview-label">Documento</span><span class="preview-value" id="preview-documento">-</span></div>
                     <div class="preview-row"><span class="preview-label">Notas</span><span class="preview-value" id="preview-notas">-</span></div>
                     <span class="preview-edit" onclick="goToSection('datos')">← Editar datos</span>
                 </div>

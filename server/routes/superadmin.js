@@ -521,4 +521,45 @@ router.post('/change-password', requireSuperAdmin, (req, res) => {
     }
 });
 
+// GET platform config
+router.get('/platform-config', requireSuperAdmin, (req, res) => {
+    try {
+        const db = getDb();
+        const cfg = db.prepare('SELECT * FROM platform_config WHERE id = 1').get();
+        res.json(cfg || {});
+    } catch (error) {
+        console.error('Error obteniendo platform_config:', error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});
+
+// PUT platform config
+router.put('/platform-config', requireSuperAdmin, (req, res) => {
+    try {
+        const { system_name, version, edition, copyright_year, show_footer, custom_text } = req.body;
+        const db = getDb();
+        db.prepare(`
+            UPDATE platform_config SET
+                system_name = ?,
+                version = ?,
+                edition = ?,
+                copyright_year = ?,
+                show_footer = ?,
+                custom_text = ?
+            WHERE id = 1
+        `).run(
+            String(system_name || 'Nexora').trim(),
+            String(version || '1.0.0').trim(),
+            String(edition || 'Pro').trim(),
+            parseInt(copyright_year) || new Date().getFullYear(),
+            show_footer ? 1 : 0,
+            String(custom_text || '').trim()
+        );
+        res.json({ success: true });
+    } catch (error) {
+        console.error('Error actualizando platform_config:', error);
+        res.status(500).json({ error: 'Error del servidor' });
+    }
+});
+
 module.exports = router;

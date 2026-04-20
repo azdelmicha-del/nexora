@@ -220,3 +220,63 @@ if (document.readyState === 'loading') {
 } else {
     renderSidebar();
 }
+
+// ── Fixed system footer bar ─────────────────────────────────────────────────
+(function renderSystemFooter() {
+    const FOOTER_ID = 'nexora-system-footer';
+    if (document.getElementById(FOOTER_ID)) return;
+
+    const style = document.createElement('style');
+    style.textContent = `
+        #${FOOTER_ID} {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 9999;
+            height: 22px;
+            background: #0f172a;
+            color: #94a3b8;
+            font-size: 11px;
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 16px;
+            padding: 0 16px;
+            user-select: none;
+            letter-spacing: 0.2px;
+        }
+        #${FOOTER_ID} .sf-sep { color: #334155; }
+        #${FOOTER_ID} .sf-name { color: #e2e8f0; font-weight: 600; }
+        body { padding-bottom: 22px !important; }
+    `;
+    document.head.appendChild(style);
+
+    const bar = document.createElement('div');
+    bar.id = FOOTER_ID;
+    bar.innerHTML = '<span class="sf-name">Nexora</span><span class="sf-sep">|</span><span>v1.0.0 &middot; Pro</span><span class="sf-sep">|</span><span>&copy; 2026</span>';
+    document.body.appendChild(bar);
+
+    // Load real data from API
+    fetch('/api/platform').then(r => r.ok ? r.json() : null).then(cfg => {
+        if (!cfg || !cfg.show_footer) {
+            bar.style.display = 'none';
+            document.body.style.paddingBottom = '0';
+            return;
+        }
+        const parts = [];
+        const name = (cfg.system_name || 'Nexora').trim();
+        const ver  = (cfg.version || '1.0.0').trim();
+        const ed   = (cfg.edition || '').trim();
+        const yr   = cfg.copyright_year || new Date().getFullYear();
+        const extra = (cfg.custom_text || '').trim();
+
+        let html = `<span class="sf-name">${name}</span>`;
+        html += `<span class="sf-sep">|</span><span>v${ver}`;
+        if (ed) html += ` &middot; ${ed}`;
+        html += `</span><span class="sf-sep">|</span><span>&copy; ${yr}</span>`;
+        if (extra) html += `<span class="sf-sep">|</span><span>${extra}</span>`;
+        bar.innerHTML = html;
+    }).catch(() => {});
+})();
