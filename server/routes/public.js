@@ -1,8 +1,13 @@
 const express = require('express');
 const { getDb } = require('../database');
-const { toTitleCase } = require('../utils/validators');
+const { upsertCanonicalClient } = require('../utils/client-canonical');
 const { getRDDate, getRDDateString } = require('../utils/timezone');
 const router = express.Router();
+
+function isClientValidationError(message) {
+    if (!message) return false;
+    return /requerido|telefono|celular|email|documento|tipo_documento/i.test(message);
+}
 
 function getRDNowInfo() {
     const ahoraRD = getRDDate();
@@ -257,14 +262,17 @@ router.post('/appointments', (req, res) => {
 
         if (conflict) return res.status(409).json({ error: 'Este horario ya ha sido reservado por otro cliente' });
 
-        let cliente = db.prepare(`SELECT id FROM clientes WHERE negocio_id = ? AND telefono = ?`)
-            .get(negocio.id, whatsapp);
-        
-        if (!cliente) {
-            const result = db.prepare(`INSERT INTO clientes (negocio_id, nombre, telefono, email) VALUES (?, ?, ?, ?)`)
-                .run(negocio.id, toTitleCase(nombre), whatsapp, email || null);
-            cliente = { id: result.lastInsertRowid };
-        }
+        const cliente = upsertCanonicalClient(
+            db,
+            negocio.id,
+            {
+                nombre,
+                telefono: whatsapp,
+                email,
+                notas
+            },
+            { requireName: true, requirePhone: true, createIfMissing: true, updateMissingFields: true }
+        );
 
         // Obtener usuario admin del negocio para asignar user_id (SQLite no permite NULL en user_id)
         const usuarioDefault = db.prepare(`SELECT id FROM usuarios WHERE negocio_id = ? ORDER BY id ASC LIMIT 1`)
@@ -290,6 +298,9 @@ router.post('/appointments', (req, res) => {
         });
     } catch (error) {
         console.error('Error crear cita publica:', error);
+        if (isClientValidationError(error.message)) {
+            return res.status(400).json({ error: error.message });
+        }
         res.status(500).json({ error: 'Error al crear cita: ' + error.message });
     }
 });

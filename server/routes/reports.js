@@ -1,16 +1,61 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
-const { getRDDateString, getRDDate } = require('../utils/timezone');
+const { getRDDateString, getRDDate, getRDTimestamp } = require('../utils/timezone');
 
 const router = express.Router();
+
+const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+function isValidISODate(dateStr) {
+    if (!dateStr || typeof dateStr !== 'string' || !ISO_DATE_REGEX.test(dateStr)) {
+        return false;
+    }
+    const parsed = new Date(`${dateStr}T00:00:00`);
+    return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(dateStr);
+}
+
+function validateDateRangeOrRespond(res, desde, hasta) {
+    if (desde && !isValidISODate(desde)) {
+        res.status(400).json({ error: 'Parametro "desde" invalido. Formato esperado: YYYY-MM-DD' });
+        return false;
+    }
+    if (hasta && !isValidISODate(hasta)) {
+        res.status(400).json({ error: 'Parametro "hasta" invalido. Formato esperado: YYYY-MM-DD' });
+        return false;
+    }
+    if (desde && hasta && desde > hasta) {
+        res.status(400).json({ error: 'Rango de fechas invalido: "desde" no puede ser mayor que "hasta"' });
+        return false;
+    }
+    return true;
+}
+
+function parseMonthYearOrRespond(res, mes, anio, now) {
+    const mesNum = mes ? Number.parseInt(mes, 10) : (now.getMonth() + 1);
+    const anioNum = anio ? Number.parseInt(anio, 10) : now.getFullYear();
+
+    if (!Number.isInteger(mesNum) || mesNum < 1 || mesNum > 12) {
+        res.status(400).json({ error: 'Parametro "mes" invalido. Debe ser un numero entre 1 y 12' });
+        return null;
+    }
+    if (!Number.isInteger(anioNum) || anioNum < 2000 || anioNum > 2100) {
+        res.status(400).json({ error: 'Parametro "anio" invalido. Debe ser un numero entre 2000 y 2100' });
+        return null;
+    }
+
+    return { mes: mesNum, anio: anioNum };
+}
 
 router.get('/ventas', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const negocioId = req.session.negocioId;
         const { desde, hasta } = req.query;
-        const hoy = getRDDateString();
+
+        if (!validateDateRangeOrRespond(res, desde, hasta)) {
+            return;
+        }
 
         // La caja siempre está abierta para nuevas ventas
         let where = 'WHERE v.negocio_id = ?';
@@ -114,6 +159,10 @@ router.get('/fiscal', requireAuth, (req, res) => {
         const db = getDb();
         const negocioId = req.session.negocioId;
         const { desde, hasta } = req.query;
+
+        if (!validateDateRangeOrRespond(res, desde, hasta)) {
+            return;
+        }
 
         let whereVentas = 'WHERE v.negocio_id = ?';
         let whereEgresos = 'WHERE negocio_id = ? AND tipo = \'gasto\'';
@@ -245,8 +294,12 @@ router.get('/606', requireAuth, (req, res) => {
 
         // Default: mes actual
         const now = getRDDate();
-        const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
-        const anioFilt = anio ? parseInt(anio) : now.getFullYear();
+        const monthYear = parseMonthYearOrRespond(res, mes, anio, now);
+        if (!monthYear) {
+            return;
+        }
+        const mesFilt = monthYear.mes;
+        const anioFilt = monthYear.anio;
 
         const egresos = db.prepare(`
             SELECT
@@ -300,8 +353,12 @@ router.get('/607', requireAuth, (req, res) => {
         const { mes, anio } = req.query;
 
         const now = getRDDate();
-        const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
-        const anioFilt = anio ? parseInt(anio) : now.getFullYear();
+        const monthYear = parseMonthYearOrRespond(res, mes, anio, now);
+        if (!monthYear) {
+            return;
+        }
+        const mesFilt = monthYear.mes;
+        const anioFilt = monthYear.anio;
 
         const ventas = db.prepare(`
             SELECT
@@ -354,6 +411,10 @@ router.get('/export/ventas', requireAuth, (req, res) => {
         const negocioId = req.session.negocioId;
         const { desde, hasta } = req.query;
 
+        if (!validateDateRangeOrRespond(res, desde, hasta)) {
+            return;
+        }
+
         let where = 'WHERE v.negocio_id = ?';
         const params = [negocioId];
         if (desde) { where += ' AND DATE(v.fecha) >= ?'; params.push(desde); }
@@ -399,6 +460,10 @@ router.get('/export/egresos', requireAuth, (req, res) => {
         const negocioId = req.session.negocioId;
         const { desde, hasta } = req.query;
 
+        if (!validateDateRangeOrRespond(res, desde, hasta)) {
+            return;
+        }
+
         let where = 'WHERE negocio_id = ? AND tipo = ?';
         const params = [negocioId, 'gasto'];
         if (desde) { where += ' AND DATE(fecha) >= ?'; params.push(desde); }
@@ -440,8 +505,12 @@ router.get('/export/606', requireAuth, (req, res) => {
         const negocioId = req.session.negocioId;
         const { mes, anio } = req.query;
         const now = getRDDate();
-        const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
-        const anioFilt = anio ? parseInt(anio) : now.getFullYear();
+        const monthYear = parseMonthYearOrRespond(res, mes, anio, now);
+        if (!monthYear) {
+            return;
+        }
+        const mesFilt = monthYear.mes;
+        const anioFilt = monthYear.anio;
 
         const egresos = db.prepare(`
             SELECT ncf_suplidor, tipo_gasto, fecha, descripcion, subtotal, itbis, descuento, monto
@@ -479,8 +548,12 @@ router.get('/export/607', requireAuth, (req, res) => {
         const negocioId = req.session.negocioId;
         const { mes, anio } = req.query;
         const now = getRDDate();
-        const mesFilt = mes ? parseInt(mes) : (now.getMonth() + 1);
-        const anioFilt = anio ? parseInt(anio) : now.getFullYear();
+        const monthYear = parseMonthYearOrRespond(res, mes, anio, now);
+        if (!monthYear) {
+            return;
+        }
+        const mesFilt = monthYear.mes;
+        const anioFilt = monthYear.anio;
 
         const ventas = db.prepare(`
             SELECT v.secuencia_ecf, v.fecha, v.subtotal, v.itbis, v.descuento, v.total,
@@ -519,7 +592,10 @@ router.get('/servicios', requireAuth, (req, res) => {
         const db = getDb();
         const negocioId = req.session.negocioId;
         const { desde, hasta } = req.query;
-        const hoy = getRDDateString();
+
+        if (!validateDateRangeOrRespond(res, desde, hasta)) {
+            return;
+        }
 
         // La caja siempre está abierta para nuevas ventas
         let where = 'WHERE v.negocio_id = ?';
@@ -595,52 +671,66 @@ router.get('/clientes', requireAuth, (req, res) => {
         const negocioId = req.session.negocioId;
         const { desde, hasta } = req.query;
 
+        if (!validateDateRangeOrRespond(res, desde, hasta)) {
+            return;
+        }
+
         let whereFecha = '';
         const paramsFecha = [];
+        let whereVentas = '';
+        const paramsVentas = [];
 
         if (desde) {
             whereFecha = ' AND DATE(c.fecha_registro) >= ?';
             paramsFecha.push(desde);
+            whereVentas += ' AND DATE(v.fecha) >= ?';
+            paramsVentas.push(desde);
         }
 
         if (hasta) {
             whereFecha += ' AND DATE(c.fecha_registro) <= ?';
             paramsFecha.push(hasta);
+            whereVentas += ' AND DATE(v.fecha) <= ?';
+            paramsVentas.push(hasta);
         }
+
+        const hace30dias = getRDDate();
+        hace30dias.setDate(hace30dias.getDate() - 30);
+        const fechaUltimos30Dias = getRDDateString(hace30dias);
 
         const resumen = db.prepare(`
             SELECT 
                 COUNT(*) as total_clientes,
-                SUM(CASE WHEN DATE(c.fecha_registro) >= DATE('now', '-30 days') THEN 1 ELSE 0 END) as nuevos_mes,
+                SUM(CASE WHEN DATE(c.fecha_registro) >= ? THEN 1 ELSE 0 END) as nuevos_mes,
                 SUM(CASE WHEN EXISTS (
                     SELECT 1 FROM ventas v WHERE v.cliente_id = c.id AND v.negocio_id = ?
                 ) THEN 1 ELSE 0 END) as con_compras
             FROM clientes c
             WHERE c.negocio_id = ?${whereFecha}
-        `).get(negocioId, negocioId, ...paramsFecha);
+        `).get(fechaUltimos30Dias, negocioId, negocioId, ...paramsFecha);
 
         const masFrecuentes = db.prepare(`
             SELECT c.id, c.nombre, c.telefono,
                    COUNT(v.id) as total_compras,
                    COALESCE(SUM(v.total), 0) as total_gastado
             FROM clientes c
-            LEFT JOIN ventas v ON c.id = v.cliente_id AND v.negocio_id = ?
+            LEFT JOIN ventas v ON c.id = v.cliente_id AND v.negocio_id = ?${whereVentas}
             WHERE c.negocio_id = ?
             GROUP BY c.id, c.nombre, c.telefono
             ORDER BY total_compras DESC
             LIMIT 10
-        `).all(negocioId, negocioId);
+        `).all(negocioId, ...paramsVentas, negocioId);
 
         const ultimosRegistrados = db.prepare(`
             SELECT c.id, c.nombre, c.telefono, c.fecha_registro,
                    COUNT(v.id) as total_compras
             FROM clientes c
-            LEFT JOIN ventas v ON c.id = v.cliente_id AND v.negocio_id = ?
-            WHERE c.negocio_id = ?
+            LEFT JOIN ventas v ON c.id = v.cliente_id AND v.negocio_id = ?${whereVentas}
+            WHERE c.negocio_id = ?${whereFecha}
             GROUP BY c.id
             ORDER BY c.fecha_registro DESC
             LIMIT 10
-        `).all(negocioId, negocioId);
+        `).all(negocioId, ...paramsVentas, negocioId, ...paramsFecha);
 
         res.json({
             resumen,
@@ -658,6 +748,10 @@ router.get('/citas', requireAuth, (req, res) => {
         const db = getDb();
         const negocioId = req.session.negocioId;
         const { desde, hasta } = req.query;
+
+        if (!validateDateRangeOrRespond(res, desde, hasta)) {
+            return;
+        }
 
         let where = 'WHERE cit.negocio_id = ?';
         const params = [negocioId];
@@ -722,6 +816,39 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
         const db = getDb();
         const hoy = getRDDateString();
 
+        const estadoCaja = db.prepare(`
+            SELECT caja_cerrada, caja_abierta_desde
+            FROM config
+            WHERE negocio_id = ?
+            LIMIT 1
+        `).get(req.session.negocioId);
+
+        const aperturaTurno = estadoCaja && estadoCaja.caja_abierta_desde ? estadoCaja.caja_abierta_desde : null;
+        const turnoClause = aperturaTurno ? ' AND fecha >= ?' : '';
+        const turnoParams = aperturaTurno ? [aperturaTurno] : [];
+        const cajaCerrada = Boolean(estadoCaja && Number(estadoCaja.caja_cerrada) === 1);
+
+        // Si la caja esta cerrada, el panel actual debe mostrarse en limpio.
+        if (cajaCerrada) {
+            const negocio = db.prepare('SELECT nombre, direccion, telefono FROM negocios WHERE id = ?').get(req.session.negocioId);
+            return res.json({
+                resumen: { total: 0, cantidad: 0, efectivo: 0, transferencia: 0, tarjeta: 0 },
+                resumenFueraCuadre: { total: 0, cantidad: 0 },
+                porBancoTransferencia: [],
+                porBancoTarjeta: [],
+                ventas: [],
+                egresosTurno: { total_egresos: 0, cantidad: 0, efectivo: 0, transferencia: 0, itbis_pagado_total: 0 },
+                listaEgresosTurno: [],
+                efectivoNeto: 0,
+                itbisCobrado: 0,
+                itbisPagado: 0,
+                itbisNeto: 0,
+                fecha: hoy,
+                caja_cerrada: true,
+                negocio: negocio || { nombre: 'Mi Negocio', direccion: '', telefono: '' }
+            });
+        }
+
         // Ventas sin cuadre (turno actual)
         const resumen = db.prepare(`
             SELECT COALESCE(SUM(total), 0) as total,
@@ -730,39 +857,39 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
                    COALESCE(SUM(CASE WHEN metodo_pago = 'transferencia' THEN total ELSE 0 END), 0) as transferencia,
                    COALESCE(SUM(CASE WHEN metodo_pago = 'tarjeta' THEN total ELSE 0 END), 0) as tarjeta
             FROM ventas
-            WHERE negocio_id = ? AND cuadre_id IS NULL
-        `).get(req.session.negocioId);
+            WHERE negocio_id = ? AND cuadre_id IS NULL${turnoClause}
+        `).get(req.session.negocioId, ...turnoParams);
 
         // Desglose por banco (transferencias)
         const porBancoTransferencia = db.prepare(`
             SELECT COALESCE(banco, 'Sin banco') as banco, COALESCE(SUM(total), 0) as total, COUNT(*) as cantidad
             FROM ventas
-            WHERE negocio_id = ? AND cuadre_id IS NULL AND metodo_pago = 'transferencia'
+            WHERE negocio_id = ? AND cuadre_id IS NULL AND metodo_pago = 'transferencia'${turnoClause}
             GROUP BY banco
-        `).all(req.session.negocioId);
+        `).all(req.session.negocioId, ...turnoParams);
 
         // Desglose por banco (tarjetas)
         const porBancoTarjeta = db.prepare(`
             SELECT COALESCE(banco, 'Sin banco') as banco, COALESCE(SUM(total), 0) as total, COUNT(*) as cantidad
             FROM ventas
-            WHERE negocio_id = ? AND cuadre_id IS NULL AND metodo_pago = 'tarjeta'
+            WHERE negocio_id = ? AND cuadre_id IS NULL AND metodo_pago = 'tarjeta'${turnoClause}
             GROUP BY banco
-        `).all(req.session.negocioId);
+        `).all(req.session.negocioId, ...turnoParams);
 
         const resumenFueraCuadre = db.prepare(`
             SELECT COALESCE(SUM(total), 0) as total,
                    COUNT(*) as cantidad
             FROM ventas
-            WHERE negocio_id = ? AND cuadre_id IS NULL AND fuera_cuadre = 1
-        `).get(req.session.negocioId);
+            WHERE negocio_id = ? AND cuadre_id IS NULL AND fuera_cuadre = 1${turnoClause}
+        `).get(req.session.negocioId, ...turnoParams);
 
         const ventas = db.prepare(`
             SELECT v.id, v.total, v.metodo_pago, v.banco, v.fecha, v.fuera_cuadre, c.nombre as cliente
             FROM ventas v
             LEFT JOIN clientes c ON v.cliente_id = c.id
-            WHERE v.negocio_id = ? AND v.cuadre_id IS NULL
+            WHERE v.negocio_id = ? AND v.cuadre_id IS NULL${turnoClause}
             ORDER BY v.fecha ASC
-        `).all(req.session.negocioId);
+        `).all(req.session.negocioId, ...turnoParams);
 
         const ventasConDetalles = ventas.map(venta => {
             const detalles = db.prepare(`
@@ -786,39 +913,26 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
                    COALESCE(SUM(CASE WHEN metodo_pago = 'transferencia' THEN monto ELSE 0 END), 0) as transferencia,
                    COALESCE(SUM(itbis_pagado), 0) as itbis_pagado_total
             FROM estado_resultado_items
-            WHERE negocio_id = ? AND tipo = 'gasto' AND cuadre_id IS NULL
-        `).get(req.session.negocioId);
+            WHERE negocio_id = ? AND tipo = 'gasto' AND cuadre_id IS NULL${turnoClause}
+        `).get(req.session.negocioId, ...turnoParams);
 
         // ITBIS cobrado en ventas del turno (suma real de campo itbis)
         const itbisCobrado = db.prepare(`
             SELECT COALESCE(SUM(itbis), 0) as itbis_cobrado
             FROM ventas
-            WHERE negocio_id = ? AND cuadre_id IS NULL
-        `).get(req.session.negocioId);
+            WHERE negocio_id = ? AND cuadre_id IS NULL${turnoClause}
+        `).get(req.session.negocioId, ...turnoParams);
 
         const listaEgresosTurno = db.prepare(`
             SELECT id, categoria, descripcion, monto, metodo_pago, fecha, hora
             FROM estado_resultado_items
-            WHERE negocio_id = ? AND tipo = 'gasto' AND cuadre_id IS NULL
+            WHERE negocio_id = ? AND tipo = 'gasto' AND cuadre_id IS NULL${turnoClause}
             ORDER BY created_at DESC
-        `).all(req.session.negocioId);
+        `).all(req.session.negocioId, ...turnoParams);
 
         // Efectivo neto = ventas efectivo - egresos efectivo
         const efectivoNeto = resumen.efectivo - (egresosTurno.efectivo || 0);
 
-        // Verificar si hay ventas pendientes (sin cuadre)
-        const hayVentasPendientes = resumen.cantidad > 0;
-        
-        // Verificar si hay un cierre del día de hoy
-        const cierreHoy = db.prepare(`
-            SELECT id FROM cajas_cerradas 
-            WHERE negocio_id = ? AND fecha LIKE ?
-            ORDER BY id DESC LIMIT 1
-        `).get(req.session.negocioId, `${hoy}%`);
-        
-        // La caja está cerrada si no hay ventas pendientes Y hay un cierre hoy
-        const cajaCerrada = !hayVentasPendientes && cierreHoy !== undefined;
-        
         // Datos del negocio
         const negocio = db.prepare('SELECT nombre, direccion, telefono FROM negocios WHERE id = ?').get(req.session.negocioId);
 
@@ -844,6 +958,107 @@ router.get('/cuadre', requireAuth, requireAdmin, (req, res) => {
     }
 });
 
+router.get('/cuadre/preview', requireAuth, requireAdmin, (req, res) => {
+    try {
+        const db = getDb();
+        const hoy = getRDDateString();
+        const inicioMes = `${getRDDate().getFullYear()}-${String(getRDDate().getMonth() + 1).padStart(2, '0')}-01`;
+
+        const tipo = req.query.tipo || 'dia';
+        const fechaPersonalizada = req.query.fecha || null;
+
+        if (!['dia', 'mes'].includes(tipo)) {
+            return res.status(400).json({ error: 'Tipo de cierre invalido. Valores permitidos: dia, mes' });
+        }
+        if (fechaPersonalizada && !isValidISODate(fechaPersonalizada)) {
+            return res.status(400).json({ error: 'Fecha de cierre invalida. Formato esperado: YYYY-MM-DD' });
+        }
+        if (tipo === 'mes' && fechaPersonalizada && fechaPersonalizada > hoy) {
+            return res.status(400).json({ error: 'La fecha de cierre no puede ser futura' });
+        }
+
+        let fechaDesde;
+        if (tipo === 'mes' && fechaPersonalizada) {
+            fechaDesde = fechaPersonalizada;
+        } else if (tipo === 'mes') {
+            fechaDesde = inicioMes;
+        } else {
+            fechaDesde = hoy;
+        }
+
+        const estadoCaja = db.prepare(`
+            SELECT caja_abierta_desde
+            FROM config
+            WHERE negocio_id = ?
+            LIMIT 1
+        `).get(req.session.negocioId);
+
+        const aperturaTurno = estadoCaja && estadoCaja.caja_abierta_desde ? estadoCaja.caja_abierta_desde : null;
+
+        let whereVentas = 'cuadre_id IS NULL';
+        const ventasParams = [req.session.negocioId];
+
+        if (tipo === 'dia') {
+            if (aperturaTurno) {
+                whereVentas += ' AND fecha >= ?';
+                ventasParams.push(aperturaTurno);
+            } else {
+                whereVentas += ' AND DATE(fecha) = ?';
+                ventasParams.push(hoy);
+            }
+        } else {
+            whereVentas += ' AND DATE(fecha) >= ?';
+            ventasParams.push(fechaDesde);
+        }
+
+        const resumen = db.prepare(`
+            SELECT COALESCE(SUM(total), 0) as total,
+                   COUNT(*) as cantidad,
+                   COALESCE(SUM(CASE WHEN metodo_pago = 'efectivo' THEN total ELSE 0 END), 0) as efectivo,
+                   COALESCE(SUM(CASE WHEN metodo_pago = 'transferencia' THEN total ELSE 0 END), 0) as transferencia,
+                   COALESCE(SUM(CASE WHEN metodo_pago = 'tarjeta' THEN total ELSE 0 END), 0) as tarjeta
+            FROM ventas
+            WHERE negocio_id = ? AND ${whereVentas}
+        `).get(...ventasParams);
+
+        let whereEgresos = "cuadre_id IS NULL AND tipo = 'gasto'";
+        const egresosParams = [req.session.negocioId];
+
+        if (tipo === 'dia') {
+            if (aperturaTurno) {
+                whereEgresos += ' AND fecha >= ?';
+                egresosParams.push(aperturaTurno);
+            } else {
+                whereEgresos += ' AND DATE(fecha) = ?';
+                egresosParams.push(hoy);
+            }
+        } else {
+            whereEgresos += ' AND DATE(fecha) >= ?';
+            egresosParams.push(fechaDesde);
+        }
+
+        const egresos = db.prepare(`
+            SELECT COALESCE(SUM(monto), 0) as total_egresos,
+                   COUNT(*) as cantidad
+            FROM estado_resultado_items
+            WHERE negocio_id = ? AND ${whereEgresos}
+        `).get(...egresosParams);
+
+        res.json({
+            tipo,
+            rango: {
+                desde: tipo === 'dia' ? (aperturaTurno || hoy) : fechaDesde,
+                hasta: hoy
+            },
+            resumen,
+            egresos
+        });
+    } catch (error) {
+        console.error('Error en GET /cuadre/preview:', error);
+        res.status(500).json({ error: 'Error al obtener preview de cierre' });
+    }
+});
+
 router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
     try {
         const db = getDb();
@@ -852,6 +1067,16 @@ router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
         
         const tipo = req.body.tipo || 'dia';
         const fechaPersonalizada = req.body.fecha || null;
+
+        if (!['dia', 'mes'].includes(tipo)) {
+            return res.status(400).json({ error: 'Tipo de cierre invalido. Valores permitidos: dia, mes' });
+        }
+        if (fechaPersonalizada && !isValidISODate(fechaPersonalizada)) {
+            return res.status(400).json({ error: 'Fecha de cierre invalida. Formato esperado: YYYY-MM-DD' });
+        }
+        if (tipo === 'mes' && fechaPersonalizada && fechaPersonalizada > hoy) {
+            return res.status(400).json({ error: 'La fecha de cierre no puede ser futura' });
+        }
         
         let fechaDesde;
         let fechaCierre;
@@ -867,13 +1092,27 @@ router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
             fechaCierre = hoy;
         }
 
+        const estadoCaja = db.prepare(`
+            SELECT caja_abierta_desde
+            FROM config
+            WHERE negocio_id = ?
+            LIMIT 1
+        `).get(req.session.negocioId);
+
+        const aperturaTurno = estadoCaja && estadoCaja.caja_abierta_desde ? estadoCaja.caja_abierta_desde : null;
+
         // Determinar filtro de ventas según tipo
         let whereVentas = 'cuadre_id IS NULL';
         let ventasParams = [req.session.negocioId];
         
         if (tipo === 'dia') {
-            whereVentas += ' AND DATE(fecha) = ?';
-            ventasParams.push(hoy);
+            if (aperturaTurno) {
+                whereVentas += ' AND fecha >= ?';
+                ventasParams.push(aperturaTurno);
+            } else {
+                whereVentas += ' AND DATE(fecha) = ?';
+                ventasParams.push(hoy);
+            }
         } else {
             whereVentas += ' AND DATE(fecha) >= ?';
             ventasParams.push(fechaDesde);
@@ -888,7 +1127,7 @@ router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
                    COALESCE(SUM(CASE WHEN metodo_pago = 'tarjeta' THEN total ELSE 0 END), 0) as tarjeta
             FROM ventas
             WHERE negocio_id = ? AND ${whereVentas}
-        `).get(req.session.negocioId, ...(tipo === 'dia' ? [hoy] : [fechaDesde]));
+        `).get(...ventasParams);
 
         if (resumen.cantidad === 0) {
             return res.status(400).json({ error: 'No hay ventas pendientes. La caja ya está cerrada o no hay ventas nuevas.' });
@@ -917,8 +1156,13 @@ router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
         let updateWhere = 'cuadre_id IS NULL';
         
         if (tipo === 'dia') {
-            updateWhere += ' AND DATE(fecha) = ?';
-            updateParams.push(hoy);
+            if (aperturaTurno) {
+                updateWhere += ' AND fecha >= ?';
+                updateParams.push(aperturaTurno);
+            } else {
+                updateWhere += ' AND DATE(fecha) = ?';
+                updateParams.push(hoy);
+            }
         } else {
             updateWhere += ' AND DATE(fecha) >= ?';
             updateParams.push(fechaDesde);
@@ -931,8 +1175,13 @@ router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
         const updateEgresosParams = [cierreId, req.session.negocioId, 'gasto'];
         
         if (tipo === 'dia') {
-            updateEgresosWhere += ' AND DATE(fecha) = ?';
-            updateEgresosParams.push(hoy);
+            if (aperturaTurno) {
+                updateEgresosWhere += ' AND fecha >= ?';
+                updateEgresosParams.push(aperturaTurno);
+            } else {
+                updateEgresosWhere += ' AND DATE(fecha) = ?';
+                updateEgresosParams.push(hoy);
+            }
         } else {
             updateEgresosWhere += ' AND DATE(fecha) >= ?';
             updateEgresosParams.push(fechaDesde);
@@ -1038,34 +1287,18 @@ router.post('/cuadre/cerrar', requireAuth, requireAdmin, (req, res) => {
 router.post('/cuadre/abrir', requireAuth, requireAdmin, (req, res) => {
     try {
         const db = getDb();
-        
-        // Desmarcar las ventas del último cierre (hacerlas disponibles para un nuevo cuadre)
-        const cierre = db.prepare(`
-            SELECT id FROM cajas_cerradas 
-            WHERE negocio_id = ?
-            ORDER BY id DESC LIMIT 1
-        `).get(req.session.negocioId);
-        
-        if (cierre) {
-            db.prepare('UPDATE ventas SET cuadre_id = NULL WHERE cuadre_id = ?').run(cierre.id);
-            // También desmarcar egresos del cuadre
-            db.prepare('UPDATE estado_resultado_items SET cuadre_id = NULL WHERE cuadre_id = ?').run(cierre.id);
-        }
-        
-        // Eliminar el cierre más reciente para limpiar el estado
-        if (cierre) {
-            db.prepare('DELETE FROM cajas_cerradas WHERE id = ?').run(cierre.id);
-        }
-        
+
+        // Abrir nueva caja sin tocar cierres anteriores.
+        // El próximo turno arranca limpio porque las ventas nuevas nacen con cuadre_id = NULL.
         // Abrir la caja (habilitar ventas)
         try {
-            db.prepare(`INSERT OR IGNORE INTO config (negocio_id, caja_cerrada) VALUES (?, 0)`).run(req.session.negocioId);
-            db.prepare(`UPDATE config SET caja_cerrada = 0 WHERE negocio_id = ?`).run(req.session.negocioId);
+            db.prepare(`INSERT OR IGNORE INTO config (negocio_id, caja_cerrada, caja_abierta_desde) VALUES (?, 0, ?)`).run(req.session.negocioId, getRDTimestamp());
+            db.prepare(`UPDATE config SET caja_cerrada = 0, caja_abierta_desde = ? WHERE negocio_id = ?`).run(getRDTimestamp(), req.session.negocioId);
         } catch (e) {
             console.error('Error abriendo caja:', e);
         }
-        
-        res.json({ success: true, mensaje: 'Caja abierta. Nuevo turno iniciado. Las ventas ahora están disponibles para un nuevo cierre.' });
+
+        res.json({ success: true, mensaje: 'Caja abierta. Nuevo turno iniciado en limpio.' });
     } catch (error) {
         console.error('Error:', error);
         res.status(500).json({ error: 'Error al abrir caja' });
@@ -1085,7 +1318,7 @@ router.get('/cuadre/historial', requireAuth, requireAdmin, (req, res) => {
             SELECT cc.*, u.nombre as usuario
             FROM cajas_cerradas cc
             JOIN usuarios u ON cc.user_id = u.id
-            WHERE cc.negocio_id = ? AND cc.fecha >= ?
+            WHERE cc.negocio_id = ? AND cc.deleted_at IS NULL AND cc.fecha >= ?
             ORDER BY cc.fecha DESC
         `).all(req.session.negocioId, fechaMin);
 
@@ -1101,11 +1334,15 @@ router.get('/cuadre/detalles/:fecha', requireAuth, requireAdmin, (req, res) => {
         const db = getDb();
         const fecha = req.params.fecha;
 
+        if (!fecha || typeof fecha !== 'string' || fecha.length > 30) {
+            return res.status(400).json({ error: 'Parametro "fecha" invalido' });
+        }
+
         const cierre = db.prepare(`
             SELECT cc.*, u.nombre as usuario
             FROM cajas_cerradas cc
             JOIN usuarios u ON cc.user_id = u.id
-            WHERE cc.negocio_id = ? AND cc.fecha = ?
+            WHERE cc.negocio_id = ? AND cc.deleted_at IS NULL AND cc.fecha = ?
         `).get(req.session.negocioId, fecha);
 
         if (!cierre) {
@@ -1203,35 +1440,18 @@ router.delete('/cuadre/cleanup', requireAuth, requireAdmin, (req, res) => {
         fechaLimite.setDate(fechaLimite.getDate() - 7);
         const fechaLimiteStr = getRDDateString(fechaLimite);
 
-        // Primero desvincular las ventas de los cuadres antiguos
-        db.prepare(`
-            UPDATE ventas 
-            SET cuadre_id = NULL 
-            WHERE cuadre_id IN (
-                SELECT id FROM cajas_cerradas 
-                WHERE negocio_id = ? AND fecha < ?
-            )
-        `).run(req.session.negocioId, fechaLimiteStr);
-
-        // Desvincular egresos de los cuadres antiguos
-        db.prepare(`
-            UPDATE estado_resultado_items 
-            SET cuadre_id = NULL 
-            WHERE cuadre_id IN (
-                SELECT id FROM cajas_cerradas 
-                WHERE negocio_id = ? AND fecha < ?
-            )
-        `).run(req.session.negocioId, fechaLimiteStr);
-
-        // Ahora eliminar los cuadres
+        // Soft delete de cuadres antiguos para conservar historial e integridad
         const result = db.prepare(`
-            DELETE FROM cajas_cerradas 
-            WHERE negocio_id = ? AND fecha < ?
-        `).run(req.session.negocioId, fechaLimiteStr);
+            UPDATE cajas_cerradas
+            SET deleted_at = ?, deleted_by = ?
+            WHERE negocio_id = ?
+              AND deleted_at IS NULL
+              AND fecha < ?
+        `).run(getRDTimestamp(), req.session.userId || null, req.session.negocioId, fechaLimiteStr);
 
         res.json({ 
             success: true, 
-            mensaje: `Se eliminaron ${result.changes} cuadres antiguos`,
+            mensaje: `Se archivaron ${result.changes} cuadres antiguos`,
             eliminados: result.changes
         });
     } catch (error) {
@@ -1243,28 +1463,195 @@ router.delete('/cuadre/cleanup', requireAuth, requireAdmin, (req, res) => {
 router.delete('/cuadre/:id', requireAuth, requireAdmin, (req, res) => {
     try {
         const db = getDb();
+        const cuadreId = Number.parseInt(req.params.id, 10);
+
+        if (!Number.isInteger(cuadreId) || cuadreId <= 0) {
+            return res.status(400).json({ error: 'ID de cuadre invalido' });
+        }
 
         const caja = db.prepare(`
             SELECT id FROM cajas_cerradas
-            WHERE id = ? AND negocio_id = ?
-        `).get(req.params.id, req.session.negocioId);
+            WHERE id = ? AND negocio_id = ? AND deleted_at IS NULL
+        `).get(cuadreId, req.session.negocioId);
 
         if (!caja) {
             return res.status(404).json({ error: 'Cuadre no encontrado' });
         }
 
         // Desmarcar las ventas de este cuadre (vuelven a estado pendiente)
-        db.prepare('UPDATE ventas SET cuadre_id = NULL WHERE cuadre_id = ?').run(req.params.id);
+        db.prepare('UPDATE ventas SET cuadre_id = NULL WHERE cuadre_id = ?').run(cuadreId);
         // Desmarcar egresos de este cuadre
-        db.prepare('UPDATE estado_resultado_items SET cuadre_id = NULL WHERE cuadre_id = ?').run(req.params.id);
+        db.prepare('UPDATE estado_resultado_items SET cuadre_id = NULL WHERE cuadre_id = ?').run(cuadreId);
 
-        // Eliminar el registro de cierre
-        db.prepare('DELETE FROM cajas_cerradas WHERE id = ?').run(req.params.id);
+        // Soft delete del registro de cierre
+        db.prepare('UPDATE cajas_cerradas SET deleted_at = ?, deleted_by = ? WHERE id = ?')
+            .run(getRDTimestamp(), req.session.userId || null, cuadreId);
 
-        res.json({ success: true, mensaje: 'Cuadre eliminado. Las ventas vuelven a estar pendientes.' });
+        res.json({ success: true, mensaje: 'Cuadre archivado. Las ventas vuelven a estar pendientes.' });
     } catch (error) {
         console.error('Error:', error);
-        res.status(500).json({ error: 'Error al eliminar cuadre' });
+        res.status(500).json({ error: 'Error al archivar cuadre' });
+    }
+});
+
+// ── KPIs por Dominio (Fase 5) ───────────────────────────────────────────────
+
+router.get('/domain/appointments-kpis', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const { desde, hasta } = req.query;
+
+        if (!validateDateRangeOrRespond(res, desde, hasta)) return;
+
+        const now = getRDDate();
+        const fechaHoy = getRDDateString(now);
+        const horaHoy = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
+
+        let where = 'WHERE negocio_id = ?';
+        const params = [req.session.negocioId];
+        if (desde) { where += ' AND fecha >= ?'; params.push(desde); }
+        if (hasta) { where += ' AND fecha <= ?'; params.push(hasta); }
+
+        const resumen = db.prepare(`
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN estado = 'finalizada' THEN 1 ELSE 0 END) as finalizadas,
+                SUM(CASE WHEN estado = 'cancelada' THEN 1 ELSE 0 END) as canceladas,
+                SUM(CASE WHEN estado IN ('pendiente', 'confirmada') AND (fecha < ? OR (fecha = ? AND hora_fin < ?)) THEN 1 ELSE 0 END) as no_show
+            FROM citas
+            ${where}
+        `).get(fechaHoy, fechaHoy, horaHoy, ...params);
+
+        const minutosOcupados = db.prepare(`
+            SELECT COALESCE(SUM(
+                ((CAST(SUBSTR(hora_fin, 1, 2) AS INTEGER) * 60 + CAST(SUBSTR(hora_fin, 4, 2) AS INTEGER)) -
+                 (CAST(SUBSTR(hora_inicio, 1, 2) AS INTEGER) * 60 + CAST(SUBSTR(hora_inicio, 4, 2) AS INTEGER)))
+            ), 0) as minutos
+            FROM citas
+            ${where} AND estado != 'cancelada'
+        `).get(...params);
+
+        const negocio = db.prepare('SELECT hora_apertura, hora_cierre, dias_laborales FROM negocios WHERE id = ?')
+            .get(req.session.negocioId);
+
+        const inicio = desde || fechaHoy;
+        const fin = hasta || fechaHoy;
+        const [aH, aM] = (negocio?.hora_apertura || '08:00').split(':').map(Number);
+        const [cH, cM] = (negocio?.hora_cierre || '18:00').split(':').map(Number);
+        const minutosDia = Math.max(0, (cH * 60 + cM) - (aH * 60 + aM));
+        const diasLaborales = (negocio?.dias_laborales || '1,2,3,4,5,6')
+            .split(',')
+            .map(d => Number.parseInt(d, 10))
+            .filter(n => Number.isInteger(n));
+
+        let diasActivos = 0;
+        let cursor = new Date(`${inicio}T00:00:00`);
+        const finDate = new Date(`${fin}T00:00:00`);
+        while (cursor <= finDate) {
+            const dow = cursor.getDay();
+            if (diasLaborales.includes(dow)) diasActivos += 1;
+            cursor.setDate(cursor.getDate() + 1);
+        }
+
+        const capacidadMinutos = diasActivos * minutosDia;
+        const ocupacion = capacidadMinutos > 0 ? (minutosOcupados.minutos / capacidadMinutos) * 100 : 0;
+        const puntualidad = (resumen.finalizadas + resumen.no_show) > 0
+            ? (resumen.finalizadas / (resumen.finalizadas + resumen.no_show)) * 100
+            : 100;
+
+        res.json({
+            total: resumen.total || 0,
+            finalizadas: resumen.finalizadas || 0,
+            canceladas: resumen.canceladas || 0,
+            no_show: resumen.no_show || 0,
+            ocupacion,
+            puntualidad
+        });
+    } catch (error) {
+        console.error('Error en KPI citas:', error);
+        res.status(500).json({ error: 'Error al obtener KPI de citas' });
+    }
+});
+
+router.get('/domain/orders-kpis', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const { desde, hasta } = req.query;
+
+        if (!validateDateRangeOrRespond(res, desde, hasta)) return;
+
+        let where = 'WHERE negocio_id = ?';
+        const params = [req.session.negocioId];
+        if (desde) { where += ' AND DATE(fecha_creacion) >= ?'; params.push(desde); }
+        if (hasta) { where += ' AND DATE(fecha_creacion) <= ?'; params.push(hasta); }
+
+        const resumen = db.prepare(`
+            SELECT
+                COUNT(*) as total,
+                SUM(CASE WHEN estado = 'entregado' THEN 1 ELSE 0 END) as entregados,
+                SUM(CASE WHEN estado = 'cancelado' THEN 1 ELSE 0 END) as cancelados,
+                AVG(CASE WHEN fecha_listo IS NOT NULL AND COALESCE(fecha_preparando, fecha_confirmado) IS NOT NULL
+                         THEN (julianday(fecha_listo) - julianday(COALESCE(fecha_preparando, fecha_confirmado))) * 24 * 60 END) as min_preparacion,
+                AVG(CASE WHEN fecha_entregado IS NOT NULL AND fecha_listo IS NOT NULL
+                         THEN (julianday(fecha_entregado) - julianday(fecha_listo)) * 24 * 60 END) as min_entrega,
+                AVG(CASE WHEN fecha_entregado IS NOT NULL
+                         THEN (julianday(fecha_entregado) - julianday(fecha_creacion)) * 24 * 60 END) as min_ciclo
+            FROM pedidos
+            ${where}
+        `).get(...params);
+
+        const cancelaciones = (resumen.total || 0) > 0 ? ((resumen.cancelados || 0) / resumen.total) * 100 : 0;
+
+        res.json({
+            total: resumen.total || 0,
+            entregados: resumen.entregados || 0,
+            cancelados: resumen.cancelados || 0,
+            cancelaciones,
+            minutos_preparacion: resumen.min_preparacion || 0,
+            minutos_entrega: resumen.min_entrega || 0,
+            minutos_ciclo: resumen.min_ciclo || 0
+        });
+    } catch (error) {
+        console.error('Error en KPI pedidos:', error);
+        res.status(500).json({ error: 'Error al obtener KPI de pedidos' });
+    }
+});
+
+router.get('/domain/fiscal-kpis', requireAuth, (req, res) => {
+    try {
+        const db = getDb();
+        const { desde, hasta } = req.query;
+
+        if (!validateDateRangeOrRespond(res, desde, hasta)) return;
+
+        let where = 'WHERE negocio_id = ?';
+        const params = [req.session.negocioId];
+        if (desde) { where += ' AND DATE(fecha) >= ?'; params.push(desde); }
+        if (hasta) { where += ' AND DATE(fecha) <= ?'; params.push(hasta); }
+
+        const resumen = db.prepare(`
+            SELECT
+                COUNT(*) as total_ventas,
+                COALESCE(SUM(total), 0) as total_facturado,
+                COALESCE(SUM(itbis), 0) as itbis,
+                SUM(CASE WHEN tipo_ecf = '31' THEN 1 ELSE 0 END) as e31,
+                SUM(CASE WHEN tipo_ecf = '32' THEN 1 ELSE 0 END) as e32,
+                COALESCE(AVG(total), 0) as ticket_promedio
+            FROM ventas
+            ${where}
+        `).get(...params);
+
+        res.json({
+            total_ventas: resumen.total_ventas || 0,
+            total_facturado: resumen.total_facturado || 0,
+            itbis: resumen.itbis || 0,
+            e31: resumen.e31 || 0,
+            e32: resumen.e32 || 0,
+            ticket_promedio: resumen.ticket_promedio || 0
+        });
+    } catch (error) {
+        console.error('Error en KPI fiscal:', error);
+        res.status(500).json({ error: 'Error al obtener KPI fiscal' });
     }
 });
 

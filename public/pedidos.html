@@ -311,7 +311,11 @@
 
         async function loadPedidos() {
             try {
-                todosPedidos = await apiCall('/pedidos');
+                const pedidos = await apiCall('/pedidos');
+                todosPedidos = pedidos.map(p => ({
+                    ...p,
+                    cliente_nombre: p.cliente_nombre_master || p.cliente_nombre
+                }));
                 renderTabs();
                 renderPedidos();
             } catch(e) {
@@ -404,7 +408,11 @@
             actionsHtml += `<button class="mp-btn mp-btn-ready" onclick="cambiarEstado(${p.id},'listo')">Listo</button>`;
             actionsHtml += `<button class="mp-btn mp-btn-deliver" onclick="cambiarEstado(${p.id},'entregado')">Entregado</button>`;
             actionsHtml += `<button class="mp-btn mp-btn-cancel" onclick="cambiarEstado(${p.id},'cancelado')">Cancelar</button>`;
-            actionsHtml += `<button class="mp-btn mp-btn-invoice" onclick="facturarPedido(${p.id})">Facturar</button>`;
+            if (p.estado === 'entregado' && !p.venta_id) {
+                actionsHtml += `<button class="mp-btn mp-btn-invoice" onclick="facturarPedido(${p.id})">Pasar a POS</button>`;
+            } else if (!p.venta_id) {
+                actionsHtml += `<button class="mp-btn mp-btn-close" disabled style="opacity:.7;cursor:not-allowed;">Disponible al entregar</button>`;
+            }
             actionsHtml += `<button class="mp-btn mp-btn-close" onclick="closeModalPedido()">Cerrar</button>`;
 
             document.getElementById('mpActions').innerHTML = actionsHtml;
@@ -508,6 +516,11 @@
             const p = todosPedidos.find(x => x.id === id);
             if (!p) return;
 
+            if (p.venta_id) {
+                showToast('Este pedido ya esta facturado', 'error');
+                return;
+            }
+
             const overlay = document.createElement('div');
             overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);backdrop-filter:blur(4px);z-index:10000;display:flex;align-items:center;justify-content:center;opacity:0;transition:opacity 0.3s ease;';
 
@@ -517,18 +530,18 @@
                 <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:1.5rem;color:#fff;text-align:center;position:relative;">
                     <button onclick="this.closest('div').parentElement.parentElement.remove()" style="position:absolute;top:12px;right:12px;width:32px;height:32px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;color:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;">&times;</button>
                     <div style="font-size:40px;margin-bottom:8px;">&#128176;</div>
-                    <h3 style="margin:0;font-size:1.1rem;font-weight:700;">Facturar Pedido</h3>
+                    <h3 style="margin:0;font-size:1.1rem;font-weight:700;">Pasar Pedido a POS</h3>
                     <p style="margin:4px 0 0;font-size:0.82rem;opacity:0.85;">Pedido #${p.id} - ${formatCurrency(p.total)}</p>
                 </div>
                 <div style="padding:1.5rem;">
-                    <p style="color:var(--gray-600);font-size:0.88rem;margin-bottom:1.25rem;">Se creara una venta con e-CF y se registrara en el sistema de facturacion.</p>
+                    <p style="color:var(--gray-600);font-size:0.88rem;margin-bottom:1.25rem;">Este pedido se cargara en POS para cobrar y facturar desde el flujo fiscal central.</p>
                     <div style="background:var(--gray-50);border-radius:12px;padding:1rem;margin-bottom:1.25rem;">
                         <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.85rem;"><span style="color:var(--gray-500);">Cliente</span><strong>${esc(p.cliente_nombre)}</strong></div>
                         <div style="display:flex;justify-content:space-between;margin-bottom:6px;font-size:0.85rem;"><span style="color:var(--gray-500);">Items</span><strong>${p.items_count}</strong></div>
                         <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:2px solid var(--gray-200);font-size:1.05rem;"><strong>Total</strong><strong style="color:#10b981;">${formatCurrency(p.total)}</strong></div>
                     </div>
                     <div style="display:flex;gap:0.5rem;">
-                        <button id="btnFacturarSi" style="flex:1;padding:0.75rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Facturar</button>
+                        <button id="btnFacturarSi" style="flex:1;padding:0.75rem;background:linear-gradient(135deg,#10b981,#059669);color:#fff;border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Ir a POS</button>
                         <button onclick="this.closest('div').parentElement.parentElement.parentElement.remove()" style="flex:1;padding:0.75rem;background:var(--gray-100);color:var(--gray-600);border:none;border-radius:12px;font-size:0.9rem;font-weight:600;cursor:pointer;font-family:inherit;">Cancelar</button>
                     </div>
                 </div>
@@ -542,18 +555,16 @@
             document.getElementById('btnFacturarSi').addEventListener('click', async () => {
                 const btn = document.getElementById('btnFacturarSi');
                 btn.disabled = true;
-                btn.textContent = 'Facturando...';
+                btn.textContent = 'Abriendo POS...';
                 btn.style.opacity = '0.6';
 
                 try {
-                    const result = await apiCall(`/pedidos/${id}/facturar`, { method: 'POST' });
                     overlay.remove();
-                    await loadPedidos();
-                    mostrarReciboFactura(id, p, result);
+                    window.location.href = `/pos?pedido=${encodeURIComponent(id)}`;
                 } catch(e) {
                     showToast(e.message, 'error');
                     btn.disabled = false;
-                    btn.textContent = 'Facturar';
+                    btn.textContent = 'Ir a POS';
                     btn.style.opacity = '1';
                 }
             });

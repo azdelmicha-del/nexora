@@ -28,7 +28,7 @@ router.get('/config', requireAuth, (req, res) => {
 
 router.post('/', requireAuth, (req, res) => {
     try {
-        const { cliente_id, items, metodo_pago, descuento, banco, tipo_ecf } = req.body;
+        const { cliente_id, items, metodo_pago, descuento, banco, tipo_ecf, origen_modulo, origen_id } = req.body;
 
         if (!items || items.length === 0) {
             return res.status(400).json({ error: 'Debe agregar al menos un servicio' });
@@ -44,8 +44,32 @@ router.post('/', requireAuth, (req, res) => {
         }
 
         const tipoECF = tipo_ecf || '32';
+        const origenModulo = origen_modulo || 'pos';
+        const origenId = origen_id ? Number.parseInt(origen_id, 10) : null;
+
+        if (!['pos', 'cita', 'pedido'].includes(origenModulo)) {
+            return res.status(400).json({ error: 'Origen de venta invalido' });
+        }
+        if (origen_id !== undefined && (!Number.isInteger(origenId) || origenId <= 0)) {
+            return res.status(400).json({ error: 'origen_id invalido' });
+        }
 
         const db = getDb();
+
+        if (origenModulo === 'pedido' && origenId) {
+            const pedido = db.prepare('SELECT id, estado, venta_id FROM pedidos WHERE id = ? AND negocio_id = ?')
+                .get(origenId, req.session.negocioId);
+            if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado para facturar' });
+            if (pedido.estado !== 'entregado') return res.status(400).json({ error: 'El pedido debe estar entregado para facturar' });
+            if (pedido.venta_id) return res.status(400).json({ error: 'Este pedido ya esta facturado' });
+        }
+
+        if (origenModulo === 'cita' && origenId) {
+            const cita = db.prepare('SELECT id, estado FROM citas WHERE id = ? AND negocio_id = ?')
+                .get(origenId, req.session.negocioId);
+            if (!cita) return res.status(404).json({ error: 'Cita no encontrada para facturar' });
+            if (cita.estado === 'cancelada') return res.status(400).json({ error: 'No se puede facturar una cita cancelada' });
+        }
 
         // Validar cliente y RNC si es Crédito Fiscal
         let clienteDoc = null;
@@ -97,8 +121,8 @@ router.post('/', requireAuth, (req, res) => {
         const codigoSeguridad = generarCodigoSeguridad();
         
         const ventaResult = db.prepare(`
-            INSERT INTO ventas (negocio_id, cliente_id, user_id, total, subtotal, itbis, descuento, metodo_pago, banco, fuera_cuadre, tipo_ecf, secuencia_ecf, codigo_seguridad, estado_dgii, fecha)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'pendiente', ?)
+            INSERT INTO ventas (negocio_id, cliente_id, user_id, total, subtotal, itbis, descuento, metodo_pago, banco, fuera_cuadre, tipo_ecf, secuencia_ecf, codigo_seguridad, estado_dgii, fecha, origen_modulo, origen_id)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, 'pendiente', ?, ?, ?)
         `).run(
             req.session.negocioId,
             cliente_id || null,
@@ -112,7 +136,9 @@ router.post('/', requireAuth, (req, res) => {
             tipoECF,
             secuenciaECF,
             codigoSeguridad,
-            fechaLocal
+            fechaLocal,
+            origenModulo,
+            origenId
         );
 
         const ventaId = ventaResult.lastInsertRowid;
@@ -159,6 +185,15 @@ router.post('/', requireAuth, (req, res) => {
             INSERT INTO notificaciones (negocio_id, tipo, mensaje, referencia_id)
             VALUES (?, 'venta', ?, ?)
         `).run(req.session.negocioId, `Nueva venta registrada`, ventaId);
+
+        if (origenModulo === 'pedido' && origenId) {
+            db.prepare('UPDATE pedidos SET venta_id = ?, estado = ?, fecha_entregado = COALESCE(fecha_entregado, ?) WHERE id = ? AND negocio_id = ?')
+                .run(ventaId, 'entregado', fechaLocal, origenId, req.session.negocioId);
+        }
+        if (origenModulo === 'cita' && origenId) {
+            db.prepare('UPDATE citas SET estado = ? WHERE id = ? AND negocio_id = ?')
+                .run('finalizada', origenId, req.session.negocioId);
+        }
 
         // ── Lealtad: 1 punto por cada RD$100 gastado ─────────────────────
         if (cliente_id && totalFinal > 0) {

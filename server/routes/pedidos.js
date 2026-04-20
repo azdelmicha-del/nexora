@@ -1,54 +1,18 @@
 const express = require('express');
 const { getDb } = require('../database');
 const { requireAuth } = require('../middleware/auth');
-const { round2, generarCodigoSeguridad } = require('../utils/dgii');
-const { getNextNCF } = require('../database');
-const { getRDDateString, getRDDate, getRDTimestamp } = require('../utils/timezone');
+const { round2 } = require('../utils/dgii');
+const { getRDTimestamp } = require('../utils/timezone');
 const { toTitleCase } = require('../utils/validators');
+const { upsertCanonicalClient, normalizeCanonicalClientInput } = require('../utils/client-canonical');
 
 const router = express.Router();
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-function crearClienteSiNoExiste(db, negocioId, nombre, telefono) {
-    if (!telefono) return null;
-    // Normalizar telefono: solo digitos
-    const telClean = telefono.replace(/\D/g, '');
-    if (telClean.length < 10) return null;
-
-    // Buscar por telefono normalizado
-    const existente = db.prepare(
-        "SELECT id FROM clientes WHERE negocio_id = ? AND REPLACE(REPLACE(REPLACE(telefono, '-', ''), ' ', ''), '+', '') LIKE ?"
-    ).get(negocioId, '%' + telClean.substring(telClean.length - 10));
-
-    if (existente) return existente.id;
-
-    // Crear nuevo cliente con validacion minima
-    const result = db.prepare(
-        'INSERT INTO clientes (negocio_id, nombre, telefono) VALUES (?, ?, ?)'
-    ).run(negocioId, toTitleCase(nombre), telClean);
-
-    return result.lastInsertRowid;
-}
-
-function awardLoyaltyPoints(db, negocioId, clienteId, total) {
-    if (!clienteId || total <= 0) return;
-    const puntosGanados = Math.floor(total / 100);
-    if (puntosGanados <= 0) return;
-
-    const existente = db.prepare('SELECT id, puntos FROM puntos_lealtad WHERE negocio_id = ? AND cliente_id = ?').get(negocioId, clienteId);
-    if (existente) {
-        const nuevosPuntos = existente.puntos + puntosGanados;
-        const nivel = nuevosPuntos >= 5000 ? 'platino' : nuevosPuntos >= 2000 ? 'oro' : nuevosPuntos >= 500 ? 'plata' : 'bronce';
-        db.prepare('UPDATE puntos_lealtad SET puntos = ?, nivel = ?, ultima_actividad = ? WHERE id = ?')
-            .run(nuevosPuntos, nivel, getRDDateString(), existente.id);
-    } else {
-        const nivel = puntosGanados >= 5000 ? 'platino' : puntosGanados >= 2000 ? 'oro' : puntosGanados >= 500 ? 'plata' : 'bronce';
-        db.prepare('INSERT INTO puntos_lealtad (negocio_id, cliente_id, puntos, nivel, ultima_actividad) VALUES (?, ?, ?, ?, ?)')
-            .run(negocioId, clienteId, puntosGanados, nivel, getRDDateString());
-    }
-    db.prepare('INSERT INTO historial_puntos (negocio_id, cliente_id, puntos, tipo, referencia) VALUES (?, ?, ?, ?, ?)')
-        .run(negocioId, clienteId, puntosGanados, 'ganado', 'Pedido facturado');
+function isClientValidationError(message) {
+    if (!message) return false;
+    return /requerido|telefono|celular|email|documento|tipo_documento/i.test(message);
 }
 
 function sendWhatsAppOnStatus(db, negocioId, pedido) {
@@ -96,9 +60,11 @@ router.get('/', requireAuth, (req, res) => {
 
         const pedidos = db.prepare(`
             SELECT p.*,
+                   COALESCE(c.nombre, p.cliente_nombre) as cliente_nombre_master,
                    (SELECT COUNT(*) FROM pedidos_items WHERE pedido_id = p.id) as items_count,
                    v.secuencia_ecf as venta_ecf
             FROM pedidos p
+            LEFT JOIN clientes c ON p.cliente_id = c.id AND c.negocio_id = p.negocio_id
             LEFT JOIN ventas v ON p.venta_id = v.id
             ${where}
             ORDER BY p.fecha_creacion DESC
@@ -132,22 +98,44 @@ router.put('/:id/estado', requireAuth, (req, res) => {
         const pedido = db.prepare('SELECT * FROM pedidos WHERE id = ? AND negocio_id = ?').get(req.params.id, req.session.negocioId);
         if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
 
-        db.prepare('UPDATE pedidos SET estado = ? WHERE id = ? AND negocio_id = ?')
-            .run(estado, req.params.id, req.session.negocioId);
-
-        // Auto-facturar cuando se marca como entregado
-        if (estado === 'entregado' && !pedido.venta_id) {
-            // Disparar facturación en background
-            setTimeout(() => {
-                try {
-                    const fetch = require('node-fetch');
-                    // No podemos hacer fetch aqui sin auth, mejor facturar directamente
-                    facturarPedidoDirecto(db, req.session.negocioId, req.session.userId, pedido.id);
-                } catch (e) {
-                    console.error('Auto-facturar error:', e.message);
-                }
-            }, 500);
+        let clienteIdFinal = pedido.cliente_id || null;
+        if (estado === 'entregado' && !clienteIdFinal && pedido.cliente_nombre && pedido.cliente_telefono) {
+            const cliente = upsertCanonicalClient(
+                db,
+                req.session.negocioId,
+                {
+                    nombre: pedido.cliente_nombre,
+                    telefono: pedido.cliente_telefono,
+                    notas: pedido.notas
+                },
+                { requireName: true, requirePhone: true, createIfMissing: true, updateMissingFields: true }
+            );
+            clienteIdFinal = cliente ? cliente.id : null;
         }
+
+        const ahora = getRDTimestamp();
+        const campoEstado = {
+            confirmado: 'fecha_confirmado',
+            preparando: 'fecha_preparando',
+            listo: 'fecha_listo',
+            entregado: 'fecha_entregado',
+            cancelado: 'fecha_cancelado'
+        }[estado];
+
+        const updates = ['estado = ?'];
+        const updateParams = [estado];
+        if (clienteIdFinal && !pedido.cliente_id) {
+            updates.push('cliente_id = ?');
+            updateParams.push(clienteIdFinal);
+        }
+        if (campoEstado) {
+            updates.push(`${campoEstado} = ?`);
+            updateParams.push(ahora);
+        }
+        updateParams.push(req.params.id, req.session.negocioId);
+
+        db.prepare(`UPDATE pedidos SET ${updates.join(', ')} WHERE id = ? AND negocio_id = ?`)
+            .run(...updateParams);
 
         // Enviar WhatsApp notification
         pedido.estado = estado;
@@ -162,6 +150,9 @@ router.put('/:id/estado', requireAuth, (req, res) => {
         res.json({ success: true, estado });
     } catch (error) {
         console.error('Error:', error);
+        if (isClientValidationError(error.message)) {
+            return res.status(400).json({ error: error.message });
+        }
         res.status(500).json({ error: 'Error al actualizar estado' });
     }
 });
@@ -174,7 +165,16 @@ router.put('/:id', requireAuth, (req, res) => {
         const updates = [];
         const params = [];
         if (cliente_nombre !== undefined) { updates.push('cliente_nombre = ?'); params.push(toTitleCase(cliente_nombre)); }
-        if (cliente_telefono !== undefined) { updates.push('cliente_telefono = ?'); params.push(cliente_telefono || null); }
+        if (cliente_telefono !== undefined) {
+            if (cliente_telefono) {
+                const canon = normalizeCanonicalClientInput({ telefono: cliente_telefono }, { requirePhone: true });
+                updates.push('cliente_telefono = ?');
+                params.push(canon.telefono);
+            } else {
+                updates.push('cliente_telefono = ?');
+                params.push(null);
+            }
+        }
         if (cliente_direccion !== undefined) { updates.push('cliente_direccion = ?'); params.push(cliente_direccion || null); }
         if (cliente_ubicacion !== undefined) { updates.push('cliente_ubicacion = ?'); params.push(cliente_ubicacion || null); }
         if (tipo_entrega !== undefined) { updates.push('tipo_entrega = ?'); params.push(tipo_entrega); }
@@ -185,6 +185,9 @@ router.put('/:id', requireAuth, (req, res) => {
         res.json({ success: true });
     } catch (error) {
         console.error('Error:', error);
+        if (isClientValidationError(error.message)) {
+            return res.status(400).json({ error: error.message });
+        }
         res.status(500).json({ error: 'Error al actualizar pedido' });
     }
 });
@@ -244,113 +247,48 @@ router.delete('/finalizados', requireAuth, (req, res) => {
     }
 });
 
-// ── Facturacion directa (usada por auto-facturar y endpoint manual) ──────────
-
-function facturarPedidoDirecto(db, negocioId, userId, pedidoId) {
-    const pedido = db.prepare('SELECT * FROM pedidos WHERE id = ? AND negocio_id = ?').get(pedidoId, negocioId);
-    if (!pedido || pedido.estado === 'cancelado' || pedido.venta_id) return null;
-
-    // Crear o buscar cliente
-    let clienteId = crearClienteSiNoExiste(db, negocioId, pedido.cliente_nombre, pedido.cliente_telefono);
-
-    // Calcular ITBIS con round2
-    const itemsPedido = db.prepare('SELECT * FROM pedidos_items WHERE pedido_id = ?').all(pedido.id);
-    let subtotal = 0;
-    let totalItbis = 0;
-    itemsPedido.forEach(ip => {
-        const menuItem = db.prepare('SELECT itbis_tasa FROM menu_items WHERE id = ?').get(ip.menu_item_id);
-        const tasa = (menuItem && menuItem.itbis_tasa !== null) ? menuItem.itbis_tasa : 18;
-        const descuentoProp = pedido.descuento > 0 ? (ip.subtotal / pedido.subtotal) * pedido.descuento : 0;
-        const baseLinea = ip.subtotal - descuentoProp;
-        const itbisItem = round2(baseLinea * (tasa / 100));
-        subtotal += ip.subtotal;
-        totalItbis += itbisItem;
-    });
-
-    const descuento = pedido.descuento || 0;
-    const total = subtotal + totalItbis + (pedido.costo_envio || 0) - descuento;
-
-    // Generar NCF
-    const secuencia = getNextNCF(db, negocioId, '32');
-    const codigoSeg = generarCodigoSeguridad();
-
-    // Crear venta
-    const ventaResult = db.prepare(`
-        INSERT INTO ventas (negocio_id, cliente_id, user_id, total, subtotal, itbis, descuento, metodo_pago, tipo_ecf, secuencia_ecf, codigo_seguridad, fecha)
-        VALUES (?, ?, ?, ?, ?, ?, ?, 'efectivo', '32', ?, ?, ?)
-    `).run(negocioId, clienteId, userId, total, subtotal, totalItbis, descuento, secuencia, codigoSeg, getRDDate().toISOString());
-
-    // Crear detalles
-    itemsPedido.forEach(ip => {
-        const menuItem = db.prepare('SELECT itbis_tasa FROM menu_items WHERE id = ?').get(ip.menu_item_id);
-        const tasa = (menuItem && menuItem.itbis_tasa !== null) ? menuItem.itbis_tasa : 18;
-        const descuentoProp = descuento > 0 ? (ip.subtotal / subtotal) * descuento : 0;
-        const baseLinea = ip.subtotal - descuentoProp;
-        const itbisItem = round2(baseLinea * (tasa / 100));
-        db.prepare(`
-            INSERT INTO venta_detalles (venta_id, servicio_id, menu_item_id, tipo_item, cantidad, precio, subtotal, itbis_monto)
-            VALUES (?, NULL, ?, 'menu', ?, ?, ?, ?)
-        `).run(ventaResult.lastInsertRowid, ip.menu_item_id, ip.cantidad, ip.precio, ip.subtotal, itbisItem);
-    });
-
-    // Vincular pedido con venta y marcarlo como entregado
-    db.prepare('UPDATE pedidos SET venta_id = ?, estado = ? WHERE id = ?')
-        .run(ventaResult.lastInsertRowid, 'entregado', pedido.id);
-
-    // Notification
-    db.prepare(`
-        INSERT INTO notificaciones (negocio_id, tipo, mensaje, referencia_id)
-        VALUES (?, 'venta', ?, ?)
-    `).run(negocioId, 'Pedido #' + pedido.id + ' facturado: ' + secuencia, ventaResult.lastInsertRowid);
-
-    // Audit log
-    db.prepare(`
-        INSERT INTO log_auditoria (negocio_id, user_id, accion, tabla, registro_id, detalle, ip, user_agent)
-        VALUES (?, ?, 'POST', 'ventas', ?, ?, '', '')
-    `).run(negocioId, userId, ventaResult.lastInsertRowid, 'Venta desde pedido #' + pedido.id + ' — ' + secuencia);
-
-    // Loyalty points
-    awardLoyaltyPoints(db, negocioId, clienteId, total);
-
-    return db.prepare('SELECT * FROM ventas WHERE id = ?').get(ventaResult.lastInsertRowid);
-}
-
-// POST /api/pedidos/:id/facturar — Facturar pedido (crear venta)
-router.post('/:id/facturar', requireAuth, (req, res) => {
+// GET /api/pedidos/:id/checkout-data — Datos para cobrar en POS
+router.get('/:id/checkout-data', requireAuth, (req, res) => {
     try {
         const db = getDb();
         const pedidoId = parseInt(req.params.id, 10);
-        const pedido = db.prepare('SELECT id, estado, venta_id FROM pedidos WHERE id = ? AND negocio_id = ?')
+        const pedido = db.prepare(`
+            SELECT id, estado, venta_id, cliente_id, cliente_nombre, cliente_telefono, subtotal, descuento, itbis, total
+            FROM pedidos
+            WHERE id = ? AND negocio_id = ?
+        `)
             .get(pedidoId, req.session.negocioId);
 
         if (!pedido) return res.status(404).json({ error: 'Pedido no encontrado' });
         if (pedido.estado === 'cancelado') return res.status(400).json({ error: 'No se puede facturar un pedido cancelado' });
+        if (pedido.estado !== 'entregado') return res.status(400).json({ error: 'Solo se puede enviar a POS un pedido entregado' });
+        if (pedido.venta_id) return res.status(400).json({ error: 'Este pedido ya fue facturado' });
 
-        if (pedido.venta_id) {
-            if (pedido.estado !== 'entregado') {
-                db.prepare('UPDATE pedidos SET estado = ? WHERE id = ? AND negocio_id = ?')
-                    .run('entregado', pedidoId, req.session.negocioId);
-            }
-            const ventaExistente = db.prepare('SELECT * FROM ventas WHERE id = ?').get(pedido.venta_id);
-            return res.json({ success: true, venta: ventaExistente, already_facturada: true });
-        }
+        const items = db.prepare(`
+            SELECT menu_item_id, nombre_item, cantidad, precio, subtotal
+            FROM pedidos_items
+            WHERE pedido_id = ?
+            ORDER BY id ASC
+        `).all(pedidoId);
 
-        const venta = facturarPedidoDirecto(db, req.session.negocioId, req.session.userId, pedidoId);
-        if (!venta) {
-            const pedidoActualizado = db.prepare('SELECT venta_id FROM pedidos WHERE id = ? AND negocio_id = ?')
-                .get(pedidoId, req.session.negocioId);
-            if (pedidoActualizado && pedidoActualizado.venta_id) {
-                db.prepare('UPDATE pedidos SET estado = ? WHERE id = ? AND negocio_id = ?')
-                    .run('entregado', pedidoId, req.session.negocioId);
-                const ventaExistente = db.prepare('SELECT * FROM ventas WHERE id = ?').get(pedidoActualizado.venta_id);
-                return res.json({ success: true, venta: ventaExistente, already_facturada: true });
-            }
-            return res.status(400).json({ error: 'No se pudo facturar el pedido' });
-        }
-        res.json({ success: true, venta });
+        res.json({
+            success: true,
+            pedido: {
+                id: pedido.id,
+                estado: pedido.estado,
+                cliente_id: pedido.cliente_id,
+                cliente_nombre: pedido.cliente_nombre,
+                cliente_telefono: pedido.cliente_telefono,
+                subtotal: pedido.subtotal,
+                descuento: pedido.descuento,
+                itbis: pedido.itbis,
+                total: pedido.total
+            },
+            items
+        });
     } catch (error) {
-        console.error('Error al facturar pedido:', error);
-        res.status(500).json({ error: 'Error al facturar pedido: ' + error.message });
+        console.error('Error al preparar checkout de pedido:', error);
+        res.status(500).json({ error: 'Error al preparar checkout de pedido: ' + error.message });
     }
 });
 
@@ -366,8 +304,8 @@ router.post('/public/:negocioSlug', (req, res) => {
         if (!negocio) return res.status(404).json({ error: 'Negocio no encontrado' });
 
         const { cliente_nombre, cliente_telefono, cliente_direccion, cliente_ubicacion, tipo_entrega, items, notas, descuento } = req.body;
-        if (!cliente_nombre || !items || items.length === 0) {
-            return res.status(400).json({ error: 'Nombre e items requeridos' });
+        if (!cliente_nombre || !cliente_telefono || !items || items.length === 0) {
+            return res.status(400).json({ error: 'Nombre, celular e items requeridos' });
         }
 
         const entregaTipo = tipo_entrega || 'domicilio';
@@ -382,7 +320,17 @@ router.post('/public/:negocioSlug', (req, res) => {
         }
 
         // Crear o buscar cliente
-        const clienteId = crearClienteSiNoExiste(db, negocio.id, cliente_nombre, cliente_telefono);
+        const cliente = upsertCanonicalClient(
+            db,
+            negocio.id,
+            {
+                nombre: cliente_nombre,
+                telefono: cliente_telefono,
+                notas
+            },
+            { requireName: true, requirePhone: true, createIfMissing: true, updateMissingFields: true }
+        );
+        const clienteId = cliente ? cliente.id : null;
 
         let subtotal = 0;
         let totalItbis = 0;
@@ -467,6 +415,9 @@ router.post('/public/:negocioSlug', (req, res) => {
         });
     } catch (error) {
         console.error('Error:', error);
+        if (isClientValidationError(error.message)) {
+            return res.status(400).json({ error: error.message });
+        }
         res.status(500).json({ error: 'Error al crear pedido' });
     }
 });

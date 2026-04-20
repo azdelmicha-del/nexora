@@ -673,6 +673,7 @@
         let negocioTelefono = '';
         let negocioLogo = '';
         let citaIdParaFinalizar = null;
+        let origenVenta = { modulo: 'pos', id: null };
         
         document.addEventListener('DOMContentLoaded', async () => {
             const licenseOk = await requireLicense();
@@ -695,17 +696,44 @@
             const clienteId = urlParams.get('cliente');
             const servicioId = urlParams.get('servicio');
             const citaId = urlParams.get('cita');
+            const pedidoId = urlParams.get('pedido');
             
             if (citaId) {
                 citaIdParaFinalizar = parseInt(citaId);
+                origenVenta = { modulo: 'cita', id: citaIdParaFinalizar };
+            }
+
+            if (pedidoId) {
+                try {
+                    await cargarPedidoEnPOS(parseInt(pedidoId, 10));
+                    showToast('Pedido cargado en POS para cobro', 'success');
+                } catch (error) {
+                    const msg = (error && error.message) ? error.message : 'No se pudo cargar el pedido en POS';
+                    if (msg.includes('ya fue facturado')) {
+                        showToast('Este pedido ya fue facturado. Te redirigimos a Pedidos.', 'info');
+                        setTimeout(() => { window.location.href = '/pedidos'; }, 900);
+                    } else {
+                        console.error('Error al cargar pedido en POS:', error);
+                        showToast(msg, 'error');
+                    }
+                }
             }
             
             if (clienteId && servicioId) {
                 try {
                     const cliente = await apiCall(`/clients/${clienteId}`);
-                    seleccionarCliente(cliente.id, cliente.nombre, cliente.telefono || '');
+                    seleccionarCliente(
+                        cliente.id,
+                        cliente.nombre,
+                        cliente.telefono || '',
+                        cliente.documento || '',
+                        cliente.tipo_documento || ''
+                    );
                     agregarAlCarrito(parseInt(servicioId));
                     showToast('Cliente y servicio cargados desde la cita', 'success');
+                    if (citaIdParaFinalizar) {
+                        origenVenta = { modulo: 'cita', id: citaIdParaFinalizar };
+                    }
                 } catch (error) {
                     console.error('Error al cargar datos de la cita:', error);
                 }
@@ -818,8 +846,75 @@
                 agregarAlCarrito(servicio.id);
             }
 
+            citaIdParaFinalizar = citaId;
+            origenVenta = { modulo: 'cita', id: citaId };
+
             showToast(`${cita.cliente} → ${cita.servicio} agregado`, 'success');
             await cargarCitasHoy();
+        }
+
+        async function cargarPedidoEnPOS(pedidoId) {
+            if (!pedidoId || Number.isNaN(pedidoId)) return;
+
+            const data = await apiCall(`/pedidos/${pedidoId}/checkout-data`);
+            const pedido = data?.pedido;
+            const items = data?.items || [];
+            if (!pedido || items.length === 0) {
+                throw new Error('Pedido sin datos para POS');
+            }
+
+            carrito = [];
+            descuentoAplicado = 0;
+            renderCarrito();
+
+            await seleccionarOCrearClienteDesdePedido(pedido);
+
+            items.forEach(item => {
+                if (!item.menu_item_id) return;
+                const cantidad = parseInt(item.cantidad, 10) || 1;
+                for (let i = 0; i < cantidad; i++) {
+                    agregarMenuItem(item.menu_item_id);
+                }
+            });
+
+            const btnCobrar = document.getElementById('btnCobrar');
+            if (btnCobrar) {
+                btnCobrar.textContent = `Cobrar pedido #${pedido.id}`;
+            }
+
+            origenVenta = { modulo: 'pedido', id: pedido.id };
+        }
+
+        async function seleccionarOCrearClienteDesdePedido(pedido) {
+            if (pedido.cliente_id) {
+                const cliente = await apiCall(`/clients/${pedido.cliente_id}`);
+                seleccionarCliente(
+                    cliente.id,
+                    cliente.nombre,
+                    cliente.telefono || '',
+                    cliente.documento || '',
+                    cliente.tipo_documento || ''
+                );
+                return;
+            }
+
+            if (!pedido.cliente_nombre || !pedido.cliente_telefono) return;
+
+            const clienteCreado = await apiCall('/clients', {
+                method: 'POST',
+                body: JSON.stringify({
+                    nombre: pedido.cliente_nombre,
+                    telefono: pedido.cliente_telefono
+                })
+            });
+
+            seleccionarCliente(
+                clienteCreado.id,
+                clienteCreado.nombre,
+                clienteCreado.telefono || '',
+                clienteCreado.documento || '',
+                clienteCreado.tipo_documento || ''
+            );
         }
         
         function renderCategorias() {
@@ -1353,7 +1448,9 @@
                     metodo_pago: metodoPago,
                     banco: bancoSeleccionado,
                     descuento: descuentoAplicado,
-                    tipo_ecf: tipoECF
+                    tipo_ecf: tipoECF,
+                    origen_modulo: origenVenta?.modulo || 'pos',
+                    origen_id: origenVenta?.id || null
                 };
                 
                 const venta = await apiCall('/sales', {
@@ -1361,17 +1458,9 @@
                     body: JSON.stringify(data)
                 });
                 
-                if (citaIdParaFinalizar) {
-                    try {
-                        await apiCall(`/appointments/${citaIdParaFinalizar}`, {
-                            method: 'PUT',
-                            body: JSON.stringify({ estado: 'finalizada' })
-                        });
-                        showToast('Venta completada y cita finalizada', 'success');
-                        citaIdParaFinalizar = null;
-                    } catch (e) {
-                        console.error('Error al finalizar cita:', e);
-                    }
+                if (origenVenta?.modulo === 'cita') {
+                    showToast('Venta completada y cita finalizada', 'success');
+                    citaIdParaFinalizar = null;
                 }
                 
                 ultimaVentaId = venta.id;
@@ -1391,6 +1480,7 @@
                 renderCarrito();
                 document.getElementById('clienteSeleccionado').style.display = 'none';
                 document.getElementById('buscadorCliente').style.display = 'block';
+                origenVenta = { modulo: 'pos', id: null };
             } catch (error) {
                 showModalError(error.message || error.error || 'Error al procesar la venta');
             }
@@ -1775,7 +1865,7 @@
                 btn31.style.color = '#7c3aed';
                 btn32.style.borderColor = 'var(--gray-300)';
                 btn32.style.background = 'white';
-                btn31.style.color = 'var(--gray-500)';
+                btn32.style.color = 'var(--gray-500)';
             }
         }
         
@@ -1842,7 +1932,13 @@
                 });
                 
                 cerrarModalCliente();
-                seleccionarCliente(cliente.id, cliente.nombre, cliente.telefono || '');
+                seleccionarCliente(
+                    cliente.id,
+                    cliente.nombre,
+                    cliente.telefono || '',
+                    cliente.documento || '',
+                    cliente.tipo_documento || ''
+                );
             } catch (error) {
                 showModalError(error.message);
             }

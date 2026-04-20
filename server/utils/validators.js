@@ -40,11 +40,18 @@ const formatters = {
     toPhone: (str) => {
         if (!str) return '';
         return str.replace(/\D/g, '');
+    },
+
+    // Telefono comparable: ultimos 10 digitos para buscar coincidencias consistentes
+    toComparablePhone: (str) => {
+        if (!str) return '';
+        const clean = str.replace(/\D/g, '');
+        return clean.length > 10 ? clean.slice(-10) : clean;
     }
 };
 
 // Exportación individual para desestructuración directa
-const { toTitleCase, toUpperCase, capitalize, capitalizeFirst, toEmail, toPhone } = formatters;
+const { toTitleCase, toUpperCase, capitalize, capitalizeFirst, toEmail, toPhone, toComparablePhone } = formatters;
 
 // Validadores
 const validators = {
@@ -90,4 +97,4 @@ const errorMessages = {
     emailNoPermitido: 'Dominio de email no permitido. Use @gmail.com, @hotmail.com, @yahoo.com, @outlook.com o @live.com'
 };
 
-module.exports = { formatters, validators, errorMessages, toTitleCase, toUpperCase, capitalize, capitalizeFirst, toEmail, toPhone };
+module.exports = { formatters, validators, errorMessages, toTitleCase, toUpperCase, capitalize, capitalizeFirst, toEmail, toPhone, toComparablePhone };

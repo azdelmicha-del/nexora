@@ -337,17 +337,17 @@
         </div>
     </div>
     
-    <!-- Modal de confirmación para facturar -->
+    <!-- Modal de confirmación para pasar a POS -->
     <div id="modalFacturar" class="modal-overlay">
         <div style="background: white; border-radius: 16px; padding: 30px; max-width: 420px; width: 90%; text-align: center;">
             <div style="width: 60px; height: 60px; background: #dbeafe; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 16px; font-size: 30px;">
                 🧾
             </div>
             <h3 style="font-size: 16px; font-weight: 700; color: #1a1a2e; margin-bottom: 8px; line-height: 1.4;">
-                ¿Desea facturar esta cita?
+                ¿Desea pasar esta cita a POS?
             </h3>
             <p style="color: #666; font-size: 13px; margin-bottom: 24px;">
-                Se redirigirá a Facturar para completar el cobro.
+                Se redirigirá a POS para completar el cobro y comprobante.
             </p>
             <div style="display: flex; gap: 12px; justify-content: center;">
                 <button onclick="cerrarModalFacturar()" style="flex: 1; padding: 12px 20px; border: 2px solid #e5e7eb; background: white; border-radius: 10px; font-weight: 600; font-size: 14px; cursor: pointer; color: #666;">
@@ -599,7 +599,7 @@
                         <button class="btn btn-secondary btn-sm" onclick="verDetalle(${c.id})">Ver</button>
                         ${c.estado !== 'cancelada' && c.estado !== 'finalizada' ? `
                             <button class="btn btn-info btn-sm" onclick="editarCita(${c.id})">Editar</button>
-                            <button class="btn btn-primary btn-sm" onclick="facturarCita(${c.id}, ${c.cliente_id}, ${c.servicio_id})">Facturar</button>
+                            <button class="btn btn-primary btn-sm" onclick="facturarCita(${c.id}, ${c.cliente_id}, ${c.servicio_id})">Pasar a POS</button>
                             <button class="btn btn-secondary btn-sm" onclick="cambiarEstado(${c.id}, 'confirmada')">Confirmar</button>
                             <button class="btn btn-warning btn-sm" onclick="cambiarEstado(${c.id}, 'cancelada')">Cancelar</button>
                         ` : ''}
@@ -862,7 +862,7 @@
             const clienteId = datosFacturar.clienteId;
             const servicioId = datosFacturar.servicioId;
             
-            showToast('Redirigiendo a Facturar...', 'info');
+            showToast('Redirigiendo a POS...', 'info');
             cerrarModalFacturar();
             
             setTimeout(() => {

@@ -376,6 +376,7 @@
                 
                 <!-- KPIs principales -->
                 <div id="kpisVentas" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 1rem; margin-bottom: 1.5rem;"></div>
+                <div id="kpisDominio" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-bottom: 1.5rem;"></div>
                 
                 <div class="resumen-cards" id="resumenVentas"></div>
                 
@@ -652,10 +653,15 @@
             showSkeleton();
             
             try {
-                const ventas = await apiCall('/reports/ventas' + params);
-                const servicios = await apiCall('/reports/servicios' + params);
-                const clientes = await apiCall('/reports/clientes' + params);
-                const citas = await apiCall('/reports/citas' + params);
+                const [ventas, servicios, clientes, citas, kpiCitas, kpiPedidos, kpiFiscal] = await Promise.all([
+                    apiCall('/reports/ventas' + params),
+                    apiCall('/reports/servicios' + params),
+                    apiCall('/reports/clientes' + params),
+                    apiCall('/reports/citas' + params),
+                    apiCall('/reports/domain/appointments-kpis' + params),
+                    apiCall('/reports/domain/orders-kpis' + params),
+                    apiCall('/reports/domain/fiscal-kpis' + params)
+                ]);
                 
                 datosReportes = { ventas: ventas, servicios: servicios, clientes: clientes, citas: citas };
                 
@@ -663,8 +669,10 @@
                 renderReporteServicios(servicios);
                 renderReporteClientes(clientes);
                 renderReporteCitas(citas);
+                renderKpisDominio(kpiCitas, kpiPedidos, kpiFiscal);
             } catch (error) {
                 console.error('Error cargando reportes:', error);
+                showToast(error.message || 'Error cargando reportes', 'error');
             } finally {
                 btn.disabled = false;
                 btn.textContent = btnText;
@@ -740,6 +748,29 @@
                     cutout: '65%'
                 }
             });
+        }
+
+        function renderKpisDominio(citasKpi, pedidosKpi, fiscalKpi) {
+            const container = document.getElementById('kpisDominio');
+            if (!container) return;
+
+            container.innerHTML = `
+                <div class="resumen-card" style="border-left:4px solid #3b82f6;">
+                    <div style="font-size:0.78rem;color:var(--gray-500);">CITAS: Ocupación / No-show</div>
+                    <div style="font-size:1.15rem;font-weight:800;margin-top:.25rem;">${Number(citasKpi.ocupacion || 0).toFixed(1)}%</div>
+                    <div style="font-size:0.8rem;color:var(--gray-600);">No-show: ${citasKpi.no_show || 0} | Puntualidad: ${Number(citasKpi.puntualidad || 0).toFixed(1)}%</div>
+                </div>
+                <div class="resumen-card" style="border-left:4px solid #10b981;">
+                    <div style="font-size:0.78rem;color:var(--gray-500);">PEDIDOS: Tiempos Operativos</div>
+                    <div style="font-size:1.15rem;font-weight:800;margin-top:.25rem;">Prep ${Number(pedidosKpi.minutos_preparacion || 0).toFixed(1)} min</div>
+                    <div style="font-size:0.8rem;color:var(--gray-600);">Entrega ${Number(pedidosKpi.minutos_entrega || 0).toFixed(1)} min | Cancelaciones ${Number(pedidosKpi.cancelaciones || 0).toFixed(1)}%</div>
+                </div>
+                <div class="resumen-card" style="border-left:4px solid #f59e0b;">
+                    <div style="font-size:0.78rem;color:var(--gray-500);">FISCAL: E31 / E32</div>
+                    <div style="font-size:1.15rem;font-weight:800;margin-top:.25rem;">E31 ${fiscalKpi.e31 || 0} | E32 ${fiscalKpi.e32 || 0}</div>
+                    <div style="font-size:0.8rem;color:var(--gray-600);">ITBIS ${formatCurrency(fiscalKpi.itbis || 0)} | Ticket ${formatCurrency(fiscalKpi.ticket_promedio || 0)}</div>
+                </div>
+            `;
         }
         
         function mostrarSeccion(seccion) {
@@ -825,7 +856,7 @@
             // Botón según estado
             const btnAccion = document.getElementById('btnAccionCaja');
             if (data.caja_cerrada) {
-                btnAccion.textContent = '🔓 Abrir Caja';
+                btnAccion.textContent = '🔓 Iniciar Nueva Caja';
                 btnAccion.className = 'btn btn-warning';
                 btnAccion.onclick = () => { abrirCaja(); };
             } else {
@@ -1661,36 +1692,98 @@
             if (cierreModalContainer) cierreModalContainer.innerHTML = '';
             if (modalContainer) modalContainer.innerHTML = '';
         }
+
+        async function getCierrePreview() {
+            try {
+                const [previewDia, previewMes] = await Promise.all([
+                    apiCall('/reports/cuadre/preview?tipo=dia'),
+                    apiCall('/reports/cuadre/preview?tipo=mes')
+                ]);
+
+                return {
+                    dia: {
+                        rango: `${previewDia.rango.desde} a ${previewDia.rango.hasta}`,
+                        ventas: Number((previewDia.resumen && previewDia.resumen.cantidad) || 0),
+                        total: Number((previewDia.resumen && previewDia.resumen.total) || 0),
+                        egresos: Number((previewDia.egresos && previewDia.egresos.total_egresos) || 0)
+                    },
+                    mes: {
+                        rango: `${previewMes.rango.desde} a ${previewMes.rango.hasta}`,
+                        ventas: Number((previewMes.resumen && previewMes.resumen.cantidad) || 0),
+                        total: Number((previewMes.resumen && previewMes.resumen.total) || 0),
+                        egresos: Number((previewMes.egresos && previewMes.egresos.total_egresos) || 0)
+                    }
+                };
+            } catch (e) {
+                // Fallback local si falla el endpoint de preview
+            }
+
+            const resumen = (datosCuadreActual && datosCuadreActual.resumen) ? datosCuadreActual.resumen : {};
+            const egresos = (datosCuadreActual && datosCuadreActual.egresosTurno) ? datosCuadreActual.egresosTurno : {};
+            const hoy = new Date();
+            const yyyy = hoy.getFullYear();
+            const mm = String(hoy.getMonth() + 1).padStart(2, '0');
+            const dd = String(hoy.getDate()).padStart(2, '0');
+            const hoyISO = `${yyyy}-${mm}-${dd}`;
+            const inicioMesISO = `${yyyy}-${mm}-01`;
+
+            const ventasDia = Number(resumen.cantidad || 0);
+            const totalDia = Number(resumen.total || 0);
+            const egresosDia = Number(egresos.total_egresos || 0);
+
+            return {
+                dia: {
+                    rango: `Desde apertura actual hasta ${hoyISO}`,
+                    ventas: ventasDia,
+                    total: totalDia,
+                    egresos: egresosDia
+                },
+                mes: {
+                    rango: `${inicioMesISO} a ${hoyISO}`,
+                    ventas: ventasDia,
+                    total: totalDia,
+                    egresos: egresosDia
+                }
+            };
+        }
         
-        function cerrarCaja() {
+        async function cerrarCaja() {
             if (datosCuadreActual && datosCuadreActual.caja_cerrada) {
                 showModalError('La caja ya fue cerrada hoy');
                 return;
             }
+
+            const preview = await getCierrePreview();
             
             initCierreModal();
             cierreModalContainer.innerHTML = `
                 <div style="position:fixed; top:0; left:0; right:0; bottom:0; background:rgba(0,0,0,0.5); display:flex; align-items:center; justify-content:center; z-index:10000; backdrop-filter:blur(4px);">
-                    <div style="background:white; border-radius:20px; padding:2rem; max-width:400px; width:90%; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative;">
+                    <div style="background:white; border-radius:20px; padding:2rem; max-width:460px; width:92%; box-shadow:0 20px 60px rgba(0,0,0,0.3); position:relative;">
                         <button onclick="closeGlobalModal()" style="position:absolute; top:12px; right:12px; background:none; border:none; font-size:24px; cursor:pointer; color:#999;">&times;</button>
-                        <h3 style="margin:0 0 0.5rem; font-size:1.1rem; color:var(--gray-800);">¿Qué tipo de cierre?</h3>
-                        <p style="color:var(--gray-500); font-size:0.85rem; margin-bottom:1.5rem;">Selecciona el período que deseas cuadrar.</p>
+                        <h3 style="margin:0 0 0.5rem; font-size:1.1rem; color:var(--gray-800);">Selecciona el tipo de cierre</h3>
+                        <p style="color:var(--gray-500); font-size:0.85rem; margin-bottom:1.25rem;">Revisa el alcance y el impacto antes de continuar.</p>
                         
                         <button onclick="abrirCierreConTipo('dia')" style="width:100%; padding:1rem; margin-bottom:0.75rem; background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; border:none; border-radius:12px; font-weight:600; font-size:0.9rem; cursor:pointer; font-family:inherit; text-align:left; display:flex; align-items:center; gap:0.75rem; box-shadow:0 4px 12px rgba(16,185,129,0.3);">
                             <span style="font-size:1.5rem;">📅</span>
-                            <div>
+                            <div style="width:100%;">
                                 <div>Cierre del Día</div>
-                                <div style="font-size:0.75rem; opacity:0.8; font-weight:400;">Solo ventas de hoy</div>
+                                <div style="font-size:0.75rem; opacity:0.9; font-weight:400;">${preview.dia.rango}</div>
+                                <div style="font-size:0.74rem; opacity:0.9; margin-top:0.25rem;">Ventas: ${preview.dia.ventas} | Total: ${formatCurrency(preview.dia.total)} | Egresos: ${formatCurrency(preview.dia.egresos)}</div>
                             </div>
                         </button>
                         
                         <button onclick="abrirCierreConTipo('mes')" style="width:100%; padding:1rem; background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:white; border:none; border-radius:12px; font-weight:600; font-size:0.9rem; cursor:pointer; font-family:inherit; text-align:left; display:flex; align-items:center; gap:0.75rem; box-shadow:0 4px 12px rgba(245,158,11,0.3);">
                             <span style="font-size:1.5rem;">📆</span>
-                            <div>
+                            <div style="width:100%;">
                                 <div>Cierre del Mes</div>
-                                <div style="font-size:0.75rem; opacity:0.8; font-weight:400;">Todas las ventas del mes actual</div>
+                                <div style="font-size:0.75rem; opacity:0.9; font-weight:400;">${preview.mes.rango}</div>
+                                <div style="font-size:0.74rem; opacity:0.9; margin-top:0.25rem;">Ventas: ${preview.mes.ventas} | Total: ${formatCurrency(preview.mes.total)} | Egresos: ${formatCurrency(preview.mes.egresos)}</div>
                             </div>
                         </button>
+
+                        <div style="margin-top:0.9rem; background:#f8fafc; border:1px solid #e2e8f0; border-radius:10px; padding:0.65rem 0.75rem; font-size:0.78rem; color:#334155; line-height:1.35;">
+                            Historial preservado. El cierre no elimina datos y luego puedes iniciar una nueva caja en limpio.
+                        </div>
                         
                         <button onclick="closeGlobalModal()" style="width:100%; margin-top:0.75rem; padding:0.75rem; background:var(--gray-100); color:var(--gray-600); border:none; border-radius:10px; font-weight:600; cursor:pointer; font-family:inherit;">Cancelar</button>
                     </div>
@@ -1770,6 +1863,7 @@
                             <h2 style="font-size:22px; font-weight:700; margin-bottom:12px; color:#1a1a2e;">¡Caja Cerrada!</h2>
                             <p style="color:#666; margin-bottom:20px; font-size:15px; line-height:1.5;">Caja cerrada correctamente.</p>
                             <div style="display:flex; gap:0.5rem; flex-direction:column;">
+                                <button onclick="closeGlobalModal(); iniciarNuevaCajaDespuesDeCierre();" style="background:linear-gradient(135deg, #10b981 0%, #059669 100%); color:white; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-family:inherit; font-size:0.85rem;">🔓 Iniciar Nueva Caja Ahora</button>
                                 <button onclick="closeGlobalModal(); imprimirCuadreResumen();" style="background:linear-gradient(135deg, #667eea 0%, #764ba2 100%); color:white; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-family:inherit; font-size:0.85rem;">🖨️ Imprimir Cuadre (Resumen)</button>
                                 <button onclick="closeGlobalModal(); imprimirDetalleVentas();" style="background:linear-gradient(135deg, #f59e0b 0%, #d97706 100%); color:white; padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-family:inherit; font-size:0.85rem;">📄 Imprimir Detalle de Ventas</button>
                                 <button onclick="closeGlobalModal()" style="background:var(--gray-100); color:var(--gray-600); padding:12px; border:none; border-radius:10px; font-weight:600; cursor:pointer; font-family:inherit; font-size:0.85rem;">Cerrar</button>
@@ -1790,16 +1884,27 @@
         }
         
         async function abrirCaja() {
-            showModalConfirm('¿Está seguro que desea ABRIR la caja? Las ventas posteriores se registrarán normalmente.', async () => {
+            showModalConfirm('¿Está seguro que desea INICIAR una nueva caja? El cierre anterior se conserva en historial.', async () => {
                 try {
                     await apiCall('/reports/cuadre/abrir', { method: 'POST' });
                     datosCuadreActual = null; // LIMPIAR ESTADO LOCAL
-                    showModalSuccess('Caja abierta correctamente. Las ventas ahora se registrarán normalmente.', '¡Caja Abierta!');
+                    showModalSuccess('Nueva caja iniciada. El turno comienza en limpio.', '¡Caja Abierta!');
                     setTimeout(() => location.reload(), 1000);
                 } catch (error) {
                     showModalError(error.message || 'Error al abrir caja');
                 }
             });
+        }
+
+        async function iniciarNuevaCajaDespuesDeCierre() {
+            try {
+                await apiCall('/reports/cuadre/abrir', { method: 'POST' });
+                datosCuadreActual = null;
+                showModalSuccess('Nueva caja iniciada. El turno comienza en limpio.', '¡Caja Abierta!');
+                setTimeout(() => location.reload(), 1000);
+            } catch (error) {
+                showModalError(error.message || 'Error al iniciar nueva caja');
+            }
         }
         
         // IMPRIMIR CUADRE - Ticket resumen
@@ -1931,14 +2036,6 @@ ${ventasText}
         
         async function cargarHistorialCuadre() {
             try {
-                // Limpiar cuadres antiguos automáticamente (ignorar si falla)
-                try {
-                    await apiCall('/reports/cuadre/cleanup', { method: 'DELETE' });
-                } catch (e) {
-                    // Ignorar error de limpieza
-                }
-                
-                // Cargar historial actualizado
                 const historial = await apiCall('/reports/cuadre/historial');
                 renderHistorialCuadre(historial);
             } catch (error) {

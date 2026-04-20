@@ -72,6 +72,16 @@ function initDatabase() {
             FOREIGN KEY (user_id) REFERENCES usuarios(id)
         );
     `);
+
+    const cajasColumns = db.prepare("PRAGMA table_info(cajas_cerradas)").all();
+    const hasDeletedAt = cajasColumns.some(c => c.name === 'deleted_at');
+    if (!hasDeletedAt) {
+        db.exec('ALTER TABLE cajas_cerradas ADD COLUMN deleted_at TEXT');
+    }
+    const hasDeletedBy = cajasColumns.some(c => c.name === 'deleted_by');
+    if (!hasDeletedBy) {
+        db.exec('ALTER TABLE cajas_cerradas ADD COLUMN deleted_by INTEGER');
+    }
     
     // Tabla de configuración por negocio
     try {
@@ -84,6 +94,12 @@ function initDatabase() {
             )
         `);
     } catch (e) {}
+
+    const configColumns = db.prepare("PRAGMA table_info(config)").all();
+    const hasCajaAbiertaDesde = configColumns.some(c => c.name === 'caja_abierta_desde');
+    if (!hasCajaAbiertaDesde) {
+        db.exec('ALTER TABLE config ADD COLUMN caja_abierta_desde TEXT');
+    }
     
     const columns = db.prepare("PRAGMA table_info(ventas)").all();
     const hasFueraCuadre = columns.some(c => c.name === 'fuera_cuadre');
@@ -282,6 +298,14 @@ function initDatabase() {
     if (!ventasColNames.includes('itbis')) {
         db.exec("ALTER TABLE ventas ADD COLUMN itbis REAL DEFAULT 0");
         console.log('Columna itbis agregada a ventas.');
+    }
+    if (!ventasColNames.includes('origen_modulo')) {
+        db.exec("ALTER TABLE ventas ADD COLUMN origen_modulo TEXT DEFAULT 'pos'");
+        console.log('Columna origen_modulo agregada a ventas.');
+    }
+    if (!ventasColNames.includes('origen_id')) {
+        db.exec("ALTER TABLE ventas ADD COLUMN origen_id INTEGER");
+        console.log('Columna origen_id agregada a ventas.');
     }
     
     // Crear tabla certificados_dgii si no existe
@@ -868,6 +892,26 @@ function initDatabase() {
     if (!pedidoFixColNames.includes('numero_pedido')) {
         db.exec("ALTER TABLE pedidos ADD COLUMN numero_pedido INTEGER DEFAULT 0");
         console.log('Columna numero_pedido agregada a pedidos.');
+    }
+    if (!pedidoFixColNames.includes('fecha_confirmado')) {
+        db.exec("ALTER TABLE pedidos ADD COLUMN fecha_confirmado TEXT");
+        console.log('Columna fecha_confirmado agregada a pedidos.');
+    }
+    if (!pedidoFixColNames.includes('fecha_preparando')) {
+        db.exec("ALTER TABLE pedidos ADD COLUMN fecha_preparando TEXT");
+        console.log('Columna fecha_preparando agregada a pedidos.');
+    }
+    if (!pedidoFixColNames.includes('fecha_listo')) {
+        db.exec("ALTER TABLE pedidos ADD COLUMN fecha_listo TEXT");
+        console.log('Columna fecha_listo agregada a pedidos.');
+    }
+    if (!pedidoFixColNames.includes('fecha_entregado')) {
+        db.exec("ALTER TABLE pedidos ADD COLUMN fecha_entregado TEXT");
+        console.log('Columna fecha_entregado agregada a pedidos.');
+    }
+    if (!pedidoFixColNames.includes('fecha_cancelado')) {
+        db.exec("ALTER TABLE pedidos ADD COLUMN fecha_cancelado TEXT");
+        console.log('Columna fecha_cancelado agregada a pedidos.');
     }
     // Always renumber pedidos with numero_pedido=0 on startup (per negocio)
     const negociosForRenumber = db.prepare('SELECT DISTINCT negocio_id FROM pedidos WHERE numero_pedido = 0').all();

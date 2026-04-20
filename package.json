@@ -10,7 +10,7 @@
   "dependencies": {
     "@xmldom/xmldom": "^0.9.9",
     "bcryptjs": "^2.4.3",
-    "better-sqlite3": "^9.4.3",
+    "better-sqlite3": "^12.9.0",
     "chart.js": "^4.5.1",
     "connect-sqlite3": "^0.9.16",
     "dotenv": "^17.3.1",

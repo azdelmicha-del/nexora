@@ -105,6 +105,7 @@ router.post('/', requireAuth, (req, res) => {
         }
 
         telefono = formatters.toPhone(telefono);
+        const comparablePhone = formatters.toComparablePhone(telefono);
 
         // Formatear y validar email
         if (email) {
@@ -133,8 +134,11 @@ router.post('/', requireAuth, (req, res) => {
 
         const db = getDb();
 
-        const existente = db.prepare('SELECT id FROM clientes WHERE negocio_id = ? AND telefono = ?')
-            .get(req.session.negocioId, telefono);
+                const existente = db.prepare(`
+                        SELECT id FROM clientes
+                        WHERE negocio_id = ?
+                            AND REPLACE(REPLACE(REPLACE(telefono, '-', ''), ' ', ''), '+', '') LIKE ?
+                `).get(req.session.negocioId, `%${comparablePhone}`);
         if (existente) {
             return res.status(400).json({ error: 'Ya existe un cliente con este teléfono' });
         }
@@ -222,8 +226,13 @@ router.put('/:id', requireAuth, (req, res) => {
         }
 
         if (telefono !== undefined && telefono !== null && telefono !== '') {
-            const existente = db.prepare('SELECT id FROM clientes WHERE negocio_id = ? AND telefono = ? AND id != ?')
-                .get(req.session.negocioId, telefono, clienteId);
+            const comparablePhone = formatters.toComparablePhone(telefono);
+            const existente = db.prepare(`
+                SELECT id FROM clientes
+                WHERE negocio_id = ?
+                  AND REPLACE(REPLACE(REPLACE(telefono, '-', ''), ' ', ''), '+', '') LIKE ?
+                  AND id != ?
+            `).get(req.session.negocioId, `%${comparablePhone}`, clienteId);
             if (existente) {
                 return res.status(400).json({ error: 'Ya existe un cliente con este teléfono' });
             }
@@ -289,6 +298,11 @@ router.delete('/:id', requireAdmin, (req, res) => {
         }
 
         db.prepare('UPDATE ventas SET cliente_id = NULL WHERE cliente_id = ?').run(clienteId);
+        db.prepare('UPDATE pedidos SET cliente_id = NULL WHERE cliente_id = ?').run(clienteId);
+        db.prepare('UPDATE conversaciones SET cliente_id = NULL WHERE cliente_id = ?').run(clienteId);
+        db.prepare('UPDATE chatbot_mensajes SET cliente_id = NULL WHERE cliente_id = ?').run(clienteId);
+        db.prepare('DELETE FROM historial_puntos WHERE cliente_id = ?').run(clienteId);
+        db.prepare('DELETE FROM puntos_lealtad WHERE cliente_id = ?').run(clienteId);
         db.prepare('DELETE FROM citas WHERE cliente_id = ?').run(clienteId);
         db.prepare('DELETE FROM clientes WHERE id = ?').run(clienteId);
 

@@ -7,14 +7,14 @@ Repositorio: https://github.com/azdelmicha-del/nexora.git
 
 Producción: https://nexora-alid.onrender.com
 
-Local: http://localhost:3000/
+Local: http://localhost:4000/
 
 Stack: Express.js + Node.js (Backend) | Vanilla JS + HTML/CSS puro (Frontend) | SQLite (DB Local).
 
 
 
 🚀 1. FLUJO ESTRICTO DE TRABAJO Y DEPLOY
-Todo se desarrolla y prueba PRIMERO en local (http://localhost:3000/).
+Todo se desarrolla y prueba PRIMERO en local (http://localhost:4000/).
 
 NUNCA hacer push a Render sin confirmación explícita del usuario.
 
