@@ -1,7 +1,7 @@
 const express = require('express');
-const { getDb } = require('../database');
+const { getDb, getNextNCF } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
-const { getNextNCF, generarCodigoSeguridad } = require('../utils/dgii');
+const { generarCodigoSeguridad } = require('../utils/dgii');
 const { getRDDateString } = require('../utils/timezone');
 
 const router = express.Router();
@@ -62,7 +62,7 @@ router.post('/', requireAuth, (req, res) => {
             return res.status(404).json({ error: 'Venta original no encontrada' });
         }
 
-        const secuencia = getNextNCF(db, negocioId, tipo_nota);
+        const secuencia = getNextNCF(negocioId, tipo_nota);
         const codigoSeg = generarCodigoSeguridad();
         const montoAbs = Math.abs(parseFloat(monto));
 

@@ -50,7 +50,7 @@ router.post('/', requireAuth, (req, res) => {
         if (!['pos', 'cita', 'pedido'].includes(origenModulo)) {
             return res.status(400).json({ error: 'Origen de venta invalido' });
         }
-        if (origen_id !== undefined && (!Number.isInteger(origenId) || origenId <= 0)) {
+        if (origen_id != null && (!Number.isInteger(origenId) || origenId <= 0)) {
             return res.status(400).json({ error: 'origen_id invalido' });
         }
 

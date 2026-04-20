@@ -115,14 +115,14 @@ router.post('/calcular', requireAdmin, (req, res) => {
             const montoComision = Math.round((l.subtotal * porcentaje / 100) * 100) / 100;
             if (montoComision <= 0) return;
 
-            // Verificar si ya existe comision para esta linea
-            const existente = db.prepare('SELECT id FROM comisiones WHERE venta_id = ? AND user_id = ?').get(l.venta_id, l.user_id);
+            // Verificar si ya existe comision para este detalle específico
+            const existente = db.prepare('SELECT id FROM comisiones WHERE detalle_id = ?').get(l.detalle_id);
             if (existente) return;
 
             db.prepare(`
-                INSERT INTO comisiones (negocio_id, user_id, venta_id, monto_base, porcentaje, monto_comision, fecha)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `).run(negocioId, l.user_id, l.venta_id, l.subtotal, porcentaje, montoComision, l.fecha);
+                INSERT INTO comisiones (negocio_id, user_id, venta_id, detalle_id, monto_base, porcentaje, monto_comision, fecha)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            `).run(negocioId, l.user_id, l.venta_id, l.detalle_id, l.subtotal, porcentaje, montoComision, l.fecha);
 
             creadas++;
         });

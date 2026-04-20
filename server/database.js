@@ -574,6 +574,13 @@ function initDatabase() {
         console.log('Tabla comisiones creada.');
     }
 
+    // ── Migracion v3b: detalle_id en comisiones ─────────────────────────────
+    const comisionCols = db.prepare("PRAGMA table_info(comisiones)").all().map(c => c.name);
+    if (!comisionCols.includes('detalle_id')) {
+        db.exec('ALTER TABLE comisiones ADD COLUMN detalle_id INTEGER');
+        console.log('Columna detalle_id agregada a comisiones.');
+    }
+
     // ── Migracion v3: chatbot ───────────────────────────────────────────────
     const chatCols = db.prepare("PRAGMA table_info(chatbot_reglas)").all();
     if (chatCols.length === 0) {
