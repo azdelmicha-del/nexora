@@ -376,7 +376,7 @@
         .seccion-tabla {
             width: 100%;
             border-collapse: collapse;
-            font-size: 0.8rem;
+            font-size: clamp(0.62rem, 0.9vw, 0.82rem);
         }
 
         .seccion-tabla thead tr {
@@ -386,7 +386,7 @@
 
         .seccion-tabla thead th {
             padding: 0.5rem 0.75rem;
-            font-size: 0.68rem;
+            font-size: inherit;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: var(--gray-500);
@@ -421,7 +421,7 @@
         .seccion-tabla td.td-fecha {
             color: var(--gray-400);
             white-space: nowrap;
-            font-size: 0.75rem;
+            font-size: inherit;
         }
 
         .seccion-tabla td.td-monto {
@@ -447,7 +447,7 @@
             border-radius: 6px;
             background: white;
             color: var(--gray-500);
-            font-size: 0.7rem;
+            font-size: inherit;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.15s;

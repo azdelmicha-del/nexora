@@ -1,0 +1,1530 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexora_Pos</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+--bg:#0f1117;--bg2:#161922;--bg3:#1e2330;--bg4:#252b3b;
+--border:#2a3147;--border2:#3a4460;
+--text:#e8ecf5;--text2:#8b95b0;--text3:#556080;
+--blue:#3d8bff;--blue2:#1a5fd4;--blue-bg:#0d1f3c;
+--green:#22c97a;--green-bg:#0a2e1c;
+--red:#ff4d5a;--red-bg:#2e0d10;
+--amber:#f5a623;--amber-bg:#2e1f05;
+--purple:#a78bfa;--purple-bg:#1a1030;
+--cyan:#06d6d6;--cyan-bg:#061a1a;
+--radius:6px;--radius2:10px;--radius3:14px;
+}
+*{box-sizing:border-box;margin:0;padding:0;font-family:'IBM Plex Sans',sans-serif}
+body{background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+::-webkit-scrollbar{width:4px;height:4px}::-webkit-scrollbar-track{background:var(--bg2)}::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+input,select,textarea{background:var(--bg3);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:var(--radius);font-size:13px;outline:none;font-family:inherit;width:100%}
+input:focus,select:focus,textarea:focus{border-color:var(--blue)}
+button{cursor:pointer;font-family:inherit;font-size:13px;border:none;border-radius:var(--radius);padding:7px 14px;transition:all .15s}
+.btn-primary{background:var(--blue);color:#fff} .btn-primary:hover{background:var(--blue2)}
+.btn-ghost{background:transparent;border:1px solid var(--border2);color:var(--text2)} .btn-ghost:hover{border-color:var(--blue);color:var(--text)}
+.btn-danger{background:var(--red-bg);color:var(--red);border:1px solid var(--red)} .btn-danger:hover{background:var(--red);color:#fff}
+.btn-success{background:var(--green-bg);color:var(--green);border:1px solid var(--green)} .btn-success:hover{background:var(--green);color:#000}
+.btn-sm{padding:4px 10px;font-size:12px}
+.badge{display:inline-flex;align-items:center;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:500}
+.badge-blue{background:var(--blue-bg);color:var(--blue)} .badge-green{background:var(--green-bg);color:var(--green)}
+.badge-red{background:var(--red-bg);color:var(--red)} .badge-amber{background:var(--amber-bg);color:var(--amber)}
+.badge-purple{background:var(--purple-bg);color:var(--purple)}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:8px 10px;font-size:11px;font-weight:500;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;border-bottom:1px solid var(--border)}
+td{padding:8px 10px;font-size:13px;border-bottom:1px solid var(--border);color:var(--text2)}
+td:first-child{color:var(--text)}
+tr:hover td{background:var(--bg3)}
+.card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);padding:16px}
+.stat-card{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);padding:16px}
+.stat-val{font-size:22px;font-weight:600;font-family:'IBM Plex Mono',monospace;margin-top:4px}
+.stat-lbl{font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em}
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);display:flex;align-items:center;justify-content:center;z-index:1000;padding:16px}
+.modal{background:var(--bg2);border:1px solid var(--border2);border-radius:var(--radius3);padding:20px;width:100%;max-width:520px;max-height:90vh;overflow-y:auto}
+.modal-lg{max-width:700px}
+.modal h3{font-size:15px;font-weight:600;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)}
+.form-group{margin-bottom:12px}
+.form-group label{display:block;font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:.05em;margin-bottom:4px}
+.form-row{display:grid;gap:10px}
+.form-row-2{grid-template-columns:1fr 1fr}
+.form-row-3{grid-template-columns:1fr 1fr 1fr}
+.nav{display:flex;background:var(--bg2);border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none}
+.nav::-webkit-scrollbar{display:none}
+.nav-btn{padding:10px 16px;font-size:12px;font-weight:500;color:var(--text3);background:none;border-radius:0;border-bottom:2px solid transparent;white-space:nowrap;letter-spacing:.02em}
+.nav-btn:hover{color:var(--text);background:var(--bg3)}
+.nav-btn.active{color:var(--blue);border-bottom-color:var(--blue)}
+.header{display:flex;align-items:center;gap:12px;padding:10px 16px;background:var(--bg2);border-bottom:1px solid var(--border)}
+.logo-circle{width:34px;height:34px;border-radius:50%;background:var(--blue-bg);border:1px solid var(--blue);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:600;color:var(--blue);overflow:hidden;flex-shrink:0}
+.logo-circle img{width:100%;height:100%;object-fit:cover}
+.page{padding:16px;display:none}
+.page.active{display:block}
+.section-title{font-size:16px;font-weight:600;margin-bottom:4px}
+.section-sub{font-size:12px;color:var(--text3);margin-bottom:16px}
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.pos-layout{display:grid;grid-template-columns:1fr 320px;gap:12px;height:calc(100vh - 90px)}
+.left-panel{display:flex;flex-direction:column;overflow:hidden;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2)}
+.right-panel{display:flex;flex-direction:column;background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden}
+.top-bar{display:flex;gap:8px;padding:10px;border-bottom:1px solid var(--border);background:var(--bg3)}
+.cats{display:flex;gap:6px;padding:8px 10px;border-bottom:1px solid var(--border);overflow-x:auto;scrollbar-width:none;background:var(--bg2)}
+.cat-btn{padding:4px 12px;border-radius:14px;border:1px solid var(--border);font-size:11px;background:transparent;color:var(--text3);white-space:nowrap}
+.cat-btn:hover{border-color:var(--blue);color:var(--text)}
+.cat-btn.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.prods-grid{flex:1;overflow-y:auto;display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:8px;padding:10px;align-content:start}
+.prod-card{border:1px solid var(--border);border-radius:var(--radius);padding:8px;cursor:pointer;text-align:center;background:var(--bg3);transition:all .12s}
+.prod-card:hover{border-color:var(--blue);background:var(--blue-bg)}
+.prod-card.out-stock{opacity:.4;cursor:not-allowed}
+.prod-icon{font-size:20px;margin-bottom:4px}
+.prod-name{font-size:10px;color:var(--text);font-weight:500;line-height:1.3;margin-bottom:2px}
+.prod-price{font-size:11px;color:var(--blue);font-weight:500;font-family:'IBM Plex Mono',monospace}
+.prod-stock{font-size:9px;color:var(--text3)}
+.cart-header{padding:10px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:var(--bg3)}
+.cart-items{flex:1;overflow-y:auto;padding:6px}
+.cart-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100px;gap:4px;color:var(--text3);font-size:12px}
+.cart-item{display:grid;grid-template-columns:1fr auto;gap:6px;align-items:center;padding:6px 4px;border-bottom:1px solid var(--border)}
+.ci-name{font-size:11px;font-weight:500;color:var(--text)}
+.ci-price{font-size:10px;color:var(--text3)}
+.ci-controls{display:flex;align-items:center;gap:4px}
+.qty-btn{width:20px;height:20px;border-radius:4px;border:1px solid var(--border);background:var(--bg4);color:var(--text);font-size:13px;display:flex;align-items:center;justify-content:center;padding:0}
+.qty-btn:hover{background:var(--blue);border-color:var(--blue);color:#fff}
+.qty-num{font-size:11px;min-width:16px;text-align:center;color:var(--text);font-family:'IBM Plex Mono',monospace}
+.ci-total{font-size:11px;font-weight:500;color:var(--blue);min-width:54px;text-align:right;font-family:'IBM Plex Mono',monospace}
+.cart-footer{padding:10px;border-top:1px solid var(--border);background:var(--bg3)}
+.totals-grid{font-size:12px;margin-bottom:8px}
+.totals-grid .row{display:flex;justify-content:space-between;padding:2px 0;color:var(--text3)}
+.totals-grid .row.total{font-size:15px;font-weight:600;color:var(--text);border-top:1px solid var(--border);margin-top:4px;padding-top:6px}
+.totals-grid .row span:last-child{font-family:'IBM Plex Mono',monospace;color:var(--text)}
+.totals-grid .row.total span:last-child{color:var(--blue)}
+.pay-methods{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:8px}
+.pay-btn{padding:6px;font-size:10px;border:1px solid var(--border);background:var(--bg3);color:var(--text3);text-align:center;border-radius:var(--radius)}
+.pay-btn.active{background:var(--blue-bg);border-color:var(--blue);color:var(--blue)}
+.cobrar-btn{width:100%;padding:10px;font-size:14px;font-weight:600;border:none;border-radius:var(--radius);background:var(--blue);color:#fff;letter-spacing:.02em}
+.cobrar-btn:disabled{background:var(--bg4);color:var(--text3);cursor:not-allowed}
+.cobrar-btn:not(:disabled):hover{background:var(--blue2)}
+.receipt-body{font-size:12px;font-family:'IBM Plex Mono',monospace;line-height:1.8;color:var(--text)}
+.receipt-sep{border:none;border-top:1px dashed var(--border2);margin:8px 0}
+.notif{position:fixed;bottom:20px;right:20px;background:var(--bg2);border:1px solid var(--green);color:var(--green);padding:8px 16px;border-radius:var(--radius);font-size:12px;z-index:2000;opacity:0;transition:opacity .2s;pointer-events:none}
+.notif.err{border-color:var(--red);color:var(--red)}
+.search-bar{display:flex;gap:8px;margin-bottom:12px}
+.search-bar input{flex:1}
+.table-wrap{background:var(--bg2);border:1px solid var(--border);border-radius:var(--radius2);overflow:hidden}
+.table-wrap table{margin:0}
+.pagination{display:flex;align-items:center;gap:8px;padding:10px;border-top:1px solid var(--border);font-size:12px;color:var(--text3)}
+.sig-pad{border:1px solid var(--border2);border-radius:var(--radius);cursor:crosshair;background:var(--bg3);display:block}
+.tab-bar{display:flex;gap:4px;margin-bottom:14px;border-bottom:1px solid var(--border);padding-bottom:0}
+.tab-btn{padding:7px 14px;font-size:12px;color:var(--text3);background:none;border-radius:var(--radius) var(--radius) 0 0;border:1px solid transparent;border-bottom:none;margin-bottom:-1px}
+.tab-btn.active{color:var(--text);background:var(--bg2);border-color:var(--border);border-bottom-color:var(--bg2)}
+.tab-content{display:none}.tab-content.active{display:block}
+@media print{
+  .nav,.header,.no-print{display:none!important}
+  body{background:#fff;color:#000}
+  .print-area{padding:20px}
+  .print-area *{color:#000!important;background:#fff!important;border-color:#ccc!important}
+}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<div id="notif" class="notif"></div>
+
+<script>
+// ═══════════════════════════════
+// STORAGE HELPERS
+// ═══════════════════════════════
+const DB = {
+  async get(k){
+    try{
+      if(window.storage?.get){
+        const r=await window.storage.get(k);
+        return r?JSON.parse(r.value):null;
+      }
+      const raw=localStorage.getItem(k);
+      return raw?JSON.parse(raw):null;
+    }catch{return null}
+  },
+  async set(k,v){
+    try{
+      const serialized=JSON.stringify(v);
+      if(window.storage?.set){
+        await window.storage.set(k,serialized);
+        return;
+      }
+      localStorage.setItem(k,serialized);
+    }catch(e){console.error(e)}
+  },
+  async getAll(){
+    const[cfg,prods,sales,expenses,cashCounts,creditNotes,auditLog,openBal]=await Promise.all([
+      DB.get('config'),DB.get('products'),DB.get('sales'),DB.get('expenses'),
+      DB.get('cashCounts'),DB.get('creditNotes'),DB.get('auditLog'),DB.get('openBalance')
+    ]);
+    return{
+      config:cfg||defaultConfig(),
+      products:prods||defaultProducts(),
+      sales:sales||[],
+      expenses:expenses||[],
+      cashCounts:cashCounts||[],
+      creditNotes:creditNotes||[],
+      auditLog:auditLog||[],
+      openBalance:openBal||0
+    };
+  }
+};
+
+function defaultConfig(){return{businessName:'Nexora_Pos',slug:'nexora-pos',rnc:'',phone:'',email:'',address:'',logo:'',businessType:'ferreteria',itbisRate:18,currency:'RD$',paymentMethods:['efectivo','tarjeta','transferencia'],schedule:'Lun-Sab 8am-8pm',ncfPrefix:'B01'};}
+function defaultProducts(){return BUSINESSES['ferreteria'].products.map((p,i)=>({...p,id:i+1,cost:Math.round(p.price*0.6),unit:'Und',barcode:'',stock:p.stock}));}
+function uid(){return Date.now()+Math.random().toString(36).slice(2,6);}
+function fmt(n,cur='RD$'){return cur+parseFloat(n||0).toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g,',');}
+function fmtDate(d){return new Date(d).toLocaleDateString('es-DO',{timeZone:'America/Santo_Domingo',day:'2-digit',month:'2-digit',year:'numeric'});}
+function fmtDateTime(d){return new Date(d).toLocaleString('es-DO',{timeZone:'America/Santo_Domingo',day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'});}
+function santoDomingoParts(date=new Date()){
+  const parts=new Intl.DateTimeFormat('en-CA',{timeZone:'America/Santo_Domingo',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',second:'2-digit',hour12:false}).formatToParts(date);
+  const get=(type)=>parts.find(p=>p.type===type)?.value||'';
+  return{year:get('year'),month:get('month'),day:get('day'),hour:get('hour'),minute:get('minute'),second:get('second')};
+}
+function today(){const p=santoDomingoParts();return `${p.year}-${p.month}-${p.day}`;}
+function nowISO(){const p=santoDomingoParts();return `${p.year}-${p.month}-${p.day}T${p.hour}:${p.minute}:${p.second}-04:00`;}
+
+const SUITE_MODULES=[
+  {id:'dashboard',label:'Dashboard',path:'Nexora_Suite/public/dashboard.html',icon:'📈'},
+  {id:'inventario',label:'Inventario Web',path:'Nexora_Suite/public/inventario.html',icon:'📦'},
+  {id:'clientes',label:'Clientes',path:'Nexora_Suite/public/clientes.html',icon:'👥'},
+  {id:'categorias',label:'Categorías',path:'Nexora_Suite/public/categorias.html',icon:'🗂️'},
+  {id:'servicios',label:'Servicios',path:'Nexora_Suite/public/servicios.html',icon:'🛠️'},
+  {id:'egresos',label:'Egresos Web',path:'Nexora_Suite/public/egresos.html',icon:'💸'},
+  {id:'reportes',label:'Reportes',path:'Nexora_Suite/public/reportes.html',icon:'📊'},
+  {id:'usuarios',label:'Usuarios',path:'Nexora_Suite/public/usuarios.html',icon:'🧑‍💼'},
+  {id:'configuracion',label:'Configuración',path:'Nexora_Suite/public/configuracion.html',icon:'⚙️'},
+  {id:'auditoria',label:'Auditoría',path:'Nexora_Suite/public/auditoria.html',icon:'🔍'},
+  {id:'licencias',label:'Licencias',path:'Nexora_Suite/public/licencias.html',icon:'🔐'},
+  {id:'notificaciones',label:'Notificaciones',path:'Nexora_Suite/public/notifications.html',icon:'🔔'},
+  {id:'menu',label:'Menú Digital',path:'Nexora_Suite/public/menu.html',icon:'🍽️'},
+  {id:'menu-cliente',label:'Menú Cliente',path:'Nexora_Suite/public/menu-cliente.html',icon:'📱'},
+  {id:'backup',label:'Backup',path:'Nexora_Suite/public/backup.html',icon:'🗄️'},
+  {id:'estado-resultado',label:'Estado Resultado',path:'Nexora_Suite/public/estado-resultado.html',icon:'📋'},
+  {id:'comisiones',label:'Comisiones',path:'Nexora_Suite/public/comisiones.html',icon:'💼'},
+  {id:'empleados-reporte',label:'Reporte Empleados',path:'Nexora_Suite/public/empleados-reporte.html',icon:'🧾'}
+];
+
+// ═══════════════════════════════
+// BUSINESS PRESETS
+// ═══════════════════════════════
+const BUSINESSES={
+  ferreteria:{label:"Ferretería",cats:["Herramientas","Electricidad","Plomería","Pintura","Fijaciones","Seguridad"],
+    products:[
+      {name:"Martillo 16oz",price:285,cat:"Herramientas",icon:"🔨",stock:12,cost:150},
+      {name:"Destornillador set",price:195,cat:"Herramientas",icon:"🪛",stock:8,cost:95},
+      {name:"Taladro percutor",price:2850,cat:"Herramientas",icon:"🔧",stock:4,cost:1600},
+      {name:"Sierra manual",price:420,cat:"Herramientas",icon:"🪚",stock:6,cost:200},
+      {name:"Cable 12 AWG (m)",price:48,cat:"Electricidad",icon:"⚡",stock:200,cost:28},
+      {name:"Tomacorriente doble",price:85,cat:"Electricidad",icon:"🔌",stock:30,cost:45},
+      {name:"Foco LED 9W",price:95,cat:"Electricidad",icon:"💡",stock:50,cost:50},
+      {name:"Interruptor sencillo",price:65,cat:"Electricidad",icon:"🔲",stock:25,cost:35},
+      {name:"Codo PVC 1/2\"",price:18,cat:"Plomería",icon:"🚿",stock:100,cost:8},
+      {name:"Tubo PVC 1\" (m)",price:75,cat:"Plomería",icon:"🪠",stock:80,cost:40},
+      {name:"Llave de paso",price:180,cat:"Plomería",icon:"🔩",stock:15,cost:90},
+      {name:"Pintura látex (gal)",price:650,cat:"Pintura",icon:"🪣",stock:30,cost:380},
+      {name:"Rodillo 9\"",price:125,cat:"Pintura",icon:"🖌️",stock:18,cost:65},
+      {name:"Tornillos 1\" (caja)",price:85,cat:"Fijaciones",icon:"🔩",stock:40,cost:45},
+      {name:"Candado 40mm",price:220,cat:"Seguridad",icon:"🔒",stock:10,cost:110},
+      {name:"Bisagra par",price:75,cat:"Seguridad",icon:"⚙️",stock:35,cost:38},
+    ]},
+  supermercado:{label:"Supermercado",cats:["Lácteos","Carnes","Panadería","Bebidas","Limpieza","Snacks"],
+    products:[
+      {name:"Leche entera 1L",price:85,cat:"Lácteos",icon:"🥛",stock:60,cost:55},
+      {name:"Queso blanco 500g",price:175,cat:"Lácteos",icon:"🧀",stock:20,cost:110},
+      {name:"Yogurt natural",price:65,cat:"Lácteos",icon:"🫙",stock:30,cost:40},
+      {name:"Mantequilla 200g",price:120,cat:"Lácteos",icon:"🧈",stock:25,cost:75},
+      {name:"Pollo entero kg",price:185,cat:"Carnes",icon:"🍗",stock:15,cost:120},
+      {name:"Carne molida kg",price:310,cat:"Carnes",icon:"🥩",stock:10,cost:200},
+      {name:"Pan de agua",price:25,cat:"Panadería",icon:"🍞",stock:50,cost:12},
+      {name:"Pan molde",price:95,cat:"Panadería",icon:"🍞",stock:20,cost:60},
+      {name:"Refresco 2L",price:75,cat:"Bebidas",icon:"🥤",stock:40,cost:45},
+      {name:"Jugo natural 1L",price:95,cat:"Bebidas",icon:"🍹",stock:25,cost:60},
+      {name:"Agua 1.5L",price:40,cat:"Bebidas",icon:"💧",stock:80,cost:20},
+      {name:"Detergente 1kg",price:165,cat:"Limpieza",icon:"🧺",stock:30,cost:100},
+      {name:"Cloro 1L",price:55,cat:"Limpieza",icon:"🧹",stock:35,cost:30},
+      {name:"Jabón de platos",price:75,cat:"Limpieza",icon:"🧼",stock:28,cost:40},
+      {name:"Papas fritas",price:65,cat:"Snacks",icon:"🍟",stock:45,cost:35},
+      {name:"Galletas surtidas",price:85,cat:"Snacks",icon:"🍪",stock:30,cost:45},
+    ]},
+  tienda:{label:"Tienda",cats:["Ropa","Calzado","Accesorios","Electrónica","Cosméticos"],
+    products:[
+      {name:"Camiseta básica",price:450,cat:"Ropa",icon:"👕",stock:20,cost:220},
+      {name:"Pantalón jean",price:1200,cat:"Ropa",icon:"👖",stock:12,cost:600},
+      {name:"Vestido casual",price:950,cat:"Ropa",icon:"👗",stock:8,cost:480},
+      {name:"Tenis casual",price:1850,cat:"Calzado",icon:"👟",stock:10,cost:900},
+      {name:"Sandalia dama",price:950,cat:"Calzado",icon:"👡",stock:8,cost:480},
+      {name:"Gorra snapback",price:350,cat:"Accesorios",icon:"🧢",stock:20,cost:170},
+      {name:"Gafas de sol",price:580,cat:"Accesorios",icon:"🕶️",stock:12,cost:280},
+      {name:"Audífonos BT",price:1200,cat:"Electrónica",icon:"🎧",stock:8,cost:580},
+      {name:"Cargador USB-C",price:450,cat:"Electrónica",icon:"🔋",stock:20,cost:200},
+      {name:"Perfume 50ml",price:850,cat:"Cosméticos",icon:"💐",stock:10,cost:400},
+      {name:"Crema hidratante",price:380,cat:"Cosméticos",icon:"🧴",stock:15,cost:180},
+      {name:"Labial mate",price:220,cat:"Cosméticos",icon:"💄",stock:25,cost:95},
+    ]}
+};
+
+// ═══════════════════════════════
+// APP STATE
+// ═══════════════════════════════
+let APP = {
+  page:'pos', tab:'',
+  config:{}, products:[], sales:[], expenses:[], cashCounts:[], creditNotes:[], auditLog:[], openBalance:0,
+  // POS state
+  cart:[], poscat:'Todo', possearch:'', payMethod:'efectivo', discount:0, discInput:'',
+  cashGiven:'',
+  // modal
+  modal:null, modalData:{},
+  // filters
+  saleFilter:{from:'',to:'',search:''},
+  expFilter:{from:'',to:'',search:''},
+  // sig
+  sigData:'', isDrawing:false, lastX:0, lastY:0,
+  // inventory edit
+  invEdit:null,
+  // cuadre
+  cuadreOpen:'', cuadreNotes:'', cuadreSig:'', cuadreSigned:false,
+};
+
+function activeProducts(){
+  return (APP.products||[]).filter(p=>!p.isDeleted);
+}
+function activeExpenses(){
+  return (APP.expenses||[]).filter(e=>!e.isDeleted);
+}
+
+// ═══════════════════════════════
+// COMPUTED
+// ═══════════════════════════════
+function cartSubtotal(){return APP.cart.reduce((s,i)=>s+i.price*i.qty,0);}
+function discAmount(){return cartSubtotal()*APP.discount/100;}
+function itbisAmount(){return(cartSubtotal()-discAmount())*(APP.config.itbisRate||18)/100;}
+function grandTotal(){return cartSubtotal()-discAmount()+itbisAmount();}
+function posCategories(){
+  const biz=BUSINESSES[APP.config.businessType||'ferreteria'];
+  return['Todo',...(biz?biz.cats:[])];
+}
+function filteredProducts(){
+  return activeProducts().filter(p=>{
+    const mc=APP.poscat==='Todo'||p.cat===APP.poscat;
+    const ms=p.name.toLowerCase().includes(APP.possearch.toLowerCase());
+    return mc&&ms;
+  });
+}
+function filteredSales(){
+  return APP.sales.filter(s=>!s.isDeleted).filter(s=>{
+    const d=s.date.split('T')[0];
+    const mf=!APP.saleFilter.from||d>=APP.saleFilter.from;
+    const mt=!APP.saleFilter.to||d<=APP.saleFilter.to;
+    const ms=!APP.saleFilter.search||s.id.includes(APP.saleFilter.search)||s.ncf?.includes(APP.saleFilter.search);
+    return mf&&mt&&ms;
+  });
+}
+function filteredExpenses(){
+  return activeExpenses().filter(e=>{
+    const d=e.date.split('T')[0];
+    const mf=!APP.expFilter.from||d>=APP.expFilter.from;
+    const mt=!APP.expFilter.to||d<=APP.expFilter.to;
+    const ms=!APP.expFilter.search||e.supplier?.toLowerCase().includes(APP.expFilter.search.toLowerCase());
+    return mf&&mt&&ms;
+  });
+}
+
+// ═══════════════════════════════
+// ACTIONS
+// ═══════════════════════════════
+async function addToCart(prod){
+  if(prod.stock<=0){showNotif('Sin stock disponible','err');return;}
+  const ex=APP.cart.find(i=>i.id===prod.id);
+  if(ex){
+    if(ex.qty>=prod.stock){showNotif('Stock máximo alcanzado','err');return;}
+    ex.qty++;
+  } else {
+    APP.cart.push({...prod,qty:1});
+  }
+  showNotif(prod.name+' agregado');
+  render();
+}
+function changeQty(id,delta){
+  const item=APP.cart.find(i=>i.id===id);
+  if(!item)return;
+  item.qty+=delta;
+  if(item.qty<=0)APP.cart=APP.cart.filter(i=>i.id!==id);
+  render();
+}
+async function completeSale(){
+  if(APP.cart.length===0)return;
+  const method=APP.payMethod;
+  if(method==='efectivo'){
+    const cash=parseFloat(APP.cashGiven)||0;
+    if(cash<grandTotal()){showNotif('Monto insuficiente','err');return;}
+  }
+  const ncf=`${APP.config.ncfPrefix||'B01'}${String(APP.sales.length+1).padStart(8,'0')}`;
+  const sale={
+    id:'VTA-'+uid(),date:nowISO(),ncf,
+    items:APP.cart.map(i=>({id:i.id,name:i.name,price:i.price,qty:i.qty,subtotal:i.price*i.qty,cat:i.cat})),
+    discount:APP.discount,subtotal:cartSubtotal(),discAmount:discAmount(),
+    itbis:itbisAmount(),itbisRate:APP.config.itbisRate||18,
+    total:grandTotal(),payMethod:method,
+    cashGiven:parseFloat(APP.cashGiven)||grandTotal(),
+    change:method==='efectivo'?Math.max(0,(parseFloat(APP.cashGiven)||0)-grandTotal()):0,
+    status:'completada',cashier:'Cajero'
+  };
+  // update stock
+  APP.cart.forEach(ci=>{
+    const p=APP.products.find(x=>x.id===ci.id);
+    if(p)p.stock-=ci.qty;
+  });
+  APP.sales.unshift(sale);
+  await DB.set('sales',APP.sales);
+  await DB.set('products',APP.products);
+  await addAudit('Venta',`Venta ${sale.id} por ${fmt(sale.total,APP.config.currency)} - ${method}`);
+  APP.modalData={sale};
+  APP.modal='receipt';
+  APP.cart=[];APP.discount=0;APP.discInput='';APP.cashGiven='';
+  render();
+}
+async function addAudit(action,detail){
+  APP.auditLog.unshift({id:uid(),date:nowISO(),action,detail});
+  if(APP.auditLog.length>500)APP.auditLog=APP.auditLog.slice(0,500);
+  await DB.set('auditLog',APP.auditLog);
+}
+async function saveConfig(){
+  await DB.set('config',APP.config);
+  await addAudit('Configuración','Configuración actualizada');
+  showNotif('Configuración guardada');
+}
+async function saveProduct(prod){
+  if(prod.price<0||prod.cost<0||prod.stock<0){showNotif('Precio, costo y stock deben ser >= 0','err');return;}
+  if(prod.id){
+    const idx=APP.products.findIndex(p=>p.id===prod.id);
+    if(idx>-1)APP.products[idx]={...APP.products[idx],...prod,isDeleted:false,deletedAt:null};
+  } else {
+    prod.id=Date.now();
+    prod.isDeleted=false;
+    prod.deletedAt=null;
+    APP.products.push(prod);
+  }
+  await DB.set('products',APP.products);
+  await addAudit('Inventario',`Producto ${prod.id?'editado':'creado'}: ${prod.name}`);
+  showNotif('Producto guardado');
+  APP.modal=null;render();
+}
+async function deleteProduct(id){
+  const prod=APP.products.find(p=>p.id===id);
+  if(!prod)return;
+  prod.isDeleted=true;
+  prod.deletedAt=nowISO();
+  await DB.set('products',APP.products);
+  await addAudit('Inventario',`Producto archivado ID: ${id}`);
+  showNotif('Producto archivado');render();
+}
+async function saveExpense(exp){
+  if(exp.amount<0||exp.itbis<0){showNotif('Monto e ITBIS deben ser >= 0','err');return;}
+  if(exp.id){
+    const idx=APP.expenses.findIndex(e=>e.id===exp.id);
+    if(idx>-1)APP.expenses[idx]={...APP.expenses[idx],...exp,isDeleted:false,deletedAt:null};
+  } else {
+    exp.id='EGR-'+uid();
+    exp.date=exp.date||nowISO();
+    exp.isDeleted=false;
+    exp.deletedAt=null;
+    APP.expenses.unshift(exp);
+  }
+  await DB.set('expenses',APP.expenses);
+  await addAudit('Egreso',`Egreso ${exp.id} por ${fmt(exp.total,APP.config.currency)} - ${exp.supplier}`);
+  showNotif('Egreso guardado');
+  APP.modal=null;render();
+}
+async function voidSale(id,reason){
+  const s=APP.sales.find(x=>x.id===id);
+  if(!s)return;
+  s.status='anulada';s.voidReason=reason;s.voidDate=nowISO();
+  // return stock
+  s.items.forEach(ci=>{const p=APP.products.find(x=>x.id===ci.id);if(p)p.stock+=ci.qty;});
+  APP.creditNotes.unshift({id:'NC-'+uid(),date:nowISO(),saleId:id,reason,amount:s.total,type:'credito'});
+  await DB.set('sales',APP.sales);await DB.set('products',APP.products);await DB.set('creditNotes',APP.creditNotes);
+  await addAudit('Nota de Crédito',`Venta ${id} anulada. Motivo: ${reason}`);
+  showNotif('Venta anulada / Nota de crédito emitida');
+  APP.modal=null;render();
+}
+async function saveCuadre(){
+  const todaySales=APP.sales.filter(s=>s.date.startsWith(today())&&s.status==='completada');
+  const totalSales=todaySales.reduce((a,s)=>a+s.total,0);
+  const cashSales=todaySales.filter(s=>s.payMethod==='efectivo').reduce((a,s)=>a+s.total,0);
+  const cardSales=todaySales.filter(s=>s.payMethod==='tarjeta').reduce((a,s)=>a+s.total,0);
+  const transferSales=todaySales.filter(s=>s.payMethod==='transferencia').reduce((a,s)=>a+s.total,0);
+  const todayExp=activeExpenses().filter(e=>e.date.startsWith(today())).reduce((a,e)=>a+e.total,0);
+  const openBal=parseFloat(APP.cuadreOpen)||0;
+  const closeBal=openBal+cashSales-todayExp;
+  const cuadre={
+    id:'CUA-'+uid(),date:nowISO(),openBalance:openBal,
+    totalSales,cashSales,cardSales,transferSales,
+    totalExpenses:todayExp,closeBalance:closeBal,
+    itbisCollected:todaySales.reduce((a,s)=>a+s.itbis,0),
+    notes:APP.cuadreNotes,signature:APP.cuadreSig,signedBy:'Cajero',status:'cerrado'
+  };
+  APP.cashCounts.unshift(cuadre);
+  await DB.set('cashCounts',APP.cashCounts);
+  await addAudit('Cuadre de Caja',`Cuadre ${cuadre.id} - Total ventas: ${fmt(totalSales,APP.config.currency)}`);
+  showNotif('Cuadre de caja guardado');
+  APP.modal=null;render();
+}
+
+// ═══════════════════════════════
+// EXPORTS
+// ═══════════════════════════════
+function dlCSV(filename,rows){
+  const csv=rows.map(r=>r.map(c=>`"${String(c||'').replace(/"/g,'""')}"`).join(',')).join('\n');
+  const b=new Blob(['\uFEFF'+csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(b);a.download=filename;a.click();
+}
+function exportSalesCSV(){
+  const rows=[['ID','Fecha','NCF','Items','Descuento','Subtotal','ITBIS','Total','Método','Estado']];
+  filteredSales().forEach(s=>rows.push([s.id,fmtDateTime(s.date),s.ncf,s.items.map(i=>`${i.name}x${i.qty}`).join(';'),s.discAmount.toFixed(2),s.subtotal.toFixed(2),s.itbis.toFixed(2),s.total.toFixed(2),s.payMethod,s.status]));
+  dlCSV('ventas.csv',rows);
+}
+function exportExpCSV(){
+  const rows=[['ID','Fecha','Suplidor','RNC Suplidor','NCF','Descripción','Monto','ITBIS','Total','Categoría','Método']];
+  filteredExpenses().forEach(e=>rows.push([e.id,fmtDateTime(e.date),e.supplier,e.supplierRnc||'',e.ncf||'',e.description,e.amount?.toFixed(2),e.itbis?.toFixed(2),e.total?.toFixed(2),e.category||'',e.payMethod||'']));
+  dlCSV('egresos.csv',rows);
+}
+function export606(){
+  // Formato 606 DGII - Gastos/Compras
+  const rows=[['RNC/Cédula','Tipo ID','NCF','NCF Modificado','Tipo Bienes/Servicios','Fecha NCF','Fecha Pago','Monto Facturado','ITBIS Facturado']];
+  filteredExpenses().forEach(e=>rows.push([e.supplierRnc||'000000000',e.supplierRnc?'1':'2',e.ncf||'B0100000001','','2',fmtDate(e.date),fmtDate(e.date),e.amount?.toFixed(2),e.itbis?.toFixed(2)]));
+  dlCSV('606_compras_dgii.txt',rows);
+}
+function export607(){
+  // Formato 607 DGII - Ventas
+  const rows=[['RNC/Cédula Comprador','Tipo ID','NCF','NCF Modificado','Tipo Ingreso','Fecha NCF','Fecha Cobro','Monto Facturado','ITBIS Facturado']];
+  filteredSales().filter(s=>s.status==='completada').forEach(s=>rows.push(['999-99999-9','2',s.ncf,'','1',fmtDate(s.date),fmtDate(s.date),(s.subtotal-s.discAmount).toFixed(2),s.itbis.toFixed(2)]));
+  dlCSV('607_ventas_dgii.txt',rows);
+}
+
+// ═══════════════════════════════
+// NOTIFICATIONS
+// ═══════════════════════════════
+function showNotif(msg,type=''){
+  const el=document.getElementById('notif');
+  el.textContent=msg;el.className='notif'+(type?' '+type:'');el.style.opacity='1';
+  setTimeout(()=>el.style.opacity='0',2000);
+}
+
+// ═══════════════════════════════
+// PRINT
+// ═══════════════════════════════
+function printContent(html){
+  const w=window.open('','_blank','width=400,height=600');
+  w.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><style>
+    body{font-family:'Courier New',monospace;font-size:12px;padding:16px;color:#000;background:#fff}
+    h2{font-size:14px;margin-bottom:4px} hr{border-top:1px dashed #999;margin:6px 0}
+    .row{display:flex;justify-content:space-between;padding:1px 0}
+    .center{text-align:center} table{width:100%;border-collapse:collapse}
+    td,th{padding:3px;border-bottom:1px solid #eee;font-size:11px}
+  </style></head><body>${html}</body></html>`);
+  w.document.close();setTimeout(()=>w.print(),400);
+}
+
+// ═══════════════════════════════
+// SIGNATURE PAD
+// ═══════════════════════════════
+function initSigPad(canvasId,target){
+  const c=document.getElementById(canvasId);
+  if(!c)return;
+  const ctx=c.getContext('2d');
+  ctx.strokeStyle='#3d8bff';ctx.lineWidth=2;ctx.lineCap='round';
+  const getPos=(e)=>{const r=c.getBoundingClientRect();const t=e.touches?e.touches[0]:e;return{x:t.clientX-r.left,y:t.clientY-r.top};};
+  let drawing=false;
+  c.onmousedown=c.ontouchstart=(e)=>{e.preventDefault();drawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y);};
+  c.onmousemove=c.ontouchmove=(e)=>{e.preventDefault();if(!drawing)return;const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke();};
+  c.onmouseup=c.ontouchend=()=>{drawing=false;APP[target]=c.toDataURL();};
+  document.getElementById('clear-sig-'+canvasId)?.addEventListener('click',()=>{ctx.clearRect(0,0,c.width,c.height);APP[target]='';});
+}
+
+// ═══════════════════════════════
+// RENDER ENGINE
+// ═══════════════════════════════
+function render(){
+  document.getElementById('root').innerHTML=buildHTML();
+  bindEvents();
+  requestAnimationFrame(()=>{
+    if(APP.modal==='cuadre'||APP.modal==='cuadreNew')initSigPad('sigpad','cuadreSig');
+  });
+}
+
+function buildHTML(){
+  const cfg=APP.config;
+  const logoHtml=cfg.logo?`<img src="${cfg.logo}" alt="logo">`:`${(cfg.businessName||'POS').charAt(0).toUpperCase()}`;
+  return `
+  <div class="header">
+    <div class="logo-circle">${logoHtml}</div>
+    <div>
+      <div style="font-size:13px;font-weight:600">${cfg.businessName||'Nexora_Pos'}</div>
+      <div style="font-size:10px;color:var(--text3)">${cfg.rnc?'RNC: '+cfg.rnc:''} ${cfg.address||''}</div>
+    </div>
+    <div style="margin-left:auto;display:flex;gap:6px;align-items:center">
+      <span style="font-size:11px;color:var(--text3)">${fmtDateTime(new Date())}</span>
+      <span class="badge badge-blue">${BUSINESSES[cfg.businessType||'ferreteria']?.label||cfg.businessType}</span>
+    </div>
+  </div>
+  <div class="nav">
+    ${['pos','suite','inventario','ventas','egresos','cuadre','reportes','auditoria','configuracion'].map(p=>`
+    <button class="nav-btn ${APP.page===p?'active':''}" data-nav="${p}">
+      ${{'pos':'🏪 POS','suite':'🧩 Nexora Suite','inventario':'📦 Inventario','ventas':'🧾 Ventas','egresos':'💸 Egresos','cuadre':'💰 Cuadre de Caja','reportes':'📊 Reportes','auditoria':'🔍 Auditoría','configuracion':'⚙️ Configuración'}[p]}
+    </button>`).join('')}
+  </div>
+  ${buildPage()}
+  ${buildModal()}
+  `;
+}
+
+function buildPage(){
+  switch(APP.page){
+    case 'pos': return buildPOS();
+    case 'suite': return buildSuite();
+    case 'inventario': return buildInventario();
+    case 'ventas': return buildVentas();
+    case 'egresos': return buildEgresos();
+    case 'cuadre': return buildCuadre();
+    case 'reportes': return buildReportes();
+    case 'auditoria': return buildAuditoria();
+    case 'configuracion': return buildConfiguracion();
+    default: return buildPOS();
+  }
+}
+
+function buildSuite(){
+  return `<div class="page active">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:8px;flex-wrap:wrap">
+      <div>
+        <div class="section-title">🧩 Nexora Suite</div>
+        <div class="section-sub">Acceso al sistema Nexora Suite integrado. Módulos excluidos: citas, pos y pedidos.</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="badge badge-red">❌ citas</span>
+        <span class="badge badge-red">❌ pos</span>
+        <span class="badge badge-red">❌ pedidos</span>
+      </div>
+    </div>
+    <div class="grid-4">
+      ${SUITE_MODULES.map(mod=>`<div class="card" style="display:flex;flex-direction:column;gap:10px;min-height:140px">
+        <div style="font-size:22px">${mod.icon}</div>
+        <div style="font-size:13px;font-weight:600">${mod.label}</div>
+        <div style="font-size:11px;color:var(--text3);word-break:break-all">${mod.path}</div>
+        <div style="margin-top:auto;display:flex;gap:6px">
+          <button class="btn-primary btn-sm" data-openapp="${mod.path}" style="flex:1">Abrir</button>
+        </div>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+
+// ═══════════════════════════════
+// POS PAGE
+// ═══════════════════════════════
+function buildPOS(){
+  const prods=filteredProducts();
+  const cats=posCategories();
+  const cur=APP.config.currency||'RD$';
+  const itbisRate=APP.config.itbisRate||18;
+  const sub=cartSubtotal(),disc=discAmount(),itbis=itbisAmount(),total=grandTotal();
+  const cashG=parseFloat(APP.cashGiven)||0;
+  const change=Math.max(0,cashG-total);
+  return `<div class="page active" style="padding:10px">
+  <div class="pos-layout">
+    <div class="left-panel">
+      <div class="top-bar">
+        <select style="width:130px;flex-shrink:0" id="biz-sel">
+          ${Object.entries(BUSINESSES).map(([k,v])=>`<option value="${k}" ${(APP.config.businessType||'ferreteria')===k?'selected':''}>${v.label}</option>`).join('')}
+        </select>
+        <input placeholder="Buscar producto..." value="${APP.possearch}" id="pos-search" style="flex:1">
+      </div>
+      <div class="cats">
+        ${cats.map(c=>`<button class="cat-btn ${APP.poscat===c?'active':''}" data-cat="${c}">${c}</button>`).join('')}
+      </div>
+      <div class="prods-grid">
+        ${prods.length===0?'<div style="grid-column:1/-1;color:var(--text3);font-size:12px;padding:16px">Sin resultados</div>':
+        prods.map(p=>`<div class="prod-card ${p.stock<=0?'out-stock':''}" data-addprod="${p.id}" title="${p.name} - Stock: ${p.stock}">
+          <div class="prod-icon">${p.icon||'📦'}</div>
+          <div class="prod-name">${p.name}</div>
+          <div class="prod-price">${fmt(p.price,cur)}</div>
+          <div class="prod-stock">Stock: ${p.stock}</div>
+        </div>`).join('')}
+      </div>
+    </div>
+    <div class="right-panel">
+      <div class="cart-header">
+        <span style="font-size:13px;font-weight:500">Carrito <span class="badge badge-blue">${APP.cart.reduce((s,i)=>s+i.qty,0)}</span></span>
+        <button class="btn-ghost btn-sm" id="clear-cart">Vaciar</button>
+      </div>
+      <div class="cart-items">
+        ${APP.cart.length===0?'<div class="cart-empty">🛒<br>Sin productos</div>':
+        APP.cart.map(item=>`<div class="cart-item">
+          <div>
+            <div class="ci-name">${item.icon||''} ${item.name}</div>
+            <div class="ci-price">${fmt(item.price,cur)} c/u</div>
+          </div>
+          <div class="ci-controls">
+            <button class="qty-btn" data-qchg="${item.id}" data-d="-1">−</button>
+            <span class="qty-num">${item.qty}</span>
+            <button class="qty-btn" data-qchg="${item.id}" data-d="1">+</button>
+            <span class="ci-total">${fmt(item.price*item.qty,cur)}</span>
+          </div>
+        </div>`).join('')}
+      </div>
+      <div class="cart-footer">
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="number" placeholder="% Desc." min="0" max="100" value="${APP.discInput}" id="disc-input" style="width:80px">
+          <button class="btn-ghost btn-sm" id="apply-disc">Aplicar</button>
+          ${APP.discount>0?`<span class="badge badge-amber">${APP.discount}% desc.</span>`:''}
+        </div>
+        <div class="totals-grid">
+          <div class="row"><span>Subtotal</span><span>${fmt(sub,cur)}</span></div>
+          ${APP.discount>0?`<div class="row"><span>Descuento (${APP.discount}%)</span><span style="color:var(--red)">-${fmt(disc,cur)}</span></div>`:''}
+          <div class="row"><span>ITBIS (${itbisRate}%)</span><span>${fmt(itbis,cur)}</span></div>
+          <div class="row total"><span>TOTAL</span><span>${fmt(total,cur)}</span></div>
+        </div>
+        <div class="pay-methods">
+          ${[['efectivo','💵 Efectivo'],['tarjeta','💳 Tarjeta'],['transferencia','📲 Transfer']].map(([k,l])=>
+          `<button class="pay-btn ${APP.payMethod===k?'active':''}" data-pay="${k}">${l}</button>`).join('')}
+        </div>
+        ${APP.payMethod==='efectivo'?`
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="number" placeholder="Monto recibido" id="cash-given" value="${APP.cashGiven}" style="flex:1">
+          ${cashG>=total&&cashG>0?`<span class="badge badge-green">Cambio: ${fmt(change,cur)}</span>`:''}
+        </div>`:''}
+        <button class="cobrar-btn" id="cobrar-btn" ${APP.cart.length===0?'disabled':''}>
+          Cobrar ${APP.cart.length>0?fmt(total,cur):''}
+        </button>
+      </div>
+    </div>
+  </div></div>`;
+}
+
+// ═══════════════════════════════
+// INVENTARIO PAGE
+// ═══════════════════════════════
+function buildInventario(){
+  const cur=APP.config.currency||'RD$';
+  const prods=activeProducts();
+  const lowStock=prods.filter(p=>p.stock<=5);
+  const sorted=[...prods].sort((a,b)=>a.name.localeCompare(b.name));
+  return `<div class="page active">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+    <div>
+      <div class="section-title">📦 Inventario</div>
+      <div class="section-sub">${prods.length} productos activos • ${prods.reduce((s,p)=>s+p.stock,0)} unidades totales</div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-ghost btn-sm" id="export-inv">⬇ CSV</button>
+      <button class="btn-primary btn-sm" id="add-prod-btn">+ Producto</button>
+    </div>
+  </div>
+  ${lowStock.length>0?`<div style="background:var(--amber-bg);border:1px solid var(--amber);border-radius:var(--radius);padding:8px 12px;margin-bottom:12px;font-size:12px;color:var(--amber)">
+    ⚠️ Stock bajo (≤5): ${lowStock.map(p=>p.name).join(', ')}
+  </div>`:''}
+  <div class="grid-4" style="margin-bottom:12px">
+    <div class="stat-card"><div class="stat-lbl">Total productos</div><div class="stat-val">${prods.length}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Total unidades</div><div class="stat-val">${prods.reduce((s,p)=>s+p.stock,0)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Valor inventario</div><div class="stat-val" style="font-size:16px;color:var(--blue)">${fmt(prods.reduce((s,p)=>s+p.cost*p.stock,0),cur)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Bajo stock</div><div class="stat-val" style="color:var(--amber)">${lowStock.length}</div></div>
+  </div>
+  <div class="search-bar"><input placeholder="Buscar producto..." id="inv-search"></div>
+  <div class="table-wrap">
+    <table><thead><tr>
+      <th>Producto</th><th>Categoría</th><th>Precio venta</th><th>Costo</th><th>Stock</th><th>Margen</th><th>Acciones</th>
+    </tr></thead><tbody>
+    ${sorted.map(p=>{
+      const margin=p.price>0?((p.price-p.cost)/p.price*100).toFixed(0):0;
+      return `<tr>
+        <td><span style="margin-right:6px">${p.icon||'📦'}</span>${p.name}</td>
+        <td><span class="badge badge-purple">${p.cat}</span></td>
+        <td style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${fmt(p.price,cur)}</td>
+        <td style="font-family:'IBM Plex Mono',monospace">${fmt(p.cost||0,cur)}</td>
+        <td><span class="badge ${p.stock<=0?'badge-red':p.stock<=5?'badge-amber':'badge-green'}">${p.stock}</span></td>
+        <td style="font-family:'IBM Plex Mono',monospace">${margin}%</td>
+        <td><button class="btn-ghost btn-sm" data-editprod="${p.id}" style="margin-right:4px">Editar</button>
+            <button class="btn-danger btn-sm" data-delprod="${p.id}">Del</button></td>
+      </tr>`;}).join('')}
+    </tbody></table>
+  </div></div>`;
+}
+
+// ═══════════════════════════════
+// VENTAS PAGE
+// ═══════════════════════════════
+function buildVentas(){
+  const cur=APP.config.currency||'RD$';
+  const sales=filteredSales();
+  const totalVentas=sales.filter(s=>s.status==='completada').reduce((a,s)=>a+s.total,0);
+  const totalITBIS=sales.filter(s=>s.status==='completada').reduce((a,s)=>a+s.itbis,0);
+  return `<div class="page active">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+    <div><div class="section-title">🧾 Historial de Ventas</div><div class="section-sub">${sales.length} ventas encontradas</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-ghost btn-sm" id="exp-sales-csv">⬇ CSV Ventas</button>
+      <button class="btn-ghost btn-sm" id="exp-607">⬇ 607 DGII</button>
+      <button class="btn-ghost btn-sm" id="print-sales">🖨️ Imprimir</button>
+    </div>
+  </div>
+  <div class="grid-4" style="margin-bottom:12px">
+    <div class="stat-card"><div class="stat-lbl">Total ventas</div><div class="stat-val" style="color:var(--green)">${fmt(totalVentas,cur)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">ITBIS cobrado</div><div class="stat-val" style="color:var(--blue)">${fmt(totalITBIS,cur)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Transacciones</div><div class="stat-val">${sales.filter(s=>s.status==='completada').length}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Anuladas</div><div class="stat-val" style="color:var(--red)">${sales.filter(s=>s.status==='anulada').length}</div></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <input type="date" value="${APP.saleFilter.from}" id="sf-from" style="width:140px">
+    <input type="date" value="${APP.saleFilter.to}" id="sf-to" style="width:140px">
+    <input placeholder="Buscar ID o NCF..." value="${APP.saleFilter.search}" id="sf-search" style="flex:1;min-width:160px">
+  </div>
+  <div class="table-wrap">
+    <table><thead><tr>
+      <th>ID</th><th>Fecha</th><th>NCF</th><th>Subtotal</th><th>ITBIS</th><th>Total</th><th>Método</th><th>Estado</th><th>Acción</th>
+    </tr></thead><tbody>
+    ${sales.slice(0,100).map(s=>`<tr>
+      <td style="font-size:11px;font-family:'IBM Plex Mono',monospace">${s.id}</td>
+      <td style="font-size:11px">${fmtDateTime(s.date)}</td>
+      <td style="font-size:11px;font-family:'IBM Plex Mono',monospace">${s.ncf}</td>
+      <td style="font-family:'IBM Plex Mono',monospace">${fmt(s.subtotal,cur)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace">${fmt(s.itbis,cur)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${fmt(s.total,cur)}</td>
+      <td><span class="badge badge-blue">${s.payMethod}</span></td>
+      <td><span class="badge ${s.status==='completada'?'badge-green':'badge-red'}">${s.status}</span></td>
+      <td>
+        <button class="btn-ghost btn-sm" data-viewsale="${s.id}" style="margin-right:2px">Ver</button>
+        ${s.status==='completada'?`<button class="btn-danger btn-sm" data-voidsale="${s.id}">Anular</button>`:''}
+      </td>
+    </tr>`).join('')}
+    </tbody></table>
+  </div>
+  <div class="pagination">Mostrando ${Math.min(100,sales.length)} de ${sales.length} ventas</div>
+  </div>`;
+}
+
+// ═══════════════════════════════
+// EGRESOS PAGE
+// ═══════════════════════════════
+function buildEgresos(){
+  const cur=APP.config.currency||'RD$';
+  const exps=filteredExpenses();
+  const totalExp=exps.reduce((a,e)=>a+(e.total||0),0);
+  const totalITBIS=exps.reduce((a,e)=>a+(e.itbis||0),0);
+  return `<div class="page active">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+    <div><div class="section-title">💸 Egresos</div><div class="section-sub">${exps.length} registros</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-ghost btn-sm" id="exp-exp-csv">⬇ CSV Egresos</button>
+      <button class="btn-ghost btn-sm" id="exp-606">⬇ 606 DGII</button>
+      <button class="btn-primary btn-sm" id="add-exp-btn">+ Egreso</button>
+    </div>
+  </div>
+  <div class="grid-4" style="margin-bottom:12px">
+    <div class="stat-card"><div class="stat-lbl">Total egresos</div><div class="stat-val" style="color:var(--red)">${fmt(totalExp,cur)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">ITBIS pagado</div><div class="stat-val" style="color:var(--amber)">${fmt(totalITBIS,cur)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Sin ITBIS</div><div class="stat-val">${fmt(totalExp-totalITBIS,cur)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Registros</div><div class="stat-val">${exps.length}</div></div>
+  </div>
+  <div style="display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap">
+    <input type="date" value="${APP.expFilter.from}" id="ef-from" style="width:140px">
+    <input type="date" value="${APP.expFilter.to}" id="ef-to" style="width:140px">
+    <input placeholder="Buscar suplidor..." value="${APP.expFilter.search}" id="ef-search" style="flex:1;min-width:160px">
+  </div>
+  <div class="table-wrap">
+    <table><thead><tr>
+      <th>ID</th><th>Fecha</th><th>Suplidor</th><th>NCF</th><th>Descripción</th><th>Monto</th><th>ITBIS</th><th>Total</th><th>Método</th><th>Acción</th>
+    </tr></thead><tbody>
+    ${exps.slice(0,100).map(e=>`<tr>
+      <td style="font-size:11px;font-family:'IBM Plex Mono',monospace">${e.id}</td>
+      <td style="font-size:11px">${fmtDate(e.date)}</td>
+      <td>${e.supplier}</td>
+      <td style="font-size:11px;font-family:'IBM Plex Mono',monospace">${e.ncf||'-'}</td>
+      <td style="font-size:11px">${e.description}</td>
+      <td style="font-family:'IBM Plex Mono',monospace">${fmt(e.amount||0,cur)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;color:var(--amber)">${fmt(e.itbis||0,cur)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;color:var(--red)">${fmt(e.total||0,cur)}</td>
+      <td><span class="badge badge-blue">${e.payMethod||'-'}</span></td>
+      <td><button class="btn-danger btn-sm" data-delexp="${e.id}">Del</button></td>
+    </tr>`).join('')}
+    </tbody></table>
+  </div></div>`;
+}
+
+// ═══════════════════════════════
+// CUADRE PAGE
+// ═══════════════════════════════
+function buildCuadre(){
+  const cur=APP.config.currency||'RD$';
+  const todaySales=APP.sales.filter(s=>s.date.startsWith(today())&&s.status==='completada');
+  const tTotal=todaySales.reduce((a,s)=>a+s.total,0);
+  const tCash=todaySales.filter(s=>s.payMethod==='efectivo').reduce((a,s)=>a+s.total,0);
+  const tCard=todaySales.filter(s=>s.payMethod==='tarjeta').reduce((a,s)=>a+s.total,0);
+  const tTransfer=todaySales.filter(s=>s.payMethod==='transferencia').reduce((a,s)=>a+s.total,0);
+  const tITBIS=todaySales.reduce((a,s)=>a+s.itbis,0);
+  const tExp=activeExpenses().filter(e=>e.date.startsWith(today())).reduce((a,e)=>a+(e.total||0),0);
+  const openBal=parseFloat(APP.cuadreOpen)||0;
+  const closeBal=openBal+tCash-tExp;
+  return `<div class="page active">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+    <div><div class="section-title">💰 Cuadre de Caja</div><div class="section-sub">Resumen del día: ${fmtDate(today())}</div></div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-ghost btn-sm" id="print-cuadre">🖨️ Imprimir Cuadre</button>
+      <button class="btn-ghost btn-sm" id="print-det-sales">📄 Detalle Ventas</button>
+      <button class="btn-primary btn-sm" id="new-cuadre-btn">Cerrar Caja</button>
+    </div>
+  </div>
+  <div class="grid-4" style="margin-bottom:12px">
+    <div class="stat-card"><div class="stat-lbl">Ventas del día</div><div class="stat-val" style="color:var(--green)">${fmt(tTotal,cur)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">ITBIS cobrado</div><div class="stat-val" style="color:var(--blue)">${fmt(tITBIS,cur)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Egresos del día</div><div class="stat-val" style="color:var(--red)">${fmt(tExp,cur)}</div></div>
+    <div class="stat-card"><div class="stat-lbl">Balance neto</div><div class="stat-val" style="${tTotal-tExp>=0?'color:var(--green)':'color:var(--red)'}">${fmt(tTotal-tExp,cur)}</div></div>
+  </div>
+  <div class="grid-2" style="margin-bottom:12px">
+    <div class="card">
+      <div style="font-size:13px;font-weight:500;margin-bottom:12px">Desglose por método de pago</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        ${[['💵 Efectivo',tCash,'green'],['💳 Tarjeta',tCard,'blue'],['📲 Transferencia',tTransfer,'purple']].map(([l,v,c])=>`
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <span style="font-size:13px">${l}</span>
+          <span style="font-family:'IBM Plex Mono',monospace;color:var(--${c})">${fmt(v,cur)}</span>
+        </div>`).join('')}
+        <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between">
+          <span style="font-weight:500">Total</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--blue)">${fmt(tTotal,cur)}</span>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:13px;font-weight:500;margin-bottom:12px">Balance de caja (efectivo)</div>
+      <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+        <div style="display:flex;justify-content:space-between"><span>Apertura</span><span style="font-family:'IBM Plex Mono',monospace">${fmt(openBal,cur)}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>+ Ventas efectivo</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--green)">${fmt(tCash,cur)}</span></div>
+        <div style="display:flex;justify-content:space-between"><span>- Egresos</span><span style="font-family:'IBM Plex Mono',monospace;color:var(--red)">${fmt(tExp,cur)}</span></div>
+        <div style="border-top:1px solid var(--border);padding-top:8px;display:flex;justify-content:space-between">
+          <span style="font-weight:500">Cierre estimado</span><span style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:var(--green)">${fmt(closeBal,cur)}</span>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div style="font-size:13px;font-weight:500;margin-bottom:8px">Histórico de cuadres</div>
+  <div class="table-wrap">
+    <table><thead><tr>
+      <th>ID</th><th>Fecha</th><th>Apertura</th><th>Ventas</th><th>Egresos</th><th>Cierre</th><th>Firmado</th>
+    </tr></thead><tbody>
+    ${APP.cashCounts.slice(0,20).map(c=>`<tr>
+      <td style="font-size:11px;font-family:'IBM Plex Mono',monospace">${c.id}</td>
+      <td style="font-size:11px">${fmtDateTime(c.date)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace">${fmt(c.openBalance,cur)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;color:var(--green)">${fmt(c.totalSales,cur)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;color:var(--red)">${fmt(c.totalExpenses,cur)}</td>
+      <td style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${fmt(c.closeBalance,cur)}</td>
+      <td>${c.signature?'<span class="badge badge-green">✓ Sí</span>':'<span class="badge badge-amber">No</span>'}</td>
+    </tr>`).join('')}
+    </tbody></table>
+  </div></div>`;
+}
+
+// ═══════════════════════════════
+// REPORTES PAGE
+// ═══════════════════════════════
+function buildReportes(){
+  const cur=APP.config.currency||'RD$';
+  const itbisRate=(APP.config.itbisRate||18)/100;
+  const allSales=APP.sales.filter(s=>s.status==='completada');
+  const totalRevenue=allSales.reduce((a,s)=>a+s.total,0);
+  const totalITBISCobrado=allSales.reduce((a,s)=>a+s.itbis,0);
+  const totalSubtotal=allSales.reduce((a,s)=>a+s.subtotal,0);
+  const totalDisc=allSales.reduce((a,s)=>a+(s.discAmount||0),0);
+  const totalCOGS=allSales.reduce((a,s)=>a+s.items.reduce((b,i)=>{const p=APP.products.find(x=>x.id===i.id);return b+(p?.cost||0)*i.qty;},0),0);
+  const totalExp=activeExpenses().reduce((a,e)=>a+(e.total||0),0);
+  const totalITBISPagado=activeExpenses().reduce((a,e)=>a+(e.itbis||0),0);
+  const itbisNeto=totalITBISCobrado-totalITBISPagado;
+  const grossProfit=totalSubtotal-totalDisc-totalCOGS;
+  const netProfit=grossProfit-totalExp;
+  // Monthly sales for mini chart
+  const monthlySales={};
+  allSales.forEach(s=>{const m=s.date.substring(0,7);monthlySales[m]=(monthlySales[m]||0)+s.total;});
+  const months=Object.entries(monthlySales).sort((a,b)=>a[0].localeCompare(b[0])).slice(-6);
+  const maxM=Math.max(...months.map(m=>m[1]),1);
+  return `<div class="page active">
+  <div class="section-title" style="margin-bottom:4px">📊 Reportes y Estado de Resultado</div>
+  <div class="section-sub">Datos acumulados de todas las transacciones</div>
+  <div class="tab-bar">
+    ${['itbis','estado','notas'].map(t=>`<button class="tab-btn ${(APP.tab||'itbis')===t?'active':''}" data-tab="${t}">
+      ${t==='itbis'?'ITBIS Fiscal':t==='estado'?'Estado de Resultado':'Notas de Crédito'}</button>`).join('')}
+  </div>
+  <div class="tab-content ${(APP.tab||'itbis')==='itbis'?'active':''}">
+    <div class="grid-3" style="margin-bottom:16px">
+      <div class="stat-card"><div class="stat-lbl">ITBIS cobrado en ventas</div><div class="stat-val" style="color:var(--blue)">${fmt(totalITBISCobrado,cur)}</div></div>
+      <div class="stat-card"><div class="stat-lbl">ITBIS pagado a suplidores</div><div class="stat-val" style="color:var(--amber)">${fmt(totalITBISPagado,cur)}</div></div>
+      <div class="stat-card"><div class="stat-lbl">ITBIS Neto a pagar DGII</div><div class="stat-val" style="color:${itbisNeto>=0?'var(--red)':'var(--green)'}">${fmt(itbisNeto,cur)}</div></div>
+    </div>
+    <div class="card" style="margin-bottom:12px">
+      <div style="font-size:13px;font-weight:500;margin-bottom:12px">Resumen ITBIS Fiscal</div>
+      <table><thead><tr><th>Concepto</th><th>Base imponible</th><th>ITBIS (${APP.config.itbisRate||18}%)</th></tr></thead><tbody>
+        <tr><td>Ventas gravadas</td><td style="font-family:'IBM Plex Mono',monospace">${fmt(totalSubtotal-totalDisc,cur)}</td><td style="font-family:'IBM Plex Mono',monospace;color:var(--blue)">${fmt(totalITBISCobrado,cur)}</td></tr>
+        <tr><td>Compras gravadas (crédito fiscal)</td><td style="font-family:'IBM Plex Mono',monospace">${fmt(activeExpenses().reduce((a,e)=>a+(e.amount||0),0),cur)}</td><td style="font-family:'IBM Plex Mono',monospace;color:var(--amber)">${fmt(totalITBISPagado,cur)}</td></tr>
+        <tr><td><strong>ITBIS neto a pagar/cobrar DGII</strong></td><td></td><td style="font-family:'IBM Plex Mono',monospace;font-weight:600;color:${itbisNeto>=0?'var(--red)':'var(--green)'}">${fmt(itbisNeto,cur)}</td></tr>
+      </tbody></table>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn-ghost btn-sm" id="exp-606-rpt">⬇ 606 (Compras)</button>
+      <button class="btn-ghost btn-sm" id="exp-607-rpt">⬇ 607 (Ventas)</button>
+    </div>
+  </div>
+  <div class="tab-content ${(APP.tab||'itbis')==='estado'?'active':''}">
+    <div class="card" style="max-width:600px;margin-bottom:16px">
+      <div style="font-size:14px;font-weight:600;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--border)">${APP.config.businessName||'Mi Negocio'} — Estado de Resultado</div>
+      ${[
+        ['Ingresos por ventas',totalSubtotal,''],
+        ['(-) Descuentos',totalDisc,'red'],
+        ['= Ventas netas',totalSubtotal-totalDisc,''],
+        ['(-) Costo de ventas',totalCOGS,'red'],
+        ['= Utilidad bruta',grossProfit,''],
+        ['(-) Gastos operativos',totalExp,'red'],
+        ['= Utilidad/Pérdida neta',netProfit,''],
+      ].map(([l,v,c],i)=>`<div style="display:flex;justify-content:space-between;padding:6px 0;${i===2||i===4||i===6?'border-top:1px solid var(--border);font-weight:500;':''}">
+        <span style="font-size:13px;${c?`color:var(--${c})`:''}">${l}</span>
+        <span style="font-family:'IBM Plex Mono',monospace;font-size:13px;color:${c?`var(--${c})`:v>=0?'var(--green)':'var(--red)'}">${fmt(v,cur)}</span>
+      </div>`).join('')}
+    </div>
+    ${months.length>0?`<div class="card">
+      <div style="font-size:13px;font-weight:500;margin-bottom:12px">Ventas por mes</div>
+      <div style="display:flex;align-items:flex-end;gap:6px;height:80px">
+        ${months.map(([m,v])=>`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">
+          <div style="width:100%;background:var(--blue);border-radius:3px 3px 0 0;height:${Math.round(v/maxM*70)}px"></div>
+          <div style="font-size:9px;color:var(--text3)">${m.slice(5)}</div>
+        </div>`).join('')}
+      </div>
+    </div>`:''}
+  </div>
+  <div class="tab-content ${(APP.tab||'itbis')==='notas'?'active':''}">
+    <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+      <div style="font-size:13px;font-weight:500">Notas de Crédito / Débito</div>
+    </div>
+    <div class="table-wrap">
+      <table><thead><tr><th>ID</th><th>Fecha</th><th>Venta original</th><th>Motivo</th><th>Monto</th><th>Tipo</th></tr></thead><tbody>
+      ${APP.creditNotes.length===0?`<tr><td colspan="6" style="text-align:center;padding:20px;color:var(--text3)">Sin notas de crédito</td></tr>`:
+      APP.creditNotes.map(n=>`<tr>
+        <td style="font-size:11px;font-family:'IBM Plex Mono',monospace">${n.id}</td>
+        <td style="font-size:11px">${fmtDateTime(n.date)}</td>
+        <td style="font-size:11px;font-family:'IBM Plex Mono',monospace">${n.saleId}</td>
+        <td style="font-size:12px">${n.reason}</td>
+        <td style="font-family:'IBM Plex Mono',monospace;color:var(--red)">${fmt(n.amount,cur)}</td>
+        <td><span class="badge badge-amber">${n.type}</span></td>
+      </tr>`).join('')}
+      </tbody></table>
+    </div>
+  </div>
+  </div>`;
+}
+
+// ═══════════════════════════════
+// AUDITORIA PAGE
+// ═══════════════════════════════
+function buildAuditoria(){
+  return `<div class="page active">
+  <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px">
+    <div><div class="section-title">🔍 Auditoría</div><div class="section-sub">${APP.auditLog.length} eventos registrados</div></div>
+    <button class="btn-ghost btn-sm" id="exp-audit">⬇ Exportar</button>
+  </div>
+  <div class="table-wrap">
+    <table><thead><tr><th>Fecha</th><th>Acción</th><th>Detalle</th></tr></thead><tbody>
+    ${APP.auditLog.slice(0,200).map(a=>`<tr>
+      <td style="font-size:11px;font-family:'IBM Plex Mono',monospace;white-space:nowrap">${fmtDateTime(a.date)}</td>
+      <td><span class="badge ${a.action==='Venta'?'badge-green':a.action==='Egreso'?'badge-red':a.action.includes('Crédito')?'badge-amber':'badge-blue'}">${a.action}</span></td>
+      <td style="font-size:12px;color:var(--text2)">${a.detail}</td>
+    </tr>`).join('')}
+    </tbody></table>
+  </div></div>`;
+}
+
+// ═══════════════════════════════
+// CONFIGURACION PAGE
+// ═══════════════════════════════
+function buildConfiguracion(){
+  const cfg=APP.config;
+  return `<div class="page active" style="max-width:800px">
+  <div class="section-title" style="margin-bottom:4px">⚙️ Configuración</div>
+  <div class="section-sub">Datos del negocio, ITBIS, métodos de pago y más</div>
+  <div class="tab-bar">
+    ${['negocio','sistema','horario'].map(t=>`<button class="tab-btn ${(APP.tab||'negocio')===t?'active':''}" data-tab="${t}">
+      ${t==='negocio'?'🏪 Datos del negocio':t==='sistema'?'⚙️ Sistema POS':'🕐 Horario y pagos'}</button>`).join('')}
+  </div>
+  <div class="tab-content ${(APP.tab||'negocio')==='negocio'?'active':''}">
+    <div class="card">
+      <div class="form-row form-row-2">
+        <div class="form-group"><label>Nombre del negocio</label><input id="cfg-name" value="${cfg.businessName||''}"></div>
+        <div class="form-group"><label>Slug (para menú digital)</label><input id="cfg-slug" value="${cfg.slug||''}" placeholder="mi-negocio"><div style="font-size:10px;color:var(--text3);margin-top:3px">tudominio.com/menu/${cfg.slug||'tu-slug'}</div></div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group"><label>RNC</label><input id="cfg-rnc" value="${cfg.rnc||''}" placeholder="000-00000-0"></div>
+        <div class="form-group"><label>Teléfono / WhatsApp</label><input id="cfg-phone" value="${cfg.phone||''}" placeholder="809-000-0000"></div>
+      </div>
+      <div class="form-row form-row-2">
+        <div class="form-group"><label>Email</label><input id="cfg-email" value="${cfg.email||''}" type="email"></div>
+        <div class="form-group"><label>Tipo de negocio</label>
+          <select id="cfg-biztype">
+            ${Object.entries(BUSINESSES).map(([k,v])=>`<option value="${k}" ${cfg.businessType===k?'selected':''}>${v.label}</option>`).join('')}
+            <option value="otro" ${cfg.businessType==='otro'?'selected':''}>Otro</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group"><label>Dirección</label><input id="cfg-addr" value="${cfg.address||''}"></div>
+      <div class="form-group"><label>Logo del negocio</label>
+        <div style="display:flex;gap:12px;align-items:flex-start;margin-top:4px">
+          ${cfg.logo?`<img src="${cfg.logo}" style="width:60px;height:60px;object-fit:cover;border-radius:8px;border:1px solid var(--border)">`:'<div style="width:60px;height:60px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:11px;color:var(--text3)">Sin logo</div>'}
+          <div>
+            <input type="file" id="cfg-logo-file" accept="image/png,image/jpeg,image/webp" style="margin-bottom:4px">
+            <div style="font-size:10px;color:var(--text3)">Formatos: PNG, JPG, WEBP (max 5MB)<br>Se usa en recibos y encabezados</div>
+          </div>
+        </div>
+      </div>
+      <button class="btn-primary" id="save-cfg-btn">💾 Guardar configuración</button>
+    </div>
+  </div>
+  <div class="tab-content ${(APP.tab||'negocio')==='sistema'?'active':''}">
+    <div class="card">
+      <div class="form-row form-row-3">
+        <div class="form-group"><label>Tasa ITBIS (%)</label><input id="cfg-itbis" type="number" value="${cfg.itbisRate||18}" min="0" max="100"></div>
+        <div class="form-group"><label>Moneda</label><input id="cfg-cur" value="${cfg.currency||'RD$'}"></div>
+        <div class="form-group"><label>Prefijo NCF</label><input id="cfg-ncf" value="${cfg.ncfPrefix||'B01'}" maxlength="3"></div>
+      </div>
+      <button class="btn-primary" id="save-cfg-btn2">💾 Guardar</button>
+    </div>
+  </div>
+  <div class="tab-content ${(APP.tab||'negocio')==='horario'?'active':''}">
+    <div class="card">
+      <div class="form-group"><label>Horario de atención</label><input id="cfg-sched" value="${cfg.schedule||''}"></div>
+      <div class="form-group">
+        <label>Métodos de pago activos</label>
+        <div style="display:flex;gap:10px;margin-top:6px">
+          ${[['efectivo','💵 Efectivo'],['tarjeta','💳 Tarjeta'],['transferencia','📲 Transferencia']].map(([k,l])=>`
+          <label style="display:flex;align-items:center;gap:6px;font-size:13px;cursor:pointer;text-transform:none">
+            <input type="checkbox" ${(cfg.paymentMethods||[]).includes(k)?'checked':''} data-pm="${k}" style="width:auto">
+            ${l}
+          </label>`).join('')}
+        </div>
+      </div>
+      <button class="btn-primary" id="save-cfg-btn3">💾 Guardar</button>
+    </div>
+  </div>
+  </div>`;
+}
+
+// ═══════════════════════════════
+// MODALS
+// ═══════════════════════════════
+function buildModal(){
+  if(!APP.modal)return'';
+  switch(APP.modal){
+    case 'receipt': return buildReceiptModal();
+    case 'addProd': case 'editProd': return buildProductModal();
+    case 'addExp': return buildExpenseModal();
+    case 'voidSale': return buildVoidModal();
+    case 'viewSale': return buildViewSaleModal();
+    case 'cuadreNew': return buildCuadreModal();
+    default:return'';
+  }
+}
+
+function buildReceiptModal(){
+  const s=APP.modalData.sale;
+  const cfg=APP.config;
+  const cur=cfg.currency||'RD$';
+  const logoHtml=cfg.logo?`<img src="${cfg.logo}" style="height:40px;margin-bottom:6px">`:'';
+  return `<div class="modal-overlay">
+  <div class="modal">
+    <h3>✅ Venta completada</h3>
+    <div class="receipt-body" id="receipt-content">
+      <div style="text-align:center;margin-bottom:8px">
+        ${logoHtml}
+        <div style="font-size:14px;font-weight:600">${cfg.businessName||'Mi Negocio'}</div>
+        ${cfg.rnc?`<div style="font-size:11px">RNC: ${cfg.rnc}</div>`:''}
+        ${cfg.address?`<div style="font-size:11px">${cfg.address}</div>`:''}
+      </div>
+      <hr class="receipt-sep">
+      <div style="font-size:11px;display:flex;justify-content:space-between">
+        <span>${fmtDateTime(s.date)}</span><span>${s.ncf}</span>
+      </div>
+      <hr class="receipt-sep">
+      ${s.items.map(i=>`<div style="display:flex;justify-content:space-between;font-size:11px">
+        <span>${i.name} x${i.qty}</span><span>${fmt(i.subtotal,cur)}</span>
+      </div>`).join('')}
+      <hr class="receipt-sep">
+      <div style="display:flex;justify-content:space-between;font-size:11px"><span>Subtotal</span><span>${fmt(s.subtotal,cur)}</span></div>
+      ${s.discAmount>0?`<div style="display:flex;justify-content:space-between;font-size:11px"><span>Descuento ${s.discount}%</span><span>-${fmt(s.discAmount,cur)}</span></div>`:''}
+      <div style="display:flex;justify-content:space-between;font-size:11px"><span>ITBIS ${s.itbisRate}%</span><span>${fmt(s.itbis,cur)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:600;margin-top:4px"><span>TOTAL</span><span>${fmt(s.total,cur)}</span></div>
+      ${s.payMethod==='efectivo'?`<div style="display:flex;justify-content:space-between;font-size:11px"><span>Recibido</span><span>${fmt(s.cashGiven,cur)}</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--green)"><span>Cambio</span><span>${fmt(s.change,cur)}</span></div>`:''}
+      <hr class="receipt-sep">
+      <div style="text-align:center;font-size:10px;color:var(--text3)">Método: ${s.payMethod} — ¡Gracias por su compra!</div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn-ghost btn-sm" id="print-receipt">🖨️ Imprimir</button>
+      <button class="btn-primary" style="flex:1" id="close-receipt">Nueva venta</button>
+    </div>
+  </div></div>`;
+}
+
+function buildProductModal(){
+  const p=APP.modalData.prod||{name:'',price:'',cost:'',stock:'',cat:'',icon:'📦',unit:'Und',barcode:''};
+  const isEdit=APP.modal==='editProd';
+  const cats=['Herramientas','Electricidad','Plomería','Pintura','Fijaciones','Seguridad','Lácteos','Carnes','Panadería','Bebidas','Limpieza','Snacks','Ropa','Calzado','Accesorios','Electrónica','Cosméticos','General'];
+  return `<div class="modal-overlay">
+  <div class="modal">
+    <h3>${isEdit?'Editar':'Nuevo'} producto</h3>
+    <div class="form-group"><label>Nombre</label><input id="pm-name" value="${p.name}"></div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label>Precio venta</label><input id="pm-price" type="number" value="${p.price}" min="0"></div>
+      <div class="form-group"><label>Costo</label><input id="pm-cost" type="number" value="${p.cost||''}" min="0"></div>
+    </div>
+    <div class="form-row form-row-3">
+      <div class="form-group"><label>Stock</label><input id="pm-stock" type="number" value="${p.stock}" min="0"></div>
+      <div class="form-group"><label>Unidad</label><input id="pm-unit" value="${p.unit||'Und'}"></div>
+      <div class="form-group"><label>Icono</label><input id="pm-icon" value="${p.icon||'📦'}"></div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label>Categoría</label>
+        <select id="pm-cat">${cats.map(c=>`<option ${p.cat===c?'selected':''}>${c}</option>`).join('')}</select>
+      </div>
+      <div class="form-group"><label>Código de barra</label><input id="pm-barcode" value="${p.barcode||''}"></div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-ghost" id="cancel-modal">Cancelar</button>
+      <button class="btn-primary" id="save-prod-btn">Guardar</button>
+    </div>
+  </div></div>`;
+}
+
+function buildExpenseModal(){
+  return `<div class="modal-overlay">
+  <div class="modal">
+    <h3>Nuevo egreso</h3>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label>Suplidor</label><input id="em-supplier" placeholder="Nombre del suplidor"></div>
+      <div class="form-group"><label>RNC Suplidor</label><input id="em-rnc" placeholder="000-00000-0"></div>
+    </div>
+    <div class="form-group"><label>Descripción</label><input id="em-desc" placeholder="Descripción del gasto"></div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label>Monto (sin ITBIS)</label><input id="em-amount" type="number" min="0" placeholder="0.00" oninput="updateExpItbis()"></div>
+      <div class="form-group"><label>ITBIS (${APP.config.itbisRate||18}%)</label><input id="em-itbis" type="number" min="0" placeholder="0.00"></div>
+    </div>
+    <div class="form-row form-row-2">
+      <div class="form-group"><label>NCF Suplidor</label><input id="em-ncf" placeholder="B01XXXXXXXX"></div>
+      <div class="form-group"><label>Método de pago</label>
+        <select id="em-pay"><option>efectivo</option><option>tarjeta</option><option>transferencia</option><option>cheque</option></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Categoría</label>
+      <select id="em-cat"><option>Compras/Inventario</option><option>Servicios</option><option>Alquiler</option><option>Nómina</option><option>Utilidades</option><option>Transporte</option><option>Otros</option></select>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-ghost" id="cancel-modal">Cancelar</button>
+      <button class="btn-primary" id="save-exp-btn">Guardar egreso</button>
+    </div>
+  </div></div>`;
+}
+
+function buildVoidModal(){
+  return `<div class="modal-overlay">
+  <div class="modal">
+    <h3>Anular venta y emitir nota de crédito</h3>
+    <div style="font-size:12px;color:var(--text3);margin-bottom:12px">Esta acción devolverá el stock y generará una nota de crédito. No puede deshacerse.</div>
+    <div class="form-group"><label>Motivo de anulación</label><textarea id="void-reason" style="height:70px" placeholder="Ej: Producto defectuoso, error en factura..."></textarea></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-ghost" id="cancel-modal">Cancelar</button>
+      <button class="btn-danger" id="confirm-void-btn">Anular venta</button>
+    </div>
+  </div></div>`;
+}
+
+function buildViewSaleModal(){
+  const s=APP.modalData.sale;
+  const cur=APP.config.currency||'RD$';
+  if(!s)return'';
+  return `<div class="modal-overlay">
+  <div class="modal modal-lg">
+    <h3>Detalle de venta ${s.id}</h3>
+    <div class="grid-2" style="margin-bottom:12px;font-size:13px">
+      <div><div style="color:var(--text3);font-size:11px">NCF</div><div style="font-family:'IBM Plex Mono',monospace">${s.ncf}</div></div>
+      <div><div style="color:var(--text3);font-size:11px">Fecha</div><div>${fmtDateTime(s.date)}</div></div>
+      <div><div style="color:var(--text3);font-size:11px">Método</div><div>${s.payMethod}</div></div>
+      <div><div style="color:var(--text3);font-size:11px">Estado</div><div><span class="badge ${s.status==='completada'?'badge-green':'badge-red'}">${s.status}</span></div></div>
+    </div>
+    <table style="margin-bottom:12px"><thead><tr><th>Producto</th><th>Precio</th><th>Qty</th><th>Subtotal</th></tr></thead><tbody>
+    ${s.items.map(i=>`<tr><td>${i.name}</td><td style="font-family:'IBM Plex Mono',monospace">${fmt(i.price,cur)}</td><td>${i.qty}</td><td style="font-family:'IBM Plex Mono',monospace">${fmt(i.subtotal,cur)}</td></tr>`).join('')}
+    </tbody></table>
+    <div style="text-align:right;font-size:13px">
+      <div style="color:var(--text3)">Subtotal: ${fmt(s.subtotal,cur)}</div>
+      ${s.discAmount>0?`<div style="color:var(--red)">Descuento: -${fmt(s.discAmount,cur)}</div>`:''}
+      <div style="color:var(--blue)">ITBIS ${s.itbisRate}%: ${fmt(s.itbis,cur)}</div>
+      <div style="font-size:16px;font-weight:600;margin-top:4px">Total: ${fmt(s.total,cur)}</div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:12px">
+      <button class="btn-ghost btn-sm" id="print-sale-detail">🖨️ Imprimir</button>
+      <button class="btn-ghost" id="cancel-modal">Cerrar</button>
+    </div>
+  </div></div>`;
+}
+
+function buildCuadreModal(){
+  return `<div class="modal-overlay">
+  <div class="modal">
+    <h3>Cerrar caja — Firma digital</h3>
+    <div class="form-group"><label>Balance de apertura</label><input id="cuadre-open" type="number" value="${APP.cuadreOpen}" placeholder="0.00"></div>
+    <div class="form-group"><label>Notas</label><textarea id="cuadre-notes" style="height:60px" placeholder="Observaciones...">${APP.cuadreNotes}</textarea></div>
+    <div class="form-group">
+      <label>Firma digital del cajero</label>
+      <canvas id="sigpad" class="sig-pad" width="440" height="100"></canvas>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <button class="btn-ghost btn-sm" id="clear-sig-sigpad">Limpiar firma</button>
+        <span style="font-size:11px;color:var(--text3);line-height:1.4">Firme con el mouse o pantalla táctil</span>
+      </div>
+    </div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn-ghost" id="cancel-modal">Cancelar</button>
+      <button class="btn-primary" id="save-cuadre-btn">Guardar cuadre</button>
+    </div>
+  </div></div>`;
+}
+
+// ═══════════════════════════════
+// BIND EVENTS
+// ═══════════════════════════════
+function bindEvents(){
+  // Navigation
+  document.querySelectorAll('[data-nav]').forEach(b=>b.addEventListener('click',()=>{APP.page=b.dataset.nav;APP.tab='';render();}));
+  // Tabs
+  document.querySelectorAll('[data-tab]').forEach(b=>b.addEventListener('click',()=>{APP.tab=b.dataset.tab;render();}));
+
+  // POS
+  document.getElementById('biz-sel')?.addEventListener('change',async e=>{
+    APP.config.businessType=e.target.value;
+    APP.products=defaultProducts();
+    APP.poscat='Todo';
+    await DB.set('config',APP.config);await DB.set('products',APP.products);render();
+  });
+  document.getElementById('pos-search')?.addEventListener('input',e=>{APP.possearch=e.target.value;render();});
+  document.querySelectorAll('[data-cat]').forEach(b=>b.addEventListener('click',()=>{APP.poscat=b.dataset.cat;render();}));
+  document.querySelectorAll('[data-addprod]').forEach(b=>b.addEventListener('click',()=>{
+    const p=APP.products.find(x=>x.id==b.dataset.addprod);if(p)addToCart(p);
+  }));
+  document.getElementById('clear-cart')?.addEventListener('click',()=>{APP.cart=[];render();});
+  document.querySelectorAll('[data-qchg]').forEach(b=>b.addEventListener('click',()=>changeQty(parseInt(b.dataset.qchg),parseInt(b.dataset.d))));
+  document.getElementById('disc-input')?.addEventListener('input',e=>{APP.discInput=e.target.value;render();});
+  document.getElementById('apply-disc')?.addEventListener('click',()=>{
+    const v=parseFloat(APP.discInput)||0;
+    if(v<0||v>100){showNotif('Descuento inválido','err');return;}
+    APP.discount=v;render();
+  });
+  document.querySelectorAll('[data-pay]').forEach(b=>b.addEventListener('click',()=>{APP.payMethod=b.dataset.pay;render();}));
+  document.getElementById('cash-given')?.addEventListener('input',e=>{APP.cashGiven=e.target.value;render();});
+  document.getElementById('cobrar-btn')?.addEventListener('click',completeSale);
+
+  // Receipt
+  document.getElementById('close-receipt')?.addEventListener('click',()=>{APP.modal=null;render();});
+  document.getElementById('print-receipt')?.addEventListener('click',()=>{
+    const html=document.getElementById('receipt-content').innerHTML;
+    printContent(html);
+  });
+
+  // Inventario
+  document.getElementById('add-prod-btn')?.addEventListener('click',()=>{APP.modal='addProd';APP.modalData={};render();});
+  document.querySelectorAll('[data-editprod]').forEach(b=>b.addEventListener('click',()=>{
+    const p=APP.products.find(x=>x.id==b.dataset.editprod);
+    APP.modal='editProd';APP.modalData={prod:{...p}};render();
+  }));
+  document.querySelectorAll('[data-delprod]').forEach(b=>b.addEventListener('click',()=>{
+    if(confirm('¿Archivar producto?'))deleteProduct(parseInt(b.dataset.delprod));
+  }));
+  document.getElementById('export-inv')?.addEventListener('click',()=>{
+    dlCSV('inventario.csv',[['ID','Nombre','Categoría','Precio','Costo','Stock','Unidad','Margen%'],...activeProducts().map(p=>[p.id,p.name,p.cat,p.price,p.cost||0,p.stock,p.unit||'Und',p.price>0?((p.price-p.cost)/p.price*100).toFixed(0):0])]);
+  });
+  document.getElementById('inv-search')?.addEventListener('input',e=>{APP.possearch=e.target.value;render();});
+
+  // Product modal
+  document.getElementById('save-prod-btn')?.addEventListener('click',()=>{
+    const p={
+      id:APP.modal==='editProd'?APP.modalData.prod.id:null,
+      name:document.getElementById('pm-name').value.trim(),
+      price:parseFloat(document.getElementById('pm-price').value)||0,
+      cost:parseFloat(document.getElementById('pm-cost').value)||0,
+      stock:parseInt(document.getElementById('pm-stock').value)||0,
+      unit:document.getElementById('pm-unit').value||'Und',
+      icon:document.getElementById('pm-icon').value||'📦',
+      cat:document.getElementById('pm-cat').value,
+      barcode:document.getElementById('pm-barcode').value||'',
+    };
+    if(!p.name){showNotif('Nombre requerido','err');return;}
+    saveProduct(p);
+  });
+
+  // Ventas
+  document.getElementById('sf-from')?.addEventListener('input',e=>{APP.saleFilter.from=e.target.value;render();});
+  document.getElementById('sf-to')?.addEventListener('input',e=>{APP.saleFilter.to=e.target.value;render();});
+  document.getElementById('sf-search')?.addEventListener('input',e=>{APP.saleFilter.search=e.target.value;render();});
+  document.querySelectorAll('[data-viewsale]').forEach(b=>b.addEventListener('click',()=>{
+    APP.modal='viewSale';APP.modalData={sale:APP.sales.find(s=>s.id===b.dataset.viewsale)};render();
+  }));
+  document.querySelectorAll('[data-voidsale]').forEach(b=>b.addEventListener('click',()=>{
+    APP.modal='voidSale';APP.modalData={saleId:b.dataset.voidsale};render();
+  }));
+  document.getElementById('confirm-void-btn')?.addEventListener('click',()=>{
+    const reason=document.getElementById('void-reason').value.trim();
+    if(!reason){showNotif('Motivo requerido','err');return;}
+    voidSale(APP.modalData.saleId,reason);
+  });
+  document.getElementById('exp-sales-csv')?.addEventListener('click',exportSalesCSV);
+  document.getElementById('exp-607')?.addEventListener('click',export607);
+  document.getElementById('print-sales')?.addEventListener('click',()=>{
+    const sales=filteredSales().filter(s=>s.status==='completada');
+    const cur=APP.config.currency||'RD$';
+    let html=`<h2>${APP.config.businessName||'Mi Negocio'} — Reporte de Ventas</h2><hr>
+    <table><tr><th>NCF</th><th>Fecha</th><th>Total</th><th>Método</th></tr>
+    ${sales.map(s=>`<tr><td>${s.ncf}</td><td>${fmtDate(s.date)}</td><td>${fmt(s.total,cur)}</td><td>${s.payMethod}</td></tr>`).join('')}
+    </table><hr><strong>Total: ${fmt(sales.reduce((a,s)=>a+s.total,0),cur)}</strong>`;
+    printContent(html);
+  });
+  document.getElementById('print-sale-detail')?.addEventListener('click',()=>{
+    const s=APP.modalData.sale;const cur=APP.config.currency||'RD$';
+    let html=`<h2>Detalle Venta ${s.id}</h2><div>${fmtDateTime(s.date)} — ${s.ncf}</div><hr>
+    <table><tr><th>Producto</th><th>Qty</th><th>Precio</th><th>Subtotal</th></tr>
+    ${s.items.map(i=>`<tr><td>${i.name}</td><td>${i.qty}</td><td>${fmt(i.price,cur)}</td><td>${fmt(i.subtotal,cur)}</td></tr>`).join('')}
+    </table><hr><div class="row"><span>Total</span><span>${fmt(s.total,cur)}</span></div>`;
+    printContent(html);
+  });
+
+  // Egresos
+  document.getElementById('ef-from')?.addEventListener('input',e=>{APP.expFilter.from=e.target.value;render();});
+  document.getElementById('ef-to')?.addEventListener('input',e=>{APP.expFilter.to=e.target.value;render();});
+  document.getElementById('ef-search')?.addEventListener('input',e=>{APP.expFilter.search=e.target.value;render();});
+  document.getElementById('add-exp-btn')?.addEventListener('click',()=>{APP.modal='addExp';APP.modalData={};render();});
+  document.getElementById('save-exp-btn')?.addEventListener('click',()=>{
+    const amount=parseFloat(document.getElementById('em-amount').value)||0;
+    const itbis=parseFloat(document.getElementById('em-itbis').value)||0;
+    const exp={
+      supplier:document.getElementById('em-supplier').value.trim(),
+      supplierRnc:document.getElementById('em-rnc').value.trim(),
+      description:document.getElementById('em-desc').value.trim(),
+      amount,itbis,total:amount+itbis,
+      ncf:document.getElementById('em-ncf').value.trim(),
+      payMethod:document.getElementById('em-pay').value,
+      category:document.getElementById('em-cat').value,
+    };
+    if(!exp.supplier||!exp.description){showNotif('Suplidor y descripción requeridos','err');return;}
+    saveExpense(exp);
+  });
+  document.querySelectorAll('[data-delexp]').forEach(b=>b.addEventListener('click',async()=>{
+    if(confirm('¿Archivar egreso?')){
+      const exp=APP.expenses.find(e=>e.id===b.dataset.delexp);
+      if(!exp)return;
+      exp.isDeleted=true;
+      exp.deletedAt=nowISO();
+      await DB.set('expenses',APP.expenses);
+      await addAudit('Egreso',`Egreso archivado: ${b.dataset.delexp}`);
+      showNotif('Egreso archivado');render();
+    }
+  }));
+  document.getElementById('exp-exp-csv')?.addEventListener('click',exportExpCSV);
+  document.getElementById('exp-606')?.addEventListener('click',export606);
+
+  // Cuadre
+  document.getElementById('new-cuadre-btn')?.addEventListener('click',()=>{APP.modal='cuadreNew';render();setTimeout(()=>initSigPad('sigpad','cuadreSig'),100);});
+  document.getElementById('save-cuadre-btn')?.addEventListener('click',()=>{
+    APP.cuadreOpen=document.getElementById('cuadre-open')?.value||'0';
+    APP.cuadreNotes=document.getElementById('cuadre-notes')?.value||'';
+    saveCuadre();
+  });
+  document.getElementById('print-cuadre')?.addEventListener('click',()=>{
+    const cur=APP.config.currency||'RD$';
+    const todaySales=APP.sales.filter(s=>s.date.startsWith(today())&&s.status==='completada');
+    const tTotal=todaySales.reduce((a,s)=>a+s.total,0);
+    const tExp=activeExpenses().filter(e=>e.date.startsWith(today())).reduce((a,e)=>a+(e.total||0),0);
+    printContent(`<h2>${APP.config.businessName} — Cuadre de Caja</h2><div>${fmtDate(today())}</div><hr>
+    <div class="row"><span>Ventas del día:</span><span>${fmt(tTotal,cur)}</span></div>
+    <div class="row"><span>Egresos del día:</span><span>${fmt(tExp,cur)}</span></div>
+    <div class="row"><span><strong>Balance neto:</strong></span><span><strong>${fmt(tTotal-tExp,cur)}</strong></span></div>`);
+  });
+  document.getElementById('print-det-sales')?.addEventListener('click',()=>{
+    const cur=APP.config.currency||'RD$';
+    const todaySales=APP.sales.filter(s=>s.date.startsWith(today())&&s.status==='completada');
+    printContent(`<h2>${APP.config.businessName} — Ventas de Hoy</h2><div>${fmtDate(today())}</div><hr>
+    <table><tr><th>NCF</th><th>Hora</th><th>Total</th><th>Método</th></tr>
+    ${todaySales.map(s=>`<tr><td>${s.ncf}</td><td>${fmtDateTime(s.date).split(' ')[1]}</td><td>${fmt(s.total,cur)}</td><td>${s.payMethod}</td></tr>`).join('')}
+    </table><hr><strong>Total: ${fmt(todaySales.reduce((a,s)=>a+s.total,0),cur)}</strong>`);
+  });
+
+  // Reportes
+  document.getElementById('exp-606-rpt')?.addEventListener('click',export606);
+  document.getElementById('exp-607-rpt')?.addEventListener('click',export607);
+
+  // Auditoria
+  document.getElementById('exp-audit')?.addEventListener('click',()=>{
+    dlCSV('auditoria.csv',[['Fecha','Acción','Detalle'],...APP.auditLog.map(a=>[fmtDateTime(a.date),a.action,a.detail])]);
+  });
+
+  // Suite
+  document.querySelectorAll('[data-openapp]').forEach(b=>b.addEventListener('click',()=>{
+    window.open(b.dataset.openapp,'_blank','noopener');
+  }));
+
+  // Configuracion
+  document.getElementById('cfg-logo-file')?.addEventListener('change',e=>{
+    const file=e.target.files[0];
+    if(!file||file.size>5*1024*1024){showNotif('Archivo inválido o muy grande','err');return;}
+    const reader=new FileReader();
+    reader.onload=ev=>{APP.config.logo=ev.target.result;render();};
+    reader.readAsDataURL(file);
+  });
+  const saveCfgFn=async()=>{
+    APP.config.businessName=document.getElementById('cfg-name')?.value||APP.config.businessName;
+    APP.config.slug=document.getElementById('cfg-slug')?.value||APP.config.slug;
+    APP.config.rnc=document.getElementById('cfg-rnc')?.value||APP.config.rnc;
+    APP.config.phone=document.getElementById('cfg-phone')?.value||APP.config.phone;
+    APP.config.email=document.getElementById('cfg-email')?.value||APP.config.email;
+    APP.config.address=document.getElementById('cfg-addr')?.value||APP.config.address;
+    APP.config.businessType=document.getElementById('cfg-biztype')?.value||APP.config.businessType;
+    APP.config.itbisRate=parseFloat(document.getElementById('cfg-itbis')?.value)||18;
+    APP.config.currency=document.getElementById('cfg-cur')?.value||'RD$';
+    APP.config.ncfPrefix=document.getElementById('cfg-ncf')?.value||'B01';
+    APP.config.schedule=document.getElementById('cfg-sched')?.value||APP.config.schedule;
+    // payment methods
+    const pms=[];document.querySelectorAll('[data-pm]').forEach(cb=>{if(cb.checked)pms.push(cb.dataset.pm);});
+    if(pms.length>0)APP.config.paymentMethods=pms;
+    await saveConfig();render();
+  };
+  ['save-cfg-btn','save-cfg-btn2','save-cfg-btn3'].forEach(id=>document.getElementById(id)?.addEventListener('click',saveCfgFn));
+
+  // Global cancel modal
+  document.getElementById('cancel-modal')?.addEventListener('click',()=>{APP.modal=null;render();});
+  document.querySelector('.modal-overlay')?.addEventListener('click',e=>{if(e.target===e.currentTarget){APP.modal=null;render();}});
+}
+
+// helper for expense ITBIS auto-calc
+window.updateExpItbis=function(){
+  const a=parseFloat(document.getElementById('em-amount')?.value)||0;
+  const itbisEl=document.getElementById('em-itbis');
+  if(itbisEl)itbisEl.value=(a*(APP.config.itbisRate||18)/100).toFixed(2);
+};
+
+// ═══════════════════════════════
+// INIT
+// ═══════════════════════════════
+async function init(){
+  document.getElementById('root').innerHTML='<div style="display:flex;align-items:center;justify-content:center;height:100vh;color:#556080;font-size:14px">Cargando Nexora_Pos...</div>';
+  const data=await DB.getAll();
+  Object.assign(APP,data);
+  if(!APP.config?.businessName)APP.config={...defaultConfig(),...APP.config};
+  if(!APP.products||APP.products.length===0)APP.products=defaultProducts();
+  render();
+}
+init();
+</script>
+</body>
+</html>

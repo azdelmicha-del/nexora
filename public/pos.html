@@ -33,9 +33,9 @@
             grid-template-columns: minmax(0, 1fr);
             gap: 1rem;
             min-height: calc(100dvh - var(--system-taskbar-height));
-            height: auto;
-            min-height: 0;
+            height: calc(100dvh - var(--system-taskbar-height));
             align-items: stretch;
+            overflow: hidden;
             padding-right: calc(var(--cart-width) + var(--cart-gap));
         }
 
@@ -45,6 +45,32 @@
             gap: 0.75rem;
             min-height: 0;
             overflow: hidden;
+        }
+
+        .pos-left-spacer {
+            /* placeholder that reserves the same height as the fixed header so the services card below doesn't slide under it */
+            flex-shrink: 0;
+        }
+
+        .facturar-bloque-fijo {
+            position: fixed;
+            top: 0;
+            left: calc(260px + 2rem);
+            right: calc(var(--cart-width) + var(--cart-gap) + 2rem);
+            z-index: 30;
+            background: #f8fafc;
+            padding-bottom: 0.35rem;
+        }
+
+        .facturar-fixed-card {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border: 1px solid rgba(148, 163, 184, 0.24);
+            border-radius: 1rem;
+            padding: 0.75rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.55rem;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.08);
         }
 
         .cliente-bar {
@@ -70,10 +96,39 @@
         .servicios-panel {
             flex: 1;
             min-height: 0;
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+        }
+
+        .servicios-filtros-card {
             background: white;
-            border-radius: 1rem;
-            padding: 1rem;
+            border-radius: 0.9rem;
+            border: 1px solid rgba(148, 163, 184, 0.2);
+            padding: 0.7rem;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.05);
+        }
+
+        .servicios-head {
+            flex-shrink: 0;
+        }
+
+        .servicios-scroll {
+            flex: 1;
+            min-height: 0;
             overflow-y: auto;
+        }
+
+        .servicios-modal-card {
+            flex: 1;
+            min-height: 0;
+            background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+            border: 1px solid rgba(148, 163, 184, 0.28);
+            border-radius: 0.9rem;
+            padding: 0.7rem;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.06);
+            display: flex;
+            flex-direction: column;
         }
         
         .carrito-panel {
@@ -554,14 +609,21 @@
             border-top-color: rgba(170, 126, 255, 0.36) !important;
         }
 
-        #btnE31 {
+        .ecf-btn {
+            background: rgba(255,255,255,0.03) !important;
+            border-color: rgba(125,142,190,0.28) !important;
+            color: var(--cart-muted) !important;
+            box-shadow: none;
+        }
+
+        .ecf-btn.ecf-btn-e31.active {
             background: linear-gradient(135deg, rgba(166,123,255,0.2) 0%, rgba(122,82,238,0.12) 100%) !important;
             border-color: rgba(170,126,255,0.56) !important;
             color: #dbccff !important;
             box-shadow: inset 0 0 0 1px rgba(170,126,255,0.25);
         }
 
-        #btnE32 {
+        .ecf-btn.ecf-btn-e32.active {
             background: linear-gradient(135deg, rgba(120,169,255,0.2) 0%, rgba(77,125,255,0.12) 100%) !important;
             border-color: rgba(120,169,255,0.56) !important;
             color: #cfe0ff !important;
@@ -895,68 +957,82 @@
         <!-- Sidebar dinámico -->
         
         <main class="main-content">
-            <div class="page-header">
-                <h1>Facturar</h1>
-            </div>
-            
-            <div id="alertaCajaCerrada" style="display: none; background: #fef3c7; border: 2px solid #f59e0b; border-radius: 0.75rem; padding: 1rem; margin-bottom: 1rem; text-align: center;">
-                <div style="display: flex; align-items: center; justify-content: center; gap: 0.5rem;">
-                    <svg width="24" height="24" fill="none" stroke="#f59e0b" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
-                    <span id="alertaCajaTexto" style="font-weight: 600; color: #92400e;"></span>
-                </div>
-            </div>
-            
             <div class="pos-container">
                 <div class="pos-left">
-                    <!-- Barra cliente en línea única -->
-                    <div class="cliente-bar">
-                        <div id="clienteSeleccionado" style="display:none; width:100%;">
-                            <div style="display:flex;align-items:center;gap:0.75rem;">
-                                <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--primary);flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
-                                <strong id="clienteNombre" style="flex:1;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></strong>
-                                <small id="clienteTelefono" style="font-size:0.72rem;color:var(--gray-500);white-space:nowrap;"></small>
-                                <button class="btn btn-secondary btn-sm" onclick="quitarCliente()" style="font-size:0.68rem;flex-shrink:0;">Cambiar</button>
+                    <div class="facturar-bloque-fijo" id="facturarBloqueFijo">
+                        <div class="page-header">
+                            <h1>Facturar</h1>
+                        </div>
+
+                        <div class="facturar-fixed-card">
+                        <!-- Barra cliente en línea única -->
+                        <div class="cliente-bar">
+                            <div id="clienteSeleccionado" style="display:none; width:100%;">
+                                <div style="display:flex;align-items:center;gap:0.75rem;">
+                                    <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="color:var(--primary);flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                                    <strong id="clienteNombre" style="flex:1;font-size:0.88rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;"></strong>
+                                    <small id="clienteTelefono" style="font-size:0.72rem;color:var(--gray-500);white-space:nowrap;"></small>
+                                    <button class="btn btn-secondary btn-sm" onclick="quitarCliente()" style="font-size:0.68rem;flex-shrink:0;">Cambiar</button>
+                                </div>
+                            </div>
+                            <div id="buscadorCliente" style="display:flex;align-items:center;gap:0.75rem;width:100%;">
+                                <span style="font-weight:700;font-size:0.9rem;color:var(--gray-700);white-space:nowrap;">Cliente</span>
+                                <input type="text" id="buscarClienteInput" placeholder="Buscar cliente..." onkeyup="buscarCliente()"
+                                       style="flex:1;font-size:0.85rem;padding:0.5rem 0.75rem;border:1px solid var(--gray-300);border-radius:0.5rem;">
+                                <button class="btn btn-primary btn-sm" onclick="mostrarCrearCliente()" style="white-space:nowrap;font-size:0.78rem;padding:0.5rem 0.85rem;">+ Agregar</button>
+                            </div>
+                            <div id="resultadosBusqueda" style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border-radius:0.75rem;box-shadow:0 8px 24px rgba(0,0,0,0.12);max-height:200px;overflow-y:auto;z-index:200;"></div>
+                        </div>
+                        <!-- Citas hoy (compacto) -->
+                        <div style="background:white;border-radius:0.75rem;padding:0.5rem 1rem;flex-shrink:0;">
+                            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">
+                                <h4 style="font-size:0.72rem;color:var(--gray-500);margin:0;">Citas hoy</h4>
+                                <button class="btn btn-secondary btn-sm" onclick="cargarCitasHoy()" style="padding:2px 6px;font-size:0.65rem;" title="Actualizar">
+                                    <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+                                </button>
+                            </div>
+                            <div id="citasHoy" style="max-height:none;overflow:visible;"></div>
+                        </div>
+
+                        <div class="servicios-filtros-card">
+                            <div class="servicios-head">
+                                <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
+                                    <h3 id="tituloServicios" style="margin:0;font-size:0.95rem;white-space:nowrap;">Servicios</h3>
+                                    <input type="text" id="buscarServicioInput" placeholder="Buscar..." 
+                                           style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--gray-300);border-radius:0.5rem;font-size:0.82rem;"
+                                           onkeyup="buscarServicio()">
+                                </div>
+                                <div class="categoria-tabs" id="categoriaTabs" style="margin-bottom:0.5rem;">
+                                    <button class="categoria-tab active" onclick="filtrarCategoria(null)" style="padding:0.3rem 0.7rem;font-size:0.78rem;">Todos</button>
+                                </div>
                             </div>
                         </div>
-                        <div id="buscadorCliente" style="display:flex;align-items:center;gap:0.75rem;width:100%;">
-                            <span style="font-weight:700;font-size:0.9rem;color:var(--gray-700);white-space:nowrap;">Cliente</span>
-                            <input type="text" id="buscarClienteInput" placeholder="Buscar cliente..." onkeyup="buscarCliente()"
-                                   style="flex:1;font-size:0.85rem;padding:0.5rem 0.75rem;border:1px solid var(--gray-300);border-radius:0.5rem;">
-                            <button class="btn btn-primary btn-sm" onclick="mostrarCrearCliente()" style="white-space:nowrap;font-size:0.78rem;padding:0.5rem 0.85rem;">+ Agregar</button>
                         </div>
-                        <div id="resultadosBusqueda" style="position:absolute;top:calc(100% + 4px);left:0;right:0;background:white;border-radius:0.75rem;box-shadow:0 8px 24px rgba(0,0,0,0.12);max-height:200px;overflow-y:auto;z-index:200;"></div>
                     </div>
-                    <!-- Citas hoy (compacto) -->
-                    <div style="background:white;border-radius:0.75rem;padding:0.5rem 1rem;flex-shrink:0;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:0.25rem;">
-                            <h4 style="font-size:0.72rem;color:var(--gray-500);margin:0;">Citas hoy</h4>
-                            <button class="btn btn-secondary btn-sm" onclick="cargarCitasHoy()" style="padding:2px 6px;font-size:0.65rem;" title="Actualizar">
-                                <svg width="12" height="12" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
-                            </button>
-                        </div>
-                        <div id="citasHoy" style="max-height:80px;overflow-y:auto;"></div>
-                    </div>
+
+                    <div class="pos-left-spacer" id="posLeftSpacer"></div>
+
                     <div class="servicios-panel">
-                    <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.5rem;">
-                        <h3 id="tituloServicios" style="margin:0;font-size:0.95rem;white-space:nowrap;">Servicios</h3>
-                        <input type="text" id="buscarServicioInput" placeholder="Buscar..." 
-                               style="flex:1;padding:0.4rem 0.6rem;border:1px solid var(--gray-300);border-radius:0.5rem;font-size:0.82rem;"
-                               onkeyup="buscarServicio()">
-                    </div>
-                    <div class="categoria-tabs" id="categoriaTabs" style="margin-bottom:0.5rem;">
-                        <button class="categoria-tab active" onclick="filtrarCategoria(null)" style="padding:0.3rem 0.7rem;font-size:0.78rem;">Todos</button>
-                    </div>
-                    
-                    <div class="servicio-grid" id="serviciosGrid">
-                        <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
-                            <div class="spinner spinner-sm"></div>
+                        <div class="servicios-modal-card">
+                            <div class="servicios-scroll">
+                                <div class="servicio-grid" id="serviciosGrid">
+                                    <div style="grid-column: 1 / -1; text-align: center; padding: 2rem;">
+                                        <div class="spinner spinner-sm"></div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                    </div><!-- end servicio-grid -->
                     </div><!-- end servicios-panel -->
                 </div><!-- end pos-left -->
 
                 <div class="carrito-panel">
                     <div class="carrito-header">
+                        <div id="cartAlertaCaja" style="display:none; background:rgba(245,158,11,0.12); border:1px solid rgba(245,158,11,0.4); border-radius:0.65rem; padding:0.55rem 0.75rem; margin-bottom:0.5rem; display:none;">
+                            <div style="display:flex; align-items:center; gap:0.5rem;">
+                                <svg width="15" height="15" fill="none" stroke="#f59e0b" viewBox="0 0 24 24" style="flex-shrink:0;"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                                <span id="cartAlertaCajaTexto" style="font-size:0.72rem; font-weight:600; color:#fbbf24; flex:1; line-height:1.3;"></span>
+                            </div>
+                        </div>
                         <div class="carrito-header-top">
                             <div class="carrito-title-row">
                                 <h3>Carrito</h3>
@@ -996,8 +1072,8 @@
                             </div>
                             <div id="selectorComprobante" style="display: none; margin-top: 0.45rem; padding-top: 0.45rem; border-top: 1px solid rgba(125,142,190,0.18);">
                                 <div style="display: flex; gap: 0.35rem;">
-                                    <button id="btnE31" type="button" onclick="setTipoECF('31')" style="flex: 1; padding: 0.32rem 0.4rem; border: 1.5px solid rgba(125,142,190,0.28); background: rgba(255,255,255,0.03); color: var(--cart-muted); border-radius: 7px; font-size: 0.7rem; font-weight: 600; cursor: pointer; white-space: nowrap;">E31 · Crédito Fiscal</button>
-                                    <button id="btnE32" type="button" onclick="setTipoECF('32')" style="flex: 1; padding: 0.32rem 0.4rem; border: 1.5px solid rgba(77,140,255,0.5); background: rgba(77,140,255,0.1); color: #7fb0ff; border-radius: 7px; font-size: 0.7rem; font-weight: 600; cursor: pointer; white-space: nowrap;">E32 · Consumo</button>
+                                    <button id="btnE31" class="ecf-btn ecf-btn-e31" type="button" onclick="setTipoECF('31')" style="flex: 1; padding: 0.32rem 0.4rem; border: 1.5px solid rgba(125,142,190,0.28); border-radius: 7px; font-size: 0.7rem; font-weight: 600; cursor: pointer; white-space: nowrap;">E31 · Crédito Fiscal</button>
+                                    <button id="btnE32" class="ecf-btn ecf-btn-e32 active" type="button" onclick="setTipoECF('32')" style="flex: 1; padding: 0.32rem 0.4rem; border: 1.5px solid rgba(77,140,255,0.5); border-radius: 7px; font-size: 0.7rem; font-weight: 600; cursor: pointer; white-space: nowrap;">E32 · Consumo</button>
                                 </div>
                                 <div id="alertaRNC" style="display: none; margin-top: 0.35rem; font-size: 0.68rem; color: #dc2626; background: #fef2f2; padding: 0.3rem 0.5rem; border-radius: 5px;">⚠️ Crédito Fiscal requiere RNC (9) o Cédula (11) válidos</div>
                             </div>
@@ -1225,6 +1301,14 @@
         let citaIdParaFinalizar = null;
         let origenVenta = { modulo: 'pos', id: null };
         
+        function ajustarSpacerFijo() {
+            const bloque = document.getElementById('facturarBloqueFijo');
+            const spacer = document.getElementById('posLeftSpacer');
+            if (bloque && spacer) {
+                spacer.style.height = bloque.offsetHeight + 'px';
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', async () => {
             const licenseOk = await requireLicense();
             if (!licenseOk) return;
@@ -1241,6 +1325,8 @@
             }
             
             await Promise.all([cargarConfigPOS(), cargarServicios(), cargarCitasHoy()]);
+            ajustarSpacerFijo();
+            window.addEventListener('resize', ajustarSpacerFijo);
             
             const urlParams = new URLSearchParams(window.location.search);
             const clienteId = urlParams.get('cliente');
@@ -1309,16 +1395,17 @@
                 
                 if (configPOS.caja_cerrada) {
                     const sessionData = getSessionStorage();
-                    const alertaTexto = document.getElementById('alertaCajaTexto');
-                    if (sessionData.userRol === 'admin') {
-                        alertaTexto.textContent = '⚠️ CAJA CERRADA - Ve a Reportes para abrir la caja';
-                    } else {
-                        alertaTexto.textContent = '⚠️ CAJA CERRADA - Solicite al administrador abrir la caja';
-                    }
-                    document.getElementById('alertaCajaCerrada').style.display = 'block';
+                    const cartAlertaTexto = sessionData.userRol === 'admin'
+                        ? 'CAJA CERRADA. No se permite cobrar ni facturar hasta abrir caja.'
+                        : 'CAJA CERRADA. No se permite cobrar ni facturar. Solicite al administrador abrir caja.';
+
+                    document.getElementById('cartAlertaCaja').style.display = 'block';
+                    document.getElementById('cartAlertaCajaTexto').textContent = cartAlertaTexto;
                     document.getElementById('btnCobrar').disabled = true;
                     document.getElementById('btnCobrar').style.opacity = '0.5';
                     document.getElementById('btnCobrar').style.cursor = 'not-allowed';
+                } else {
+                    document.getElementById('cartAlertaCaja').style.display = 'none';
                 }
                 
                 try {
@@ -1469,11 +1556,15 @@
         
         function renderCategorias() {
             const tabs = document.getElementById('categoriaTabs');
-            tabs.innerHTML = '<button class="categoria-tab active" onclick="filtrarCategoria(null)">Todos</button>';
-            
-            categorias.forEach(cat => {
-                tabs.innerHTML += `<button class="categoria-tab" onclick="filtrarCategoria(${cat.id})">${escapeHtml(cat.nombre)}</button>`;
-            });
+            const catLavado = categorias.find(cat => String(cat.nombre || '').trim().toLowerCase() === 'lavado');
+            const lavadoId = catLavado ? catLavado.id : null;
+            const todosActivo = categoriaSeleccionada === null ? ' active' : '';
+            const lavadoActivo = categoriaSeleccionada === lavadoId ? ' active' : '';
+
+            tabs.innerHTML = `<button class="categoria-tab${todosActivo}" onclick="filtrarCategoria(null)">Todos</button>`;
+            if (lavadoId !== null) {
+                tabs.innerHTML += `<button class="categoria-tab${lavadoActivo}" onclick="filtrarCategoria(${lavadoId})">LAVADO</button>`;
+            }
         }
         
         function renderServicios(filtrarCat = null, textoBuscar = '') {
@@ -1553,8 +1644,7 @@
             document.querySelectorAll('.categoria-tab').forEach(t => t.classList.remove('active'));
             event.target.classList.add('active');
             categoriaSeleccionada = catId;
-            const nombreCat = catId ? categorias.find(c => c.id === catId)?.nombre : 'Todos los Servicios';
-            document.getElementById('tituloServicios').textContent = nombreCat;
+            document.getElementById('tituloServicios').textContent = 'Servicios';
             document.getElementById('buscarServicioInput').value = '';
             renderServicios(catId, '');
         }
@@ -1837,11 +1927,15 @@
             // Actualizar estado del botón cobrar
             const btnCobrar = document.getElementById('btnCobrar');
             if (metodoPago === 'efectivo') {
-                const puedeCobrar = montoRecibido >= total && carrito.length > 0 && clienteSeleccionado;
+                const puedeCobrar = montoRecibido >= total && carrito.length > 0 && clienteSeleccionado && !configPOS.caja_cerrada;
                 btnCobrar.disabled = !puedeCobrar;
                 btnCobrar.style.opacity = puedeCobrar ? '1' : '0.5';
                 btnCobrar.style.cursor = puedeCobrar ? 'pointer' : 'not-allowed';
             }
+        }
+
+        function redirigirAbrirCaja() {
+            window.location.href = '/reportes';
         }
         
         function actualizarVueltoDisplay() {
@@ -1868,7 +1962,7 @@
             }
             
             if (configPOS.caja_cerrada) {
-                showModalError('La caja está cerrada. No se pueden realizar ventas. Vaya a Reportes para abrir la caja.');
+                showModalError('Caja cerrada: directriz activa. No se permite cobrar ni facturar hasta abrir caja en Reportes.');
                 return;
             }
             
@@ -2014,6 +2108,20 @@
             const fecha = new Date(venta.fecha);
             const fechaStr = fecha.toLocaleDateString('es-DO', { day: '2-digit', month: 'short', year: 'numeric' });
             const horaStr = fecha.toLocaleTimeString('es-DO', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+            const limpiarDescripcionTicket = (nombre) => {
+                return String(nombre || 'Item')
+                    .replace(/\s*[-–—]?\s*ITBIS\s*\d+(?:\.\d+)?%/gi, '')
+                    .replace(/\s{2,}/g, ' ')
+                    .trim();
+            };
+
+            const etiquetaItbisTicket = (item) => {
+                const tasa = Number(item.itbis_tasa || 0);
+                if (!(tasa > 0)) return 'Exento';
+                const tasaTexto = Number.isInteger(tasa) ? String(tasa) : String(tasa).replace(/\.0+$/, '');
+                return `Tasa ${tasaTexto}%`;
+            };
             
             let itemsHtml = '';
             if (venta.detalles && venta.detalles.length > 0) {
@@ -2026,11 +2134,11 @@
                 ` + venta.detalles.map(item => {
                     const itbisMonto = parseFloat(item.itbis_monto || 0);
                     const subLinea   = parseFloat(item.subtotal || 0);
+                    const descripcionLimpia = limpiarDescripcionTicket(item.servicio);
                     return `
                         <div style="padding:4px 0;border-bottom:1px dotted #ddd;display:grid;grid-template-columns:1.6fr 0.8fr 1fr;gap:6px;font-size:10px;align-items:center;">
                             <div>
-                                <div style="font-weight:700;line-height:1.2;">${escapeHtml(item.servicio)} x${item.cantidad}</div>
-                                <div style="color:#666;font-size:9px;">${(item.itbis_tasa || 0) > 0 ? `Tasa ${item.itbis_tasa}%` : 'Exento'}</div>
+                                <div style="font-weight:700;line-height:1.2;">${escapeHtml(descripcionLimpia)} x${item.cantidad}</div>
                             </div>
                             <div style="text-align:right;">${formatCurrency(itbisMonto)}</div>
                             <div style="text-align:right;font-weight:700;">${formatCurrency(subLinea)}</div>
@@ -2246,11 +2354,13 @@
                 win.focus();
                 win.print();
                 win.close();
+                cerrarModalRecibo();
             };
         }
         
         function cerrarModalRecibo() {
             document.getElementById('modalRecibo').classList.remove('active');
+            document.getElementById('modalExito').classList.remove('active');
         }
         
         function cerrarModalExito() {
@@ -2344,16 +2454,16 @@
             const btn31 = document.getElementById('btnE31');
             const btn32 = document.getElementById('btnE32');
             const alertaRNC = document.getElementById('alertaRNC');
+
+            const actualizarEstadoVisual = (activo) => {
+                btn31.classList.toggle('active', activo === '31');
+                btn32.classList.toggle('active', activo === '32');
+            };
             
             if (tipo === '32') {
                 // E32 = Consumo (sin validación)
                 tipoECF = '32';
-                btn32.style.borderColor = 'rgba(77,140,255,0.6)';
-                btn32.style.background = 'rgba(77,140,255,0.12)';
-                btn32.style.color = '#7fb0ff';
-                btn31.style.borderColor = 'rgba(125,142,190,0.28)';
-                btn31.style.background = 'rgba(255,255,255,0.03)';
-                btn31.style.color = 'var(--cart-muted)';
+                actualizarEstadoVisual('32');
                 alertaRNC.style.display = 'none';
             } else {
                 // E31 = Crédito Fiscal (requiere RNC)
@@ -2379,12 +2489,7 @@
                 tipoECF = '31';
                 alertaRNC.textContent = '⚠️ Crédito Fiscal requiere RNC (9) o Cédula (11) válidos del cliente';
                 alertaRNC.style.display = 'none';
-                btn31.style.borderColor = 'rgba(167,102,255,0.6)';
-                btn31.style.background = 'rgba(124,58,237,0.12)';
-                btn31.style.color = '#c4a0ff';
-                btn32.style.borderColor = 'rgba(125,142,190,0.28)';
-                btn32.style.background = 'rgba(255,255,255,0.03)';
-                btn32.style.color = 'var(--cart-muted)';
+                actualizarEstadoVisual('31');
             }
         }
         
@@ -2564,6 +2669,7 @@
                         try {
                             await navigator.share(shareData);
                             showToast('Factura PNG compartida correctamente', 'success');
+                            cerrarModalRecibo();
                             return;
                         } catch (shareErr) {
                             if (shareErr.name === 'AbortError') return;
@@ -2591,6 +2697,7 @@
                 } else {
                     showToast('PNG descargado. Adjuntalo en WhatsApp al cliente.', 'success');
                 }
+                cerrarModalRecibo();
                 
             } catch (error) {
                 console.error('Error html2canvas:', error);

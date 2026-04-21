@@ -13,12 +13,12 @@ router.get('/config', requireAuth, (req, res) => {
         const db = getDb();
         const config = db.prepare('SELECT metodo_efectivo, metodo_transferencia, metodo_tarjeta, activar_descuentos FROM negocios WHERE id = ?')
             .get(req.session.negocioId);
+        const estadoCaja = db.prepare('SELECT caja_cerrada FROM config WHERE negocio_id = ? LIMIT 1')
+            .get(req.session.negocioId);
         
-        // La caja siempre está abierta para nuevas ventas
-        // El historial de cierres se mantiene para consulta
         res.json({
             ...config,
-            caja_cerrada: false
+            caja_cerrada: Boolean(estadoCaja && Number(estadoCaja.caja_cerrada) === 1)
         });
     } catch (error) {
         console.error('Error:', error);
@@ -55,6 +55,13 @@ router.post('/', requireAuth, (req, res) => {
         }
 
         const db = getDb();
+
+        const estadoCaja = db.prepare('SELECT caja_cerrada FROM config WHERE negocio_id = ? LIMIT 1')
+            .get(req.session.negocioId);
+        const cajaCerrada = Boolean(estadoCaja && Number(estadoCaja.caja_cerrada) === 1);
+        if (cajaCerrada) {
+            return res.status(403).json({ error: 'Caja cerrada. Abra la caja en Reportes antes de facturar.' });
+        }
 
         if (origenModulo === 'pedido' && origenId) {
             const pedido = db.prepare('SELECT id, estado, venta_id FROM pedidos WHERE id = ? AND negocio_id = ?')
@@ -94,9 +101,6 @@ router.post('/', requireAuth, (req, res) => {
             return res.status(400).json({ error: 'Crédito Fiscal requiere un cliente con RNC/Cédula válido' });
         }
         
-        // La caja siempre está abierta para nuevas ventas
-        // No verificamos cajas_cerradas porque el historial se mantiene aparte
-
         const fechaLocal = getRDTimestamp();
 
         // ── Calcular totales con ITBIS individual por servicio ─────────────────
