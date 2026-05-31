@@ -9,7 +9,7 @@
  * 
  * Este script:
  *  1. Lee todos los datos de SQLite
- *  2. Los inserta en MongoDB (database: nexora_pos)
+ *  2. Los inserta en MongoDB (database: nexora)
  *  3. NO borra datos de SQLite (backup de seguridad)
  *  4. Es idempotente: si ya existen datos, los actualiza
  */
@@ -79,9 +79,9 @@ async function migrate() {
 
     // Conectar a MongoDB
     await mongoose.connect(MONGODB_URI, {
-        dbName: 'nexora_pos'
+        dbName: 'nexora'
     });
-    console.log('✅ MongoDB conectado (db: nexora_pos)\n');
+    console.log('✅ MongoDB conectado (db: nexora)\n');
 
     let totalDocs = 0;
 
@@ -189,7 +189,7 @@ async function migrate() {
     // Resumen
     console.log('\n=== Resumen de Migracion ===');
     console.log(`Total documentos migrados: ${totalDocs}`);
-    console.log(`Base de datos MongoDB: nexora_pos`);
+    console.log(`Base de datos MongoDB: nexora`);
     console.log(`Colecciones: ${TABLES.length}`);
     console.log('\n✅ Migracion completada!');
     console.log('\n⚠️  IMPORTANTE:');

@@ -24,13 +24,13 @@ async function connectDB() {
     }
 
     await mongoose.connect(uri, {
-        dbName: 'nexora_pos',
+        dbName: 'nexora',
         serverSelectionTimeoutMS: 10000,
         socketTimeoutMS: 45000,
     });
 
     isConnected = true;
-    console.log('✅ MongoDB conectado (db: nexora_pos)');
+    console.log('✅ MongoDB conectado (db: nexora)');
     return mongoose.connection;
 }
 
