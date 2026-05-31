@@ -1,41 +1,73 @@
 const express = require('express');
-const { getDb } = require('../database');
+const { getDb , normalizeId } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { formatters, validators, errorMessages } = require('../utils/validators');
 
+
 const router = express.Router();
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
     try {
         const db = getDb();
-        const negocioId = req.session.negocioId;
+        const negocioId = normalizeId(req.session.negocioId);
         const { estado, buscar } = req.query;
 
-        let query = `
-            SELECT c.id, c.nombre, c.telefono, c.email, c.documento, c.tipo_documento, c.notas, c.estado, c.fecha_registro,
-                   COUNT(DISTINCT v.id) as total_ventas,
-                   COUNT(DISTINCT cit.id) as total_citas
-            FROM clientes c
-            LEFT JOIN ventas v ON c.id = v.cliente_id
-            LEFT JOIN citas cit ON c.id = cit.cliente_id
-            WHERE c.negocio_id = ?
-        `;
-        const params = [negocioId];
+        const matchStage = { negocio_id: negocioId };
 
         if (estado) {
-            query += ' AND c.estado = ?';
-            params.push(estado);
+            matchStage.estado = estado;
         }
 
         if (buscar) {
-            query += ' AND (c.nombre LIKE ? OR c.telefono LIKE ? OR c.email LIKE ?)';
-            const term = `%${buscar}%`;
-            params.push(term, term, term);
+            matchStage.$or = [
+                { nombre: { $regex: buscar, $options: 'i' } },
+                { telefono: { $regex: buscar, $options: 'i' } },
+                { email: { $regex: buscar, $options: 'i' } }
+            ];
         }
 
-        query += ' GROUP BY c.id ORDER BY c.fecha_registro DESC';
+        const clientes = await db.collection('clientes').aggregate([
+            { $match: matchStage },
+            {
+                $lookup: {
+                    from: 'ventas',
+                    localField: '_id',
+                    foreignField: 'cliente_id',
+                    as: 'ventas'
+                }
+            },
+            {
+                $lookup: {
+                    from: 'citas',
+                    localField: '_id',
+                    foreignField: 'cliente_id',
+                    as: 'citas'
+                }
+            },
+            {
+                $addFields: {
+                    total_ventas: { $size: '$ventas' },
+                    total_citas: { $size: '$citas' }
+                }
+            },
+            {
+                $project: {
+                    id: { $toString: '$_id' },
+                    nombre: 1,
+                    telefono: 1,
+                    email: 1,
+                    documento: 1,
+                    tipo_documento: 1,
+                    notas: 1,
+                    estado: 1,
+                    fecha_registro: 1,
+                    total_ventas: 1,
+                    total_citas: 1
+                }
+            },
+            { $sort: { fecha_registro: -1 } }
+        ]).toArray();
 
-        const clientes = db.prepare(query).all(...params);
         res.json(clientes);
     } catch (error) {
         console.error('Error al obtener clientes:', error);
@@ -43,44 +75,77 @@ router.get('/', requireAuth, (req, res) => {
     }
 });
 
-router.get('/:id', requireAuth, (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
     try {
         const db = getDb();
-        const cliente = db.prepare(`
-            SELECT c.id, c.negocio_id, c.nombre, c.telefono, c.email, c.documento, c.tipo_documento, c.notas, c.estado, c.fecha_registro
-            FROM clientes c
-            WHERE c.id = ? AND c.negocio_id = ?
-        `).get(req.params.id, req.session.negocioId);
+        const cliente = await db.collection('clientes').findOne({
+            _id: normalizeId(req.params.id),
+            negocio_id: normalizeId(req.session.negocioId)
+        });
 
         if (!cliente) {
             return res.status(404).json({ error: 'Cliente no encontrado' });
         }
 
-        const ventas = db.prepare(`
-            SELECT v.id, v.total, v.metodo_pago, v.fecha
-            FROM ventas v
-            WHERE v.cliente_id = ? AND v.negocio_id = ?
-            ORDER BY v.fecha DESC
-            LIMIT 10
-        `).all(req.params.id, req.session.negocioId);
+        const ventas = await db.collection('ventas')
+            .find({
+                cliente_id: normalizeId(req.params.id),
+                negocio_id: normalizeId(req.session.negocioId)
+            })
+            .sort({ fecha: -1 })
+            .limit(10)
+            .toArray();
 
-        const citas = db.prepare(`
-            SELECT cit.id, cit.fecha, cit.hora_inicio, cit.estado, s.nombre as servicio
-            FROM citas cit
-            JOIN servicios s ON cit.servicio_id = s.id
-            WHERE cit.cliente_id = ? AND cit.negocio_id = ?
-            ORDER BY cit.fecha DESC
-            LIMIT 10
-        `).all(req.params.id, req.session.negocioId);
+        const citas = await db.collection('citas').aggregate([
+            {
+                $match: {
+                    cliente_id: normalizeId(req.params.id),
+                    negocio_id: normalizeId(req.session.negocioId)
+                }
+            },
+            {
+                $lookup: {
+                    from: 'servicios',
+                    localField: 'servicio_id',
+                    foreignField: '_id',
+                    as: 'servicio'
+                }
+            },
+            { $unwind: { path: '$servicio', preserveNullAndEmptyArrays: true } },
+            { $sort: { fecha: -1 } },
+            { $limit: 10 },
+            {
+                $project: {
+                    id: { $toString: '$_id' },
+                    fecha: 1,
+                    hora_inicio: 1,
+                    estado: 1,
+                    servicio: '$servicio.nombre'
+                }
+            }
+        ]).toArray();
 
-        res.json({ ...cliente, ventas, citas });
+        const formattedCliente = {
+            id: cliente._id.toString(),
+            negocio_id: cliente.negocio_id,
+            nombre: cliente.nombre,
+            telefono: cliente.telefono,
+            email: cliente.email,
+            documento: cliente.documento,
+            tipo_documento: cliente.tipo_documento,
+            notas: cliente.notas,
+            estado: cliente.estado,
+            fecha_registro: cliente.fecha_registro
+        };
+
+        res.json({ ...formattedCliente, ventas, citas });
     } catch (error) {
         console.error('Error al obtener cliente:', error);
         res.status(500).json({ error: 'Error al obtener cliente' });
     }
 });
 
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     try {
         let { nombre, telefono, email, notas, tipo_documento, documento } = req.body;
 
@@ -88,14 +153,12 @@ router.post('/', requireAuth, (req, res) => {
             return res.status(400).json({ error: 'El nombre es requerido' });
         }
 
-        // Formatear nombre (Title Case)
         nombre = formatters.toTitleCase(nombre);
 
         if (nombre.length > 100) {
             return res.status(400).json({ error: 'El nombre no puede exceder 100 caracteres' });
         }
 
-        // Validar teléfono dominicano
         if (!telefono || telefono.trim() === '') {
             return res.status(400).json({ error: 'El celular es requerido' });
         }
@@ -107,7 +170,6 @@ router.post('/', requireAuth, (req, res) => {
         telefono = formatters.toPhone(telefono);
         const comparablePhone = formatters.toComparablePhone(telefono);
 
-        // Formatear y validar email
         if (email) {
             email = formatters.toEmail(email);
             if (!validators.email(email)) {
@@ -115,7 +177,6 @@ router.post('/', requireAuth, (req, res) => {
             }
         }
 
-        // Validar documento si se provee
         if (documento) {
             documento = documento.trim();
             const TIPOS_DOC_VALIDOS = ['rnc', 'cedula', 'pasaporte', 'otro'];
@@ -134,43 +195,39 @@ router.post('/', requireAuth, (req, res) => {
 
         const db = getDb();
 
-                const existente = db.prepare(`
-                        SELECT id FROM clientes
-                        WHERE negocio_id = ?
-                            AND REPLACE(REPLACE(REPLACE(telefono, '-', ''), ' ', ''), '+', '') LIKE ?
-                `).get(req.session.negocioId, `%${comparablePhone}`);
+        const existente = await db.collection('clientes').findOne({
+            negocio_id: normalizeId(req.session.negocioId),
+            telefono: { $regex: comparablePhone.replace(/[+\- ]/g, '.*'), $options: 'i' }
+        });
         if (existente) {
             return res.status(400).json({ error: 'Ya existe un cliente con este teléfono' });
         }
 
-        const result = db.prepare(`
-            INSERT INTO clientes (negocio_id, nombre, telefono, email, tipo_documento, documento, notas)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
-        `).run(
-            req.session.negocioId,
+        const result = await db.collection('clientes').insertOne({
+            negocio_id: normalizeId(req.session.negocioId),
             nombre,
             telefono,
-            email || null,
-            tipo_documento || null,
+            email: email || null,
+            tipo_documento: tipo_documento || null,
             documento,
-            notas || null
-        );
+            notas: notas || null,
+            fecha_registro: new Date()
+        });
 
-        const cliente = db.prepare('SELECT * FROM clientes WHERE id = ?').get(result.lastInsertRowid);
+        const cliente = await db.collection('clientes').findOne({ _id: result.insertedId });
 
-        res.json(cliente);
+        res.json({ ...cliente, id: cliente._id.toString() });
     } catch (error) {
         console.error('Error al crear cliente:', error);
         res.status(500).json({ error: 'Error al crear cliente' });
     }
 });
 
-router.put('/:id', requireAuth, (req, res) => {
+router.put('/:id', requireAuth, async (req, res) => {
     try {
         let { nombre, telefono, email, notas, estado, tipo_documento, documento } = req.body;
-        const clienteId = req.params.id;
+        const clienteId = normalizeId(req.params.id);
 
-        // Formatear nombre (Title Case)
         if (nombre) {
             nombre = formatters.toTitleCase(nombre);
             if (nombre.length > 100) {
@@ -178,7 +235,6 @@ router.put('/:id', requireAuth, (req, res) => {
             }
         }
 
-        // Formatear y validar email
         if (email) {
             email = formatters.toEmail(email);
             if (!validators.email(email)) {
@@ -186,12 +242,10 @@ router.put('/:id', requireAuth, (req, res) => {
             }
         }
 
-        // Formatear notas
         if (notas) {
             notas = notas.trim();
         }
 
-        // Validar teléfono dominicano
         if (telefono !== undefined && telefono !== null && telefono !== '') {
             if (!validators.telefonoRD(telefono)) {
                 return res.status(400).json({ error: errorMessages.telefonoInvalido });
@@ -199,7 +253,6 @@ router.put('/:id', requireAuth, (req, res) => {
             telefono = formatters.toPhone(telefono);
         }
 
-        // Validar documento
         if (documento !== undefined) {
             if (documento !== null && documento !== '') {
                 documento = documento.trim();
@@ -218,8 +271,10 @@ router.put('/:id', requireAuth, (req, res) => {
 
         const db = getDb();
 
-        const cliente = db.prepare('SELECT id FROM clientes WHERE id = ? AND negocio_id = ?')
-            .get(clienteId, req.session.negocioId);
+        const cliente = await db.collection('clientes').findOne({
+            _id: clienteId,
+            negocio_id: normalizeId(req.session.negocioId)
+        });
 
         if (!cliente) {
             return res.status(404).json({ error: 'Cliente no encontrado' });
@@ -227,84 +282,117 @@ router.put('/:id', requireAuth, (req, res) => {
 
         if (telefono !== undefined && telefono !== null && telefono !== '') {
             const comparablePhone = formatters.toComparablePhone(telefono);
-            const existente = db.prepare(`
-                SELECT id FROM clientes
-                WHERE negocio_id = ?
-                  AND REPLACE(REPLACE(REPLACE(telefono, '-', ''), ' ', ''), '+', '') LIKE ?
-                  AND id != ?
-            `).get(req.session.negocioId, `%${comparablePhone}`, clienteId);
+            const existente = await db.collection('clientes').findOne({
+                negocio_id: normalizeId(req.session.negocioId),
+                _id: { $ne: clienteId },
+                telefono: { $regex: comparablePhone.replace(/[+\- ]/g, '.*'), $options: 'i' }
+            });
             if (existente) {
                 return res.status(400).json({ error: 'Ya existe un cliente con este teléfono' });
             }
         }
 
-        const updates = [];
-        const values = [];
+        const updates = {};
 
         if (nombre) {
-            updates.push('nombre = ?');
-            values.push(nombre);
+            updates.nombre = nombre;
         }
         if (telefono !== undefined) {
-            updates.push('telefono = ?');
-            values.push(telefono || null);
+            updates.telefono = telefono || null;
         }
         if (email !== undefined) {
-            updates.push('email = ?');
-            values.push(email || null);
+            updates.email = email || null;
         }
         if (tipo_documento !== undefined) {
-            updates.push('tipo_documento = ?');
-            values.push(tipo_documento || null);
+            updates.tipo_documento = tipo_documento || null;
         }
         if (documento !== undefined) {
-            updates.push('documento = ?');
-            values.push(documento);
+            updates.documento = documento;
         }
         if (notas !== undefined) {
-            updates.push('notas = ?');
-            values.push(notas || null);
+            updates.notas = notas || null;
         }
         if (estado && ['activo', 'inactivo'].includes(estado)) {
-            updates.push('estado = ?');
-            values.push(estado);
+            updates.estado = estado;
         }
 
-        if (updates.length === 0) {
+        if (Object.keys(updates).length === 0) {
             return res.status(400).json({ error: 'No hay campos para actualizar' });
         }
 
-        values.push(clienteId);
-        db.prepare(`UPDATE clientes SET ${updates.join(', ')} WHERE id = ?`).run(...values);
+        await db.collection('clientes').updateOne(
+            { _id: clienteId },
+            { $set: updates }
+        );
 
-        const updated = db.prepare('SELECT * FROM clientes WHERE id = ?').get(clienteId);
-        res.json(updated);
+        const updated = await db.collection('clientes').findOne({ _id: clienteId });
+        res.json({ ...updated, id: updated._id.toString() });
     } catch (error) {
         console.error('Error al actualizar cliente:', error);
         res.status(500).json({ error: 'Error al actualizar cliente' });
     }
 });
 
-router.delete('/:id', requireAdmin, (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
     try {
-        const clienteId = req.params.id;
+        const clienteId = normalizeId(req.params.id);
         const db = getDb();
 
-        const cliente = db.prepare('SELECT id FROM clientes WHERE id = ? AND negocio_id = ?')
-            .get(clienteId, req.session.negocioId);
+        const cliente = await db.collection('clientes').findOne({
+            _id: clienteId,
+            negocio_id: normalizeId(req.session.negocioId)
+        });
 
         if (!cliente) {
             return res.status(404).json({ error: 'Cliente no encontrado' });
         }
 
-        db.prepare('UPDATE ventas SET cliente_id = NULL WHERE cliente_id = ?').run(clienteId);
-        db.prepare('UPDATE pedidos SET cliente_id = NULL WHERE cliente_id = ?').run(clienteId);
-        db.prepare('UPDATE conversaciones SET cliente_id = NULL WHERE cliente_id = ?').run(clienteId);
-        db.prepare('UPDATE chatbot_mensajes SET cliente_id = NULL WHERE cliente_id = ?').run(clienteId);
-        db.prepare('DELETE FROM historial_puntos WHERE cliente_id = ?').run(clienteId);
-        db.prepare('DELETE FROM puntos_lealtad WHERE cliente_id = ?').run(clienteId);
-        db.prepare('DELETE FROM citas WHERE cliente_id = ?').run(clienteId);
-        db.prepare('DELETE FROM clientes WHERE id = ?').run(clienteId);
+        const negocioId = normalizeId(req.session.negocioId);
+        const clienteObjectId = clienteId;
+
+        const session = await db.getClient().startSession();
+        try {
+            await session.withTransaction(async () => {
+                await db.collection('ventas').updateMany(
+                    { cliente_id: clienteObjectId, negocio_id: negocioId },
+                    { $set: { cliente_id: null } },
+                    { session }
+                );
+                await db.collection('pedidos').updateMany(
+                    { cliente_id: clienteObjectId, negocio_id: negocioId },
+                    { $set: { cliente_id: null } },
+                    { session }
+                );
+                await db.collection('conversaciones').updateMany(
+                    { cliente_id: clienteObjectId, negocio_id: negocioId },
+                    { $set: { cliente_id: null } },
+                    { session }
+                );
+                await db.collection('chatbot_mensajes').updateMany(
+                    { cliente_id: clienteObjectId, negocio_id: negocioId },
+                    { $set: { cliente_id: null } },
+                    { session }
+                );
+                await db.collection('historial_puntos').deleteMany(
+                    { cliente_id: clienteObjectId, negocio_id: negocioId },
+                    { session }
+                );
+                await db.collection('puntos_lealtad').deleteMany(
+                    { cliente_id: clienteObjectId, negocio_id: negocioId },
+                    { session }
+                );
+                await db.collection('citas').deleteMany(
+                    { cliente_id: clienteObjectId, negocio_id: negocioId },
+                    { session }
+                );
+                await db.collection('clientes').deleteOne(
+                    { _id: clienteObjectId, negocio_id: negocioId },
+                    { session }
+                );
+            });
+        } finally {
+            await session.endSession();
+        }
 
         res.json({ success: true, message: 'Cliente eliminado' });
     } catch (error) {

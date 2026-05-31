@@ -1,10 +1,11 @@
 const express = require('express');
-const { getDb } = require('../database');
+const { getDb , normalizeId } = require('../database');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
 const { LICENSE_MASTER_KEY } = require('../config');
 const { getRDDateString, getRDDate } = require('../utils/timezone');
+
 
 const router = express.Router();
 
@@ -21,7 +22,7 @@ function requireSuperAdmin(req, res, next) {
 }
 
 // Login de super admin
-router.post('/login', (req, res) => {
+router.post('/login', async (req, res) => {
     try {
         const { email, password } = req.body;
         
@@ -31,38 +32,22 @@ router.post('/login', (req, res) => {
         
         const db = getDb();
         
-        // Crear tabla si no existe
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS super_admins (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                email TEXT NOT NULL UNIQUE,
-                password TEXT NOT NULL,
-                nombre TEXT NOT NULL,
-                estado TEXT DEFAULT 'activo',
-                login_attempts INTEGER DEFAULT 0,
-                last_attempt TEXT,
-                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        `);
-        
-        // Migrar columnas si la tabla ya existía sin ellas
-        const saColumns = db.prepare("PRAGMA table_info(super_admins)").all();
-        if (!saColumns.some(c => c.name === 'login_attempts')) {
-            db.exec('ALTER TABLE super_admins ADD COLUMN login_attempts INTEGER DEFAULT 0');
-        }
-        if (!saColumns.some(c => c.name === 'last_attempt')) {
-            db.exec('ALTER TABLE super_admins ADD COLUMN last_attempt TEXT');
-        }
-        
         // Seed: crear superadmin por defecto si no existe ninguno
-        const superAdminCount = db.prepare('SELECT COUNT(*) as count FROM super_admins').get().count;
+        const superAdminCount = await db.collection('super_admins').countDocuments();
         if (superAdminCount === 0) {
             const hashedPassword = bcrypt.hashSync('Admin20261', 10);
-            db.prepare('INSERT INTO super_admins (email, password, nombre) VALUES (?, ?, ?)')
-                .run('azdelmicha@gmail.com', hashedPassword, 'Administrador');
+            await db.collection('super_admins').insertOne({
+                email: 'azdelmicha@gmail.com',
+                password: hashedPassword,
+                nombre: 'Administrador',
+                estado: 'activo',
+                login_attempts: 0,
+                last_attempt: null,
+                fecha_creacion: new Date().toISOString()
+            });
         }
         
-        const admin = db.prepare('SELECT * FROM super_admins WHERE email = ? AND estado = ?').get(email, 'activo');
+        const admin = await db.collection('super_admins').findOne({ email, estado: 'activo' });
         
         if (!admin) {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
@@ -85,7 +70,10 @@ router.post('/login', (req, res) => {
                     locked: true
                 });
             } else {
-                db.prepare('UPDATE super_admins SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(admin.id);
+                await db.collection('super_admins').updateOne(
+                    { _id: admin._id },
+                    { $set: { login_attempts: 0, last_attempt: null } }
+                );
                 admin.login_attempts = 0;
             }
         }
@@ -93,8 +81,10 @@ router.post('/login', (req, res) => {
         const validPassword = bcrypt.compareSync(password, admin.password);
         if (!validPassword) {
             const newAttempts = (admin.login_attempts || 0) + 1;
-            db.prepare('UPDATE super_admins SET login_attempts = ?, last_attempt = ? WHERE id = ?')
-                .run(newAttempts, getRDDate().toISOString(), admin.id);
+            await db.collection('super_admins').updateOne(
+                { _id: admin._id },
+                { $set: { login_attempts: newAttempts, last_attempt: getRDDate().toISOString() } }
+            );
             
             if (newAttempts >= MAX_ATTEMPTS) {
                 return res.status(429).json({
@@ -112,16 +102,19 @@ router.post('/login', (req, res) => {
         }
         
         // Resetear intentos en login exitoso
-        db.prepare('UPDATE super_admins SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(admin.id);
+        await db.collection('super_admins').updateOne(
+            { _id: admin._id },
+            { $set: { login_attempts: 0, last_attempt: null } }
+        );
         
-        req.session.superAdminId = admin.id;
+        req.session.superAdminId = admin._id.toString();
         req.session.superAdminEmail = admin.email;
         req.session.superAdminNombre = admin.nombre;
         
         res.json({
             success: true,
             admin: {
-                id: admin.id,
+                id: admin._id.toString(),
                 email: admin.email,
                 nombre: admin.nombre
             }
@@ -133,7 +126,7 @@ router.post('/login', (req, res) => {
 });
 
 // Desbloquear cuenta con código de seguridad
-router.post('/unlock', (req, res) => {
+router.post('/unlock', async (req, res) => {
     try {
         const { email, security_code } = req.body;
         
@@ -147,13 +140,16 @@ router.post('/unlock', (req, res) => {
         }
         
         const db = getDb();
-        const admin = db.prepare('SELECT id FROM super_admins WHERE email = ? AND estado = ?').get(email, 'activo');
+        const admin = await db.collection('super_admins').findOne({ email, estado: 'activo' });
         
         if (!admin) {
             return res.status(404).json({ error: 'Administrador no encontrado' });
         }
         
-        db.prepare('UPDATE super_admins SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(admin.id);
+        await db.collection('super_admins').updateOne(
+            { _id: admin._id },
+            { $set: { login_attempts: 0, last_attempt: null } }
+        );
         
         res.json({ success: true, message: 'Cuenta desbloqueada. Puede iniciar sesión ahora.' });
     } catch (error) {
@@ -185,18 +181,21 @@ router.post('/logout', (req, res) => {
 });
 
 // Obtener todos los negocios
-router.get('/negocios', requireSuperAdmin, (req, res) => {
+router.get('/negocios', requireSuperAdmin, async (req, res) => {
     try {
         const db = getDb();
         
-        const negocios = db.prepare(`
-            SELECT n.*, 
-                   (SELECT COUNT(*) FROM usuarios WHERE negocio_id = n.id) as total_usuarios,
-                   (SELECT COUNT(*) FROM citas WHERE negocio_id = n.id) as total_citas,
-                   (SELECT COUNT(*) FROM ventas WHERE negocio_id = n.id) as total_ventas
-            FROM negocios n
-            ORDER BY n.fecha_registro DESC
-        `).all();
+        const negocios = await db.collection('negocios').find({}).sort({ fecha_registro: -1 }).toArray();
+        
+        // Get counts for each negocio
+        for (const negocio of negocios) {
+            negocio.id = negocio._id.toString();
+            delete negocio._id;
+            
+            negocio.total_usuarios = await db.collection('usuarios').countDocuments({ negocio_id: negocio.id });
+            negocio.total_citas = await db.collection('citas').countDocuments({ negocio_id: negocio.id });
+            negocio.total_ventas = await db.collection('ventas').countDocuments({ negocio_id: negocio.id });
+        }
         
         res.json(negocios);
     } catch (error) {
@@ -206,22 +205,31 @@ router.get('/negocios', requireSuperAdmin, (req, res) => {
 });
 
 // Obtener un negocio específico
-router.get('/negocios/:id', requireSuperAdmin, (req, res) => {
+router.get('/negocios/:id', requireSuperAdmin, async (req, res) => {
     try {
         const db = getDb();
-        const negocio = db.prepare('SELECT * FROM negocios WHERE id = ?').get(req.params.id);
+        const negocio = await db.collection('negocios').findOne({ _id: normalizeId(req.params.id) });
         
         if (!negocio) {
             return res.status(404).json({ error: 'Negocio no encontrado' });
         }
         
-        const usuarios = db.prepare('SELECT id, nombre, email, rol, estado FROM usuarios WHERE negocio_id = ?').all(req.params.id);
-        const totalCitas = db.prepare('SELECT COUNT(*) as count FROM citas WHERE negocio_id = ?').get(req.params.id).count;
-        const totalVentas = db.prepare('SELECT COUNT(*) as count FROM ventas WHERE negocio_id = ?').get(req.params.id).count;
+        const negocioResponse = { ...negocio, id: negocio._id.toString() };
+        delete negocioResponse._id;
+        
+        const usuarios = await db.collection('usuarios')
+            .find({ negocio_id: normalizeId(req.params.id) })
+            .project({ id: 1, nombre: 1, email: 1, rol: 1, estado: 1 })
+            .toArray();
+        
+        const usuariosWithId = usuarios.map(u => ({ ...u, id: u._id.toString(), _id: undefined }));
+        
+        const totalCitas = await db.collection('citas').countDocuments({ negocio_id: normalizeId(req.params.id) });
+        const totalVentas = await db.collection('ventas').countDocuments({ negocio_id: normalizeId(req.params.id) });
         
         res.json({ 
-            negocio, 
-            usuarios,
+            negocio: negocioResponse, 
+            usuarios: usuariosWithId,
             stats: {
                 totalUsuarios: usuarios.length,
                 totalCitas,
@@ -235,7 +243,7 @@ router.get('/negocios/:id', requireSuperAdmin, (req, res) => {
 });
 
 // Actualizar estado de negocio
-router.put('/negocios/:id/estado', requireSuperAdmin, (req, res) => {
+router.put('/negocios/:id/estado', requireSuperAdmin, async (req, res) => {
     try {
         const { estado } = req.body;
         
@@ -244,7 +252,10 @@ router.put('/negocios/:id/estado', requireSuperAdmin, (req, res) => {
         }
         
         const db = getDb();
-        db.prepare('UPDATE negocios SET estado = ? WHERE id = ?').run(estado, req.params.id);
+        await db.collection('negocios').updateOne(
+            { _id: normalizeId(req.params.id) },
+            { $set: { estado } }
+        );
         
         res.json({ success: true, message: `Negocio ${estado}` });
     } catch (error) {
@@ -254,59 +265,76 @@ router.put('/negocios/:id/estado', requireSuperAdmin, (req, res) => {
 });
 
 // Eliminar negocio (soft delete)
-router.delete('/negocios/:id', requireSuperAdmin, (req, res) => {
+router.delete('/negocios/:id', requireSuperAdmin, async (req, res) => {
     try {
         const db = getDb();
-        const negocioId = parseInt(req.params.id);
+        const negocioId = normalizeId(req.params.id);
         
         // Check if already soft-deleted
-        const negocio = db.prepare('SELECT id, estado FROM negocios WHERE id = ?').get(negocioId);
+        const negocio = await db.collection('negocios').findOne({ _id: negocioId });
         if (!negocio) {
             return res.status(404).json({ error: 'Negocio no encontrado' });
         }
         
         if (negocio.estado === 'eliminado') {
-            // Hard delete - remove permanently
-            // Disable foreign keys temporarily to avoid constraint issues
-            db.exec('PRAGMA foreign_keys = OFF');
-            db.prepare('DELETE FROM log_auditoria WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM notificaciones WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM movimientos_inventario WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM chatbot_mensajes WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM chatbot_reglas WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM whatsapp_config WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM horario_negocio WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM sucursales WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM certificados_dgii WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM secuencias_ncf WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM config WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM conversaciones WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM puntos_lealtad WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM historial_puntos WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM comisiones WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM venta_detalles WHERE venta_id IN (SELECT id FROM ventas WHERE negocio_id = ?)').run(negocioId);
-            db.prepare('DELETE FROM ventas WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM notas_credito WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM pedidos_items WHERE pedido_id IN (SELECT id FROM pedidos WHERE negocio_id = ?)').run(negocioId);
-            db.prepare('DELETE FROM pedidos WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM menu_items WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM menu_categorias WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM productos WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM estado_resultado_items WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM citas WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM clientes WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM servicios WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM categorias WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM cajas_cerradas WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM usuarios WHERE negocio_id = ?').run(negocioId);
-            db.prepare('DELETE FROM negocios WHERE id = ?').run(negocioId);
-            db.exec('PRAGMA foreign_keys = ON');
+            // Hard delete
+            await db.collection('log_auditoria').deleteMany({ negocio_id: negocioId });
+            await db.collection('notificaciones').deleteMany({ negocio_id: negocioId });
+            await db.collection('movimientos_inventario').deleteMany({ negocio_id: negocioId });
+            await db.collection('chatbot_mensajes').deleteMany({ negocio_id: negocioId });
+            await db.collection('chatbot_reglas').deleteMany({ negocio_id: negocioId });
+            await db.collection('whatsapp_config').deleteMany({ negocio_id: negocioId });
+            await db.collection('horario_negocio').deleteMany({ negocio_id: negocioId });
+            await db.collection('sucursales').deleteMany({ negocio_id: negocioId });
+            await db.collection('certificados_dgii').deleteMany({ negocio_id: negocioId });
+            await db.collection('secuencias_ncf').deleteMany({ negocio_id: negocioId });
+            await db.collection('config').deleteMany({ negocio_id: negocioId });
+            await db.collection('conversaciones').deleteMany({ negocio_id: negocioId });
+            await db.collection('puntos_lealtad').deleteMany({ negocio_id: negocioId });
+            await db.collection('historial_puntos').deleteMany({ negocio_id: negocioId });
+            await db.collection('comisiones').deleteMany({ negocio_id: negocioId });
+            
+            // Delete venta_detalles for ventas belonging to this negocio
+            const ventas = await db.collection('ventas').find({ negocio_id: negocioId }).project({ _id: 1 }).toArray();
+            const ventaIds = ventas.map(v => v._id.toString());
+            if (ventaIds.length > 0) {
+                await db.collection('venta_detalles').deleteMany({ venta_id: { $in: ventaIds } });
+            }
+            await db.collection('ventas').deleteMany({ negocio_id: negocioId });
+            
+            await db.collection('notas_credito').deleteMany({ negocio_id: negocioId });
+            
+            // Delete pedidos_items for pedidos belonging to this negocio
+            const pedidos = await db.collection('pedidos').find({ negocio_id: negocioId }).project({ _id: 1 }).toArray();
+            const pedidoIds = pedidos.map(p => p._id.toString());
+            if (pedidoIds.length > 0) {
+                await db.collection('pedidos_items').deleteMany({ pedido_id: { $in: pedidoIds } });
+            }
+            await db.collection('pedidos').deleteMany({ negocio_id: negocioId });
+            
+            await db.collection('menu_items').deleteMany({ negocio_id: negocioId });
+            await db.collection('menu_categorias').deleteMany({ negocio_id: negocioId });
+            await db.collection('productos').deleteMany({ negocio_id: negocioId });
+            await db.collection('estado_resultado_items').deleteMany({ negocio_id: negocioId });
+            await db.collection('citas').deleteMany({ negocio_id: negocioId });
+            await db.collection('clientes').deleteMany({ negocio_id: negocioId });
+            await db.collection('servicios').deleteMany({ negocio_id: negocioId });
+            await db.collection('categorias').deleteMany({ negocio_id: negocioId });
+            await db.collection('cajas_cerradas').deleteMany({ negocio_id: negocioId });
+            await db.collection('usuarios').deleteMany({ negocio_id: negocioId });
+            await db.collection('negocios').deleteOne({ _id: negocioId });
             
             res.json({ success: true, message: 'Negocio eliminado permanentemente' });
         } else {
             // Soft delete - mark as eliminated
-            db.prepare('UPDATE negocios SET estado = ? WHERE id = ?').run('eliminado', negocioId);
-            db.prepare('UPDATE usuarios SET estado = ? WHERE negocio_id = ?').run('inactivo', negocioId);
+            await db.collection('negocios').updateOne(
+                { _id: negocioId },
+                { $set: { estado: 'eliminado' } }
+            );
+            await db.collection('usuarios').updateMany(
+                { negocio_id: negocioId },
+                { $set: { estado: 'inactivo' } }
+            );
             
             res.json({ success: true, message: 'Negocio marcado como eliminado' });
         }
@@ -317,7 +345,7 @@ router.delete('/negocios/:id', requireSuperAdmin, (req, res) => {
 });
 
 // Activar licencia de negocio
-router.put('/negocios/:id/licencia', requireSuperAdmin, (req, res) => {
+router.put('/negocios/:id/licencia', requireSuperAdmin, async (req, res) => {
     try {
         const { plan, dias } = req.body;
         
@@ -330,14 +358,15 @@ router.put('/negocios/:id/licencia', requireSuperAdmin, (req, res) => {
         const fechaExpiracion = getRDDate();
         fechaExpiracion.setDate(fechaExpiracion.getDate() + (dias || 30));
         
-        db.prepare(`
-            UPDATE negocios 
-            SET licencia_plan = ?, 
-                licencia_fecha_inicio = ?, 
-                licencia_fecha_expiracion = ?,
-                estado = 'activo'
-            WHERE id = ?
-        `).run(plan, fechaInicio, fechaExpiracion.toISOString(), req.params.id);
+        await db.collection('negocios').updateOne(
+            { _id: normalizeId(req.params.id) },
+            { $set: { 
+                licencia_plan: plan, 
+                licencia_fecha_inicio: fechaInicio, 
+                licencia_fecha_expiracion: fechaExpiracion.toISOString(),
+                estado: 'activo'
+            }}
+        );
         
         res.json({ 
             success: true, 
@@ -350,7 +379,7 @@ router.put('/negocios/:id/licencia', requireSuperAdmin, (req, res) => {
 });
 
 // Setear días restantes de trial para testing
-router.put('/negocios/:id/trial-days', requireSuperAdmin, (req, res) => {
+router.put('/negocios/:id/trial-days', requireSuperAdmin, async (req, res) => {
     try {
         const { dias_restantes } = req.body;
         
@@ -359,7 +388,7 @@ router.put('/negocios/:id/trial-days', requireSuperAdmin, (req, res) => {
         }
         
         const db = getDb();
-        const negocio = db.prepare('SELECT id, nombre FROM negocios WHERE id = ?').get(req.params.id);
+        const negocio = await db.collection('negocios').findOne({ _id: normalizeId(req.params.id) });
         
         if (!negocio) {
             return res.status(404).json({ error: 'Negocio no encontrado' });
@@ -371,13 +400,14 @@ router.put('/negocios/:id/trial-days', requireSuperAdmin, (req, res) => {
         const fechaInicio = getRDDate();
         fechaInicio.setDate(fechaInicio.getDate() - diasUsados);
         
-        db.prepare(`
-            UPDATE negocios 
-            SET licencia_plan = 'trial',
-                licencia_fecha_inicio = ?,
-                licencia_fecha_expiracion = NULL
-            WHERE id = ?
-        `).run(fechaInicio.toISOString(), req.params.id);
+        await db.collection('negocios').updateOne(
+            { _id: normalizeId(req.params.id) },
+            { $set: { 
+                licencia_plan: 'trial',
+                licencia_fecha_inicio: fechaInicio.toISOString(),
+                licencia_fecha_expiracion: null
+            }}
+        );
         
         res.json({ 
             success: true, 
@@ -393,14 +423,14 @@ router.put('/negocios/:id/trial-days', requireSuperAdmin, (req, res) => {
 router.post('/negocios/:id/reset-password', requireSuperAdmin, async (req, res) => {
     try {
         const db = getDb();
-        const negocioId = req.params.id;
+        const negocioId = normalizeId(req.params.id);
 
-        const negocio = db.prepare('SELECT id, nombre FROM negocios WHERE id = ?').get(negocioId);
+        const negocio = await db.collection('negocios').findOne({ _id: negocioId });
         if (!negocio) {
             return res.status(404).json({ error: 'Negocio no encontrado' });
         }
 
-        const admin = db.prepare("SELECT id, nombre, email FROM usuarios WHERE negocio_id = ? AND rol = 'admin'").get(negocioId);
+        const admin = await db.collection('usuarios').findOne({ negocio_id: negocioId, rol: 'admin' });
         if (!admin) {
             return res.status(404).json({ error: 'No se encontró administrador para este negocio' });
         }
@@ -413,7 +443,10 @@ router.post('/negocios/:id/reset-password', requireSuperAdmin, async (req, res) 
         tempPassword += '!';
 
         const hashedPassword = await bcrypt.hash(tempPassword, 10);
-        db.prepare('UPDATE usuarios SET password = ? WHERE id = ?').run(hashedPassword, admin.id);
+        await db.collection('usuarios').updateOne(
+            { _id: admin._id },
+            { $set: { password: hashedPassword } }
+        );
 
         res.json({
             success: true,
@@ -432,50 +465,22 @@ router.post('/negocios/:id/reset-password', requireSuperAdmin, async (req, res) 
 });
 
 // Estadísticas generales
-router.get('/stats', requireSuperAdmin, (req, res) => {
+router.get('/stats', requireSuperAdmin, async (req, res) => {
     try {
         const db = getDb();
         
-        // Obtener tamaño de la base de datos
-        const dbPath = path.join(__dirname, '..', 'db', 'nexora.db');
-        let dbSizeBytes = 0;
-        try {
-            const stat = fs.statSync(dbPath);
-            dbSizeBytes = stat.size;
-        } catch (e) {
-            // Fallback: usar page_count * page_size
-            const pragma = db.prepare('PRAGMA page_count').get();
-            const pageSize = db.prepare('PRAGMA page_size').get();
-            if (pragma && pageSize) {
-                dbSizeBytes = pragma.page_count * pageSize.page_size;
-            }
-        }
-        
-        const dbSizeMB = (dbSizeBytes / (1024 * 1024)).toFixed(2);
-        const maxSizeGB = 1; // Límite práctico de SQLite
-        const maxSizeBytes = maxSizeGB * 1024 * 1024 * 1024;
-        const porcentajeUso = ((dbSizeBytes / maxSizeBytes) * 100).toFixed(2);
-        
-        // Obtener tamaño de imágenes (texto base64 en servicios)
-        const imagenesSize = db.prepare(`
-            SELECT COALESCE(SUM(LENGTH(imagen)), 0) as total
-            FROM servicios WHERE imagen IS NOT NULL AND imagen != ''
-        `).get();
-        
-        const imagenesMB = (imagenesSize.total / (1024 * 1024)).toFixed(2);
-        
         const stats = {
-            totalNegocios: db.prepare('SELECT COUNT(*) as count FROM negocios WHERE estado != ?').get('eliminado').count,
-            negociosActivos: db.prepare('SELECT COUNT(*) as count FROM negocios WHERE estado = ?').get('activo').count,
-            negociosSuspendidos: db.prepare('SELECT COUNT(*) as count FROM negocios WHERE estado = ?').get('suspendido').count,
-            totalUsuarios: db.prepare('SELECT COUNT(*) as count FROM usuarios').get().count,
-            totalCitas: db.prepare('SELECT COUNT(*) as count FROM citas').get().count,
-            totalVentas: db.prepare('SELECT COUNT(*) as count FROM ventas').get().count,
+            totalNegocios: await db.collection('negocios').countDocuments({ estado: { $ne: 'eliminado' } }),
+            negociosActivos: await db.collection('negocios').countDocuments({ estado: 'activo' }),
+            negociosSuspendidos: await db.collection('negocios').countDocuments({ estado: 'suspendido' }),
+            totalUsuarios: await db.collection('usuarios').countDocuments(),
+            totalCitas: await db.collection('citas').countDocuments(),
+            totalVentas: await db.collection('ventas').countDocuments(),
             almacenamiento: {
-                totalMB: parseFloat(dbSizeMB),
-                porcentaje: parseFloat(porcentajeUso),
-                limiteGB: maxSizeGB,
-                imagenesMB: parseFloat(imagenesMB)
+                totalMB: 0,
+                porcentaje: 0,
+                limiteGB: 1,
+                imagenesMB: 0
             }
         };
         
@@ -486,8 +491,8 @@ router.get('/stats', requireSuperAdmin, (req, res) => {
     }
 });
 
-// Cambiar contraseña del super admin (movida antes de module.exports — fix de codigo muerto)
-router.post('/change-password', requireSuperAdmin, (req, res) => {
+// Cambiar contraseña del super admin
+router.post('/change-password', requireSuperAdmin, async (req, res) => {
     try {
         const { current_password, new_password } = req.body;
 
@@ -500,7 +505,7 @@ router.post('/change-password', requireSuperAdmin, (req, res) => {
         }
 
         const db = getDb();
-        const admin = db.prepare('SELECT * FROM super_admins WHERE id = ?').get(req.session.superAdminId);
+        const admin = await db.collection('super_admins').findOne({ _id: req.session.superAdminId });
 
         if (!admin) {
             return res.status(404).json({ error: 'Administrador no encontrado' });
@@ -512,7 +517,10 @@ router.post('/change-password', requireSuperAdmin, (req, res) => {
         }
 
         const hashedPassword = bcrypt.hashSync(new_password, 10);
-        db.prepare('UPDATE super_admins SET password = ? WHERE id = ?').run(hashedPassword, admin.id);
+        await db.collection('super_admins').updateOne(
+            { _id: admin._id },
+            { $set: { password: hashedPassword } }
+        );
 
         res.json({ success: true, message: 'Contraseña actualizada correctamente' });
     } catch (error) {
@@ -522,10 +530,10 @@ router.post('/change-password', requireSuperAdmin, (req, res) => {
 });
 
 // GET platform config
-router.get('/platform-config', requireSuperAdmin, (req, res) => {
+router.get('/platform-config', requireSuperAdmin, async (req, res) => {
     try {
         const db = getDb();
-        const cfg = db.prepare('SELECT * FROM platform_config WHERE id = 1').get();
+        const cfg = await db.collection('platform_config').findOne({});
         res.json(cfg || {});
     } catch (error) {
         console.error('Error obteniendo platform_config:', error);
@@ -534,26 +542,21 @@ router.get('/platform-config', requireSuperAdmin, (req, res) => {
 });
 
 // PUT platform config
-router.put('/platform-config', requireSuperAdmin, (req, res) => {
+router.put('/platform-config', requireSuperAdmin, async (req, res) => {
     try {
         const { system_name, version, edition, copyright_year, show_footer, custom_text } = req.body;
         const db = getDb();
-        db.prepare(`
-            UPDATE platform_config SET
-                system_name = ?,
-                version = ?,
-                edition = ?,
-                copyright_year = ?,
-                show_footer = ?,
-                custom_text = ?
-            WHERE id = 1
-        `).run(
-            String(system_name || 'Nexora').trim(),
-            String(version || '1.0.0').trim(),
-            String(edition || 'Pro').trim(),
-            parseInt(copyright_year) || new Date().getFullYear(),
-            show_footer ? 1 : 0,
-            String(custom_text || '').trim()
+        await db.collection('platform_config').updateOne(
+            {},
+            { $set: {
+                system_name: String(system_name || 'Nexora').trim(),
+                version: String(version || '1.0.0').trim(),
+                edition: String(edition || 'Pro').trim(),
+                copyright_year: parseInt(copyright_year) || new Date().getFullYear(),
+                show_footer: show_footer ? true : false,
+                custom_text: String(custom_text || '').trim()
+            }},
+            { upsert: true }
         );
         res.json({ success: true });
     } catch (error) {

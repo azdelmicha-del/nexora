@@ -1,8 +1,7 @@
 const express = require('express');
 const session = require('express-session');
-const SQLiteStore = require('connect-sqlite3')(session);
+const MongoStore = require('connect-mongo');
 const path = require('path');
-const fs = require('fs');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { initDatabase } = require('./database');
@@ -15,11 +14,9 @@ const config = require('./config');
 const authRoutes = require('./routes/auth');
 const usersRoutes = require('./routes/users');
 const configRoutes = require('./routes/config');
-const servicesRoutes = require('./routes/services');
 const categoriesRoutes = require('./routes/categories');
 const clientsRoutes = require('./routes/clients');
 const salesRoutes = require('./routes/sales');
-const appointmentsRoutes = require('./routes/appointments');
 const reportsRoutes = require('./routes/reports');
 const notificationsRoutes = require('./routes/notifications');
 const licenseRoutes = require('./routes/license');
@@ -33,12 +30,9 @@ const productsRoutes = require('./routes/products');
 const commissionsRoutes = require('./routes/commissions');
 const dashboardRoutes = require('./routes/dashboard');
 const auditRoutes = require('./routes/audit');
-const backupRoutes = require('./routes/backup');
 const notesRoutes = require('./routes/notes');
 const loyaltyRoutes = require('./routes/loyalty');
 const whatsappRoutes = require('./routes/whatsapp');
-const menuRoutes = require('./routes/menu');
-const pedidosRoutes = require('./routes/pedidos');
 
 const crypto = require('crypto');
 
@@ -47,73 +41,27 @@ const PORT = config.PORT;
 
 const SESSION_SECRET = config.SESSION_SECRET || crypto.randomBytes(32).toString('hex');
 if (!config.SESSION_SECRET) {
-    console.log('⚠️  SESSION_SECRET no configurado. Se generó uno aleatorio.');
+    console.log('⚠️  SESSION_SECRET no configurado. Se genero uno aleatorio.');
 } else {
     console.log('✅ SESSION_SECRET configurado correctamente.');
 }
 
-const dbDir = process.env.DB_DIR || path.join(__dirname, 'db');
-const dbPath = path.join(dbDir, 'nexora.db');
-const sessionDir = process.env.NODE_ENV === 'production' ? dbDir : path.join(__dirname, 'db');
-const backupDir = process.env.BACKUP_DIR || path.join(dbDir, 'backups');
-
-function logStorageRuntime() {
-    const dbDirAbs = path.resolve(dbDir);
-    const sessionDirAbs = path.resolve(sessionDir);
-    const backupDirAbs = path.resolve(backupDir);
-    const dbPathAbs = path.resolve(dbPath);
-
-    const sessionAligned = sessionDirAbs === dbDirAbs || sessionDirAbs.startsWith(dbDirAbs + path.sep);
-    const backupAligned = backupDirAbs === dbDirAbs || backupDirAbs.startsWith(dbDirAbs + path.sep);
-
-    console.log('📦 Runtime storage paths');
-    console.log('   DB_DIR:', dbDirAbs);
-    console.log('   DB_PATH:', dbPathAbs);
-    console.log('   SESSION_DIR:', sessionDirAbs);
-    console.log('   BACKUP_DIR:', backupDirAbs);
-    console.log('   DB_EXISTS:', fs.existsSync(dbPathAbs));
-
-    if (process.env.NODE_ENV === 'production' && (!sessionAligned || !backupAligned)) {
-        console.error('❌ Inconsistencia de almacenamiento: BD/Sesiones/Backups no están alineados');
-        console.error('   sessionAligned:', sessionAligned, 'backupAligned:', backupAligned);
-    } else {
-        console.log('✅ Almacenamiento coherente: BD, sesiones y backups alineados');
-    }
-}
-
-initDatabase();
-initLicense();
-
-// Backup automático al iniciar (protección de datos)
-const { autoBackup, checkDatabaseIntegrity, getBackupDir } = require('./backup-protection');
-if (path.resolve(getBackupDir()) !== path.resolve(backupDir)) {
-    console.error('❌ Inconsistencia BACKUP_DIR detectada entre index y backup-protection');
-    console.error('   index BACKUP_DIR:', backupDir);
-    console.error('   backup-protection BACKUP_DIR:', getBackupDir());
-}
-logStorageRuntime();
-checkDatabaseIntegrity();
-autoBackup();
-
-// Importar BD completa SOLO si está vacía (PROTECCIÓN: nunca elimina datos)
-const { initFullDatabase } = require('./init-full-db');
-initFullDatabase();
-
-// init-production eliminado - se usa superadmin
-
-// Reset-password eliminado - se usa superadmin
-
-// Crear super administrador si no existe
-const { createSuperAdmin } = require('./create-superadmin');
-createSuperAdmin();
+// Inicializar MongoDB
+initDatabase().then(() => {
+    initLicense();
+    const { createSuperAdmin } = require('./create-superadmin');
+    createSuperAdmin();
+}).catch(err => {
+    console.error('❌ Error conectando a MongoDB:', err.message);
+    process.exit(1);
+});
 
 // ── Seguridad: cabeceras HTTP y rate-limiting ─────────────────────────────
 app.use(helmet({
-    contentSecurityPolicy: false, // deshabilitado para permitir inline scripts del frontend
+    contentSecurityPolicy: false,
     crossOriginEmbedderPolicy: false
 }));
 
-// Rate-limit global: 300 req/min por IP (protege toda la API)
 const globalLimiter = rateLimit({
     windowMs: 60 * 1000,
     max: 300,
@@ -123,7 +71,6 @@ const globalLimiter = rateLimit({
 });
 app.use('/api', globalLimiter);
 
-// Rate-limit estricto para autenticacion: 20 req/15min por IP
 const authLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
     max: 20,
@@ -137,25 +84,22 @@ app.use('/api/superadmin/login', authLimiter);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(require('express-fileupload')({
-    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+    limits: { fileSize: 5 * 1024 * 1024 },
     abortOnLimit: true,
-    responseOnLimit: 'Archivo demasiado grande (máximo 5MB)',
+    responseOnLimit: 'Archivo demasiado grande (maximo 5MB)',
     createParentPath: true
 }));
 app.use(sanitizeInput);
 
-// Trust proxy para detectar HTTPS correctamente en Render
-// Sin esto, las cookies secure no se guardan detrás del load balancer
 app.set('trust proxy', 1);
 
-if (!fs.existsSync(sessionDir)) {
-    fs.mkdirSync(sessionDir, { recursive: true });
-}
-
+// Session store en MongoDB
 app.use(session({
-    store: new SQLiteStore({
-        db: 'sessions.db',
-        dir: sessionDir
+    store: MongoStore.create({
+        mongoUrl: process.env.MONGODB_URI,
+        dbName: 'nexora_pos',
+        collectionName: 'sessions',
+        ttl: 24 * 60 * 60
     }),
     secret: SESSION_SECRET,
     resave: false,
@@ -174,22 +118,39 @@ app.use('/api/auth', authRoutes);
 app.use('/api/users', requireActiveLicense, usersRoutes);
 app.use('/api/config', requireActiveLicense, configRoutes);
 
-// Public platform info (footer bar) — no auth, no license check
-app.get('/api/platform', (req, res) => {
+app.get('/api/version', (req, res) => {
+    const pkg = require('../package.json');
+    const clientVersion = req.query.v || '0.0.0';
+    const serverVersion = pkg.version;
+    const parseVer = v => v.split('.').map(Number);
+    const [sm, mi, pa] = parseVer(serverVersion);
+    const [cm, ci, cp] = parseVer(clientVersion);
+    const hasUpdate =
+        sm > cm || (sm === cm && mi > ci) || (sm === cm && mi === ci && pa > cp);
+    res.json({
+        version: serverVersion,
+        clientVersion,
+        hasUpdate,
+        releaseNotes: pkg.releaseNotes || 'Mejoras de rendimiento y correccion de errores.',
+        releaseDate: '2026-05-02',
+        downloadUrl: process.env.DOWNLOAD_URL || ''
+    });
+});
+
+app.get('/api/platform', async (req, res) => {
     try {
         const { getDb } = require('./database');
         const db = getDb();
-        const cfg = db.prepare('SELECT system_name, version, edition, copyright_year, show_footer, custom_text FROM platform_config WHERE id = 1').get();
+        const cfg = await db.collection('platform_config').findOne({ _id: 1 });
         res.json(cfg || { system_name: 'Nexora', version: '1.0.0', edition: 'Pro', copyright_year: new Date().getFullYear(), show_footer: 1, custom_text: '' });
     } catch (e) {
         res.json({ system_name: 'Nexora', version: '1.0.0', edition: 'Pro', copyright_year: new Date().getFullYear(), show_footer: 1, custom_text: '' });
     }
 });
-app.use('/api/services', requireActiveLicense, servicesRoutes);
+
 app.use('/api/categories', requireActiveLicense, categoriesRoutes);
 app.use('/api/clients', requireActiveLicense, clientsRoutes);
 app.use('/api/sales', requireActiveLicense, salesRoutes);
-app.use('/api/appointments', requireActiveLicense, appointmentsRoutes);
 app.use('/api/reports', requireActiveLicense, reportsRoutes);
 app.use('/api/notifications', requireActiveLicense, notificationsRoutes);
 app.use('/api/license', licenseRoutes);
@@ -200,14 +161,10 @@ app.use('/api/products', requireActiveLicense, productsRoutes);
 app.use('/api/commissions', requireActiveLicense, commissionsRoutes);
 app.use('/api/dashboard', requireActiveLicense, dashboardRoutes);
 app.use('/api/audit', requireActiveLicense, auditRoutes);
-app.use('/api/backup', requireActiveLicense, backupRoutes);
 app.use('/api/notes', requireActiveLicense, notesRoutes);
 app.use('/api/loyalty', requireActiveLicense, loyaltyRoutes);
 app.use('/api/whatsapp', whatsappRoutes);
-app.use('/api/menu', requireActiveLicense, menuRoutes);
-app.use('/api/pedidos', pedidosRoutes);
 
-// Rutas de debug y test: solo disponibles en desarrollo
 if (process.env.NODE_ENV !== 'production') {
     app.use('/api', requireActiveLicense, testDbRoutes);
     app.use('/api', detailsRoutes);
@@ -215,8 +172,12 @@ if (process.env.NODE_ENV !== 'production') {
     console.log('⚠️  Rutas de debug activas (solo para desarrollo)');
 }
 
-app.get('/', requireAuth, (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'dashboard.html'));
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'landing.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'login.html'));
 });
 
 app.get('/superadmin', (req, res) => {
@@ -279,10 +240,6 @@ app.get('/auditoria', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'auditoria.html'));
 });
 
-app.get('/backup', requireAuth, requireActiveLicense, (req, res) => {
-    res.sendFile(path.join(__dirname, '..', 'public', 'backup.html'));
-});
-
 app.get('/empleados-reporte', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'empleados-reporte.html'));
 });
@@ -305,6 +262,10 @@ app.get('/clientes', requireAuth, requireActiveLicense, (req, res) => {
 
 app.get('/reportes', requireAuth, requireActiveLicense, (req, res) => {
     res.sendFile(path.join(__dirname, '..', 'public', 'reportes.html'));
+});
+
+app.get('/caja', requireAuth, requireActiveLicense, (req, res) => {
+    res.sendFile(path.join(__dirname, '..', 'public', 'caja.html'));
 });
 
 app.get('/configuracion', requireAuth, requireActiveLicense, (req, res) => {
@@ -334,8 +295,8 @@ app.get('/health', (req, res) => {
 });
 
 app.listen(PORT, () => {
-    console.log(`Nexora ejecutándose en puerto ${PORT}`);
+    console.log(`Nexora ejecutandose en puerto ${PORT}`);
     console.log(`Zona horaria: ${process.env.TZ || 'America/Santo_Domingo'} (UTC-4)`);
-    console.log(`DB_DIR: ${process.env.DB_DIR || path.join(__dirname, 'db')}`);
+    console.log(`MongoDB: ${process.env.MONGODB_URI ? 'configurada' : 'NO configurada'}`);
     iniciarRecordatoriosCitas();
 });

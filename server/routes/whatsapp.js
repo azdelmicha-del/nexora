@@ -1,14 +1,17 @@
 const express = require('express');
-const { getDb } = require('../database');
+const { getDb , normalizeId } = require('../database');
 const { requireAuth } = require('../middleware/auth');
 
 const router = express.Router();
 
 // GET /api/whatsapp — Configuracion WhatsApp
-router.get('/config', requireAuth, (req, res) => {
+router.get('/config', requireAuth, async (req, res) => {
     try {
         const db = getDb();
-        const config = db.prepare('SELECT * FROM whatsapp_config WHERE negocio_id = ?').get(req.session.negocioId);
+        let config = await db.collection('whatsapp_config').findOne({ negocio_id: normalizeId(req.session.negocioId) });
+        if (config) {
+            config = { ...config, id: config._id.toString() };
+        }
         res.json(config || { activo: 0, plantilla_recordatorio: 'recordatorio_cita', plantilla_confirmacion: 'confirmacion_cita' });
     } catch (error) {
         console.error('Error:', error);
@@ -17,23 +20,27 @@ router.get('/config', requireAuth, (req, res) => {
 });
 
 // PUT /api/whatsapp/config — Actualizar config
-router.put('/config', requireAuth, (req, res) => {
+router.put('/config', requireAuth, async (req, res) => {
     try {
         const { token, phone_number_id, activo, plantilla_recordatorio, plantilla_confirmacion } = req.body;
         const db = getDb();
-        const negocioId = req.session.negocioId;
+        const negocioId = normalizeId(req.session.negocioId);
 
-        const existente = db.prepare('SELECT id FROM whatsapp_config WHERE negocio_id = ?').get(negocioId);
+        const existente = await db.collection('whatsapp_config').findOne({ negocio_id: negocioId });
         if (existente) {
-            db.prepare(`
-                UPDATE whatsapp_config SET token=?, phone_number_id=?, activo=?, plantilla_recordatorio=?, plantilla_confirmacion=?
-                WHERE negocio_id=?
-            `).run(token||null, phone_number_id||null, activo?1:0, plantilla_recordatorio, plantilla_confirmacion, negocioId);
+            await db.collection('whatsapp_config').updateOne(
+                { negocio_id: negocioId },
+                { $set: { token: token || null, phone_number_id: phone_number_id || null, activo: activo ? 1 : 0, plantilla_recordatorio, plantilla_confirmacion } }
+            );
         } else {
-            db.prepare(`
-                INSERT INTO whatsapp_config (negocio_id, token, phone_number_id, activo, plantilla_recordatorio, plantilla_confirmacion)
-                VALUES (?, ?, ?, ?, ?, ?)
-            `).run(negocioId, token||null, phone_number_id||null, activo?1:0, plantilla_recordatorio, plantilla_confirmacion);
+            await db.collection('whatsapp_config').insertOne({
+                negocio_id: negocioId,
+                token: token || null,
+                phone_number_id: phone_number_id || null,
+                activo: activo ? 1 : 0,
+                plantilla_recordatorio,
+                plantilla_confirmacion
+            });
         }
         res.json({ success: true });
     } catch (error) {
@@ -51,7 +58,7 @@ router.post('/send', requireAuth, async (req, res) => {
         }
 
         const db = getDb();
-        const config = db.prepare('SELECT * FROM whatsapp_config WHERE negocio_id = ? AND activo = 1').get(req.session.negocioId);
+        const config = await db.collection('whatsapp_config').findOne({ negocio_id: normalizeId(req.session.negocioId), activo: 1 });
         if (!config || !config.token || !config.phone_number_id) {
             return res.status(400).json({ error: 'WhatsApp no configurado o no activo' });
         }
@@ -91,7 +98,7 @@ router.post('/send-image', requireAuth, async (req, res) => {
         }
 
         const db = getDb();
-        const config = db.prepare('SELECT * FROM whatsapp_config WHERE negocio_id = ? AND activo = 1').get(req.session.negocioId);
+        const config = await db.collection('whatsapp_config').findOne({ negocio_id: normalizeId(req.session.negocioId), activo: 1 });
         if (!config || !config.token || !config.phone_number_id) {
             return res.status(400).json({ error: 'WhatsApp no configurado o no activo' });
         }

@@ -1,1062 +1,77 @@
-const Database = require('better-sqlite3');
-const fs = require('fs');
-const path = require('path');
-const { getRDDateString, getRDDate } = require('./utils/timezone');
+const mongoose = require('mongoose');
+const { getRDDate } = require('./utils/timezone');
 
-// En Render, usar ruta del disco persistente
-// El disco debe montarse en /opt/render/project/data
-const dbDir = process.env.DB_DIR || path.join(__dirname, 'db');
-const dbPath = path.join(dbDir, 'nexora.db');
+let isConnected = false;
 
-// Schema SIEMPRE está en el código fuente, no en el disco
-const schemaPath = path.join(__dirname, 'db', 'schema.sql');
-
-let db;
-
-function initDatabase() {
-    console.log('DB_DIR:', dbDir);
-    console.log('DB_PATH:', dbPath);
-    console.log('SCHEMA_PATH:', schemaPath);
-    
-    // Crear directorio de BD si no existe
-    if (!fs.existsSync(dbDir)) {
-        console.log('Creando directorio:', dbDir);
-        fs.mkdirSync(dbDir, { recursive: true });
-    }
-    
-    // MIGRACIÓN: Si la BD existe en la ruta vieja pero no en la nueva, copiarla
-    // Esto debe hacerse ANTES de abrir la BD para preservar datos existentes
-    const oldDbPath = path.join(__dirname, 'db', 'nexora.db');
-    if (!fs.existsSync(dbPath) && fs.existsSync(oldDbPath)) {
-        console.log('⚠️  Migrando BD desde ruta antigua a disco persistente...');
-        console.log('   De:', oldDbPath);
-        console.log('   A:', dbPath);
-        fs.copyFileSync(oldDbPath, dbPath);
-        const oldWal = oldDbPath + '-wal';
-        const newWal = dbPath + '-wal';
-        if (fs.existsSync(oldWal)) fs.copyFileSync(oldWal, newWal);
-        const oldShm = oldDbPath + '-shm';
-        const newShm = dbPath + '-shm';
-        if (fs.existsSync(oldShm)) fs.copyFileSync(oldShm, newShm);
-        console.log('✅ BD migrada exitosamente');
-    }
-    
-    if (!fs.existsSync(schemaPath)) {
-        console.error('ERROR: schema.sql no encontrado en:', schemaPath);
-        throw new Error('schema.sql no encontrado');
-    }
-    
-    console.log('Inicializando base de datos...');
-    db = new Database(dbPath);
-    db.pragma('journal_mode = WAL');
-    
-    const schema = fs.readFileSync(schemaPath, 'utf8');
-    console.log('Ejecutando schema...');
-    db.exec(schema);
-    console.log('Schema ejecutado correctamente');
-    
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS cajas_cerradas (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            negocio_id INTEGER NOT NULL,
-            fecha TEXT NOT NULL,
-            total REAL NOT NULL,
-            cantidad_ventas INTEGER NOT NULL,
-            efectivo REAL DEFAULT 0,
-            transferencia REAL DEFAULT 0,
-            tarjeta REAL DEFAULT 0,
-            user_id INTEGER NOT NULL,
-            notas TEXT,
-            fecha_cierre TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-            FOREIGN KEY (user_id) REFERENCES usuarios(id)
-        );
-    `);
-
-    const cajasColumns = db.prepare("PRAGMA table_info(cajas_cerradas)").all();
-    const hasDeletedAt = cajasColumns.some(c => c.name === 'deleted_at');
-    if (!hasDeletedAt) {
-        db.exec('ALTER TABLE cajas_cerradas ADD COLUMN deleted_at TEXT');
-    }
-    const hasDeletedBy = cajasColumns.some(c => c.name === 'deleted_by');
-    if (!hasDeletedBy) {
-        db.exec('ALTER TABLE cajas_cerradas ADD COLUMN deleted_by INTEGER');
-    }
-    
-    // Tabla de configuración por negocio
+function normalizeId(id) {
+    if (id === null || id === undefined) return null;
+    if (typeof id === 'number') return id;
+    if (typeof id === 'string' && /^\d+$/.test(id)) return parseInt(id, 10);
     try {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS config (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL UNIQUE,
-                caja_cerrada INTEGER DEFAULT 0,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-            )
-        `);
+        if (mongoose.Types.ObjectId.isValid(id)) return new mongoose.Types.ObjectId(id);
     } catch (e) {}
-
-    const configColumns = db.prepare("PRAGMA table_info(config)").all();
-    const hasCajaAbiertaDesde = configColumns.some(c => c.name === 'caja_abierta_desde');
-    if (!hasCajaAbiertaDesde) {
-        db.exec('ALTER TABLE config ADD COLUMN caja_abierta_desde TEXT');
-    }
-    
-    const columns = db.prepare("PRAGMA table_info(ventas)").all();
-    const hasFueraCuadre = columns.some(c => c.name === 'fuera_cuadre');
-    if (!hasFueraCuadre) {
-        db.exec('ALTER TABLE ventas ADD COLUMN fuera_cuadre INTEGER DEFAULT 0');
-    }
-    
-    const userColumns = db.prepare("PRAGMA table_info(usuarios)").all();
-    const hasHorarioTipo = userColumns.some(c => c.name === 'horario_tipo');
-    if (!hasHorarioTipo) {
-        db.exec('ALTER TABLE usuarios ADD COLUMN horario_tipo TEXT DEFAULT "completo"');
-        db.exec('ALTER TABLE usuarios ADD COLUMN hora_entrada TEXT DEFAULT "08:00"');
-        db.exec('ALTER TABLE usuarios ADD COLUMN hora_salida TEXT DEFAULT "18:00"');
-    }
-    
-    const hasLastLogin = userColumns.some(c => c.name === 'last_login');
-    if (!hasLastLogin) {
-        db.exec('ALTER TABLE usuarios ADD COLUMN last_login TEXT');
-    }
-    
-    const hasLoginAttempts = userColumns.some(c => c.name === 'login_attempts');
-    if (!hasLoginAttempts) {
-        db.exec('ALTER TABLE usuarios ADD COLUMN login_attempts INTEGER DEFAULT 0');
-    }
-    
-    const hasLastAttempt = userColumns.some(c => c.name === 'last_attempt');
-    if (!hasLastAttempt) {
-        db.exec('ALTER TABLE usuarios ADD COLUMN last_attempt TEXT');
-    }
-    
-    const negocioColumns = db.prepare("PRAGMA table_info(negocios)").all();
-    const hasLicenciaPlan = negocioColumns.some(c => c.name === 'licencia_plan');
-    if (!hasLicenciaPlan) {
-        db.exec('ALTER TABLE negocios ADD COLUMN licencia_plan TEXT DEFAULT "trial"');
-        db.exec('ALTER TABLE negocios ADD COLUMN licencia_fecha_inicio TEXT');
-        db.exec('ALTER TABLE negocios ADD COLUMN licencia_fecha_expiracion TEXT');
-        db.exec('ALTER TABLE negocios ADD COLUMN licencia_hardware_id TEXT');
-    }
-    
-    const hasBufferCitas = negocioColumns.some(c => c.name === 'buffer_entre_citas');
-    if (!hasBufferCitas) {
-        db.exec('ALTER TABLE negocios ADD COLUMN buffer_entre_citas INTEGER DEFAULT 0');
-    }
-    
-    const hasZonaHoraria = negocioColumns.some(c => c.name === 'zona_horaria');
-    if (!hasZonaHoraria) {
-        db.exec('ALTER TABLE negocios ADD COLUMN zona_horaria INTEGER DEFAULT -4');
-    }
-    
-    // Agregar columna cuadre_id a ventas para separar turnos de caja
-    const ventasColumns = db.prepare("PRAGMA table_info(ventas)").all();
-    const hasCuadreId = ventasColumns.some(c => c.name === 'cuadre_id');
-    if (!hasCuadreId) {
-        console.log('Agregando columna cuadre_id a tabla ventas...');
-        db.exec('ALTER TABLE ventas ADD COLUMN cuadre_id INTEGER');
-        console.log('Columna cuadre_id agregada.');
-    }
-    
-    // Limpiar citas erróneas del 2026-03-24 (bug de fecha)
-    const citasErroneas = db.prepare("SELECT COUNT(*) as count FROM citas WHERE fecha = '2026-03-24'").get();
-    if (citasErroneas.count > 0) {
-        console.log(`Limpiando ${citasErroneas.count} citas erróneas del 2026-03-24...`);
-        db.prepare("DELETE FROM citas WHERE fecha = '2026-03-24'").run();
-        console.log('Citas erróneas eliminadas.');
-    }
-    
-    const negociosSinFechaInicio = db.prepare(`
-        SELECT id FROM negocios 
-        WHERE licencia_fecha_inicio IS NULL
-    `).all();
-    
-    if (negociosSinFechaInicio.length > 0) {
-        console.log(`Actualizando ${negociosSinFechaInicio.length} negocios sin fecha de inicio de trial`);
-        const fechaAhora = getRDDate().toISOString();
-        negociosSinFechaInicio.forEach(n => {
-            db.prepare('UPDATE negocios SET licencia_fecha_inicio = ? WHERE id = ?')
-                .run(fechaAhora, n.id);
-        });
-    }
-    
-    limpiarVentasAntiguas();
-    
-    // Agregar columna imagen a servicios
-    const serviciosColumns = db.prepare("PRAGMA table_info(servicios)").all();
-    const hasImagen = serviciosColumns.some(c => c.name === 'imagen');
-    if (!hasImagen) {
-        db.exec('ALTER TABLE servicios ADD COLUMN imagen TEXT');
-    }
-    
-    // Agregar columna subtipo a estado_resultado_items
-    const erColumns = db.prepare("PRAGMA table_info(estado_resultado_items)").all();
-    const hasSubtipo = erColumns.some(c => c.name === 'subtipo');
-    if (!hasSubtipo) {
-        db.exec('ALTER TABLE estado_resultado_items ADD COLUMN subtipo TEXT');
-        db.exec("UPDATE estado_resultado_items SET subtipo = 'costo' WHERE tipo = 'gasto' AND categoria IN ('costo_ventas', 'gastos_operativos', 'otros_gastos')");
-        db.exec("UPDATE estado_resultado_items SET subtipo = 'gasto' WHERE tipo = 'gasto' AND categoria = 'gastos_personales'");
-    }
-    
-    // Agregar columnas subtotal, itbis, descuento
-    const hasSubtotal = erColumns.some(c => c.name === 'subtotal');
-    if (!hasSubtotal) {
-        db.exec('ALTER TABLE estado_resultado_items ADD COLUMN subtotal REAL DEFAULT 0');
-        db.exec('ALTER TABLE estado_resultado_items ADD COLUMN itbis REAL DEFAULT 0');
-        db.exec('ALTER TABLE estado_resultado_items ADD COLUMN descuento REAL DEFAULT 0');
-    }
-
-    // Agregar columnas cuadre_id, metodo_pago, hora a estado_resultado_items
-    const erColumnsUpdated = db.prepare("PRAGMA table_info(estado_resultado_items)").all();
-    if (!erColumnsUpdated.some(c => c.name === 'cuadre_id')) {
-        db.exec('ALTER TABLE estado_resultado_items ADD COLUMN cuadre_id INTEGER');
-        console.log('Columna cuadre_id agregada a estado_resultado_items.');
-    }
-    if (!erColumnsUpdated.some(c => c.name === 'metodo_pago')) {
-        db.exec("ALTER TABLE estado_resultado_items ADD COLUMN metodo_pago TEXT DEFAULT 'efectivo'");
-        console.log('Columna metodo_pago agregada a estado_resultado_items.');
-    }
-    if (!erColumnsUpdated.some(c => c.name === 'hora')) {
-        db.exec("ALTER TABLE estado_resultado_items ADD COLUMN hora TEXT");
-        console.log('Columna hora agregada a estado_resultado_items.');
-    }
-    
-    // Verificar si la categoría gastos_personales está permitida (si no, recrear la tabla)
-    try {
-        db.exec("INSERT INTO estado_resultado_items (negocio_id, tipo, categoria, descripcion, monto, fecha) VALUES (999, 'gasto', 'gastos_personales', 'test', 1, '2024-01-01')");
-        db.exec("DELETE FROM estado_resultado_items WHERE negocio_id = 999");
-    } catch (e) {
-        if (e.message.includes('CHECK constraint')) {
-            console.log('Reconstruyendo tabla estado_resultado_items para soportar gastos_personales...');
-            // Limpiar tabla temporal si existe de intento anterior fallido
-            db.exec("DROP TABLE IF EXISTS estado_resultado_items_new");
-            db.exec(`
-                CREATE TABLE estado_resultado_items_new (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    negocio_id INTEGER NOT NULL,
-                    tipo TEXT NOT NULL,
-                    subtipo TEXT,
-                    categoria TEXT NOT NULL,
-                    descripcion TEXT NOT NULL,
-                    subtotal REAL DEFAULT 0,
-                    itbis REAL DEFAULT 0,
-                    descuento REAL DEFAULT 0,
-                    monto REAL NOT NULL DEFAULT 0,
-                    metodo_pago TEXT DEFAULT 'efectivo',
-                    cuadre_id INTEGER,
-                    hora TEXT,
-                    fecha TEXT NOT NULL,
-                    notas TEXT,
-                    created_at TEXT DEFAULT CURRENT_TIMESTAMP
-                );
-                INSERT INTO estado_resultado_items_new (id, negocio_id, tipo, subtipo, categoria, descripcion, subtotal, itbis, descuento, monto, metodo_pago, cuadre_id, hora, fecha, notas, created_at)
-                SELECT id, negocio_id, tipo, subtipo, categoria, descripcion, subtotal, itbis, descuento, monto, metodo_pago, cuadre_id, hora, fecha, notas, created_at FROM estado_resultado_items;
-                DROP TABLE estado_resultado_items;
-                ALTER TABLE estado_resultado_items_new RENAME TO estado_resultado_items;
-            `);
-        }
-    }
-    
-    // Agregar columna banco a ventas
-    const ventasCols = db.prepare("PRAGMA table_info(ventas)").all();
-    if (!ventasCols.some(c => c.name === 'banco')) {
-        db.exec('ALTER TABLE ventas ADD COLUMN banco TEXT');
-    }
-    
-    // Migración: Agregar campos e-CF a tabla ventas
-    const ventasColsECF = db.prepare("PRAGMA table_info(ventas)").all();
-    const ventasColNames = ventasColsECF.map(c => c.name);
-    
-    if (!ventasColNames.includes('tipo_ecf')) {
-        db.exec("ALTER TABLE ventas ADD COLUMN tipo_ecf TEXT DEFAULT '31'");
-        console.log('Columna tipo_ecf agregada a ventas.');
-    }
-    if (!ventasColNames.includes('secuencia_ecf')) {
-        db.exec("ALTER TABLE ventas ADD COLUMN secuencia_ecf TEXT");
-        console.log('Columna secuencia_ecf agregada a ventas.');
-    }
-    if (!ventasColNames.includes('codigo_seguridad')) {
-        db.exec("ALTER TABLE ventas ADD COLUMN codigo_seguridad TEXT");
-        console.log('Columna codigo_seguridad agregada a ventas.');
-    }
-    if (!ventasColNames.includes('track_id')) {
-        db.exec("ALTER TABLE ventas ADD COLUMN track_id TEXT");
-        console.log('Columna track_id agregada a ventas.');
-    }
-    if (!ventasColNames.includes('xml_generado')) {
-        db.exec("ALTER TABLE ventas ADD COLUMN xml_generado TEXT");
-        console.log('Columna xml_generado agregada a ventas.');
-    }
-    if (!ventasColNames.includes('estado_dgii')) {
-        db.exec("ALTER TABLE ventas ADD COLUMN estado_dgii TEXT DEFAULT 'pendiente'");
-        console.log('Columna estado_dgii agregada a ventas.');
-    }
-    if (!ventasColNames.includes('subtotal')) {
-        db.exec("ALTER TABLE ventas ADD COLUMN subtotal REAL DEFAULT 0");
-        console.log('Columna subtotal agregada a ventas.');
-    }
-    if (!ventasColNames.includes('itbis')) {
-        db.exec("ALTER TABLE ventas ADD COLUMN itbis REAL DEFAULT 0");
-        console.log('Columna itbis agregada a ventas.');
-    }
-    if (!ventasColNames.includes('origen_modulo')) {
-        db.exec("ALTER TABLE ventas ADD COLUMN origen_modulo TEXT DEFAULT 'pos'");
-        console.log('Columna origen_modulo agregada a ventas.');
-    }
-    if (!ventasColNames.includes('origen_id')) {
-        db.exec("ALTER TABLE ventas ADD COLUMN origen_id INTEGER");
-        console.log('Columna origen_id agregada a ventas.');
-    }
-    
-    // Crear tabla certificados_dgii si no existe
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS certificados_dgii (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            negocio_id INTEGER NOT NULL UNIQUE,
-            alias TEXT NOT NULL,
-            rnc_negocio TEXT NOT NULL,
-            archivo_p12_path TEXT NOT NULL,
-            pin_encriptado TEXT NOT NULL,
-            fecha_vencimiento TEXT,
-            estado TEXT DEFAULT 'activo',
-            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-            FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-        )
-    `);
-    
-    // Migración: Agregar campos RNC a negocios
-    const negociosCols = db.prepare("PRAGMA table_info(negocios)").all();
-    const negociosColNames = negociosCols.map(c => c.name);
-    
-    if (!negociosColNames.includes('rnc')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN rnc TEXT");
-        console.log('Columna rnc agregada a negocios.');
-    }
-    if (!negociosColNames.includes('nombre_legal')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN nombre_legal TEXT");
-        console.log('Columna nombre_legal agregada a negocios.');
-    }
-    if (!negociosColNames.includes('logo_url')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN logo_url TEXT");
-        console.log('Columna logo_url agregada a negocios.');
-    }
-    if (!negociosColNames.includes('regimen_itbis')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN regimen_itbis TEXT DEFAULT 'incluido'");
-        console.log('Columna regimen_itbis agregada a negocios.');
-    }
-    if (!negociosColNames.includes('estado_dgii')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN estado_dgii TEXT DEFAULT 'no_inscrito'");
-        console.log('Columna estado_dgii agregada a negocios.');
-    }
-    if (!negociosColNames.includes('certificado_path')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN certificado_path TEXT");
-        console.log('Columna certificado_path agregada a negocios.');
-    }
-    if (!negociosColNames.includes('certificado_pass')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN certificado_pass TEXT");
-        console.log('Columna certificado_pass agregada a negocios.');
-    }
-    if (!negociosColNames.includes('ambiente_dgii')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN ambiente_dgii TEXT DEFAULT 'certificacion'");
-        console.log('Columna ambiente_dgii agregada a negocios.');
-    }
-    if (!negociosColNames.includes('cert_vencimiento')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN cert_vencimiento TEXT");
-        console.log('Columna cert_vencimiento agregada a negocios.');
-    }
-    if (!negociosColNames.includes('cert_sujeto')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN cert_sujeto TEXT");
-        console.log('Columna cert_sujeto agregada a negocios.');
-    }
-    
-    // Migración: Agregar documento y tipo_documento a clientes
-    const clientesCols = db.prepare("PRAGMA table_info(clientes)").all();
-    const clientesColNames = clientesCols.map(c => c.name);
-    
-    if (!clientesColNames.includes('documento')) {
-        db.exec("ALTER TABLE clientes ADD COLUMN documento TEXT");
-        console.log('Columna documento agregada a clientes.');
-    }
-    if (!clientesColNames.includes('tipo_documento')) {
-        db.exec("ALTER TABLE clientes ADD COLUMN tipo_documento TEXT");
-        console.log('Columna tipo_documento agregada a clientes.');
-    }
-    
-    // Crear tabla secuencias_ncf si no existe
-    db.exec(`
-        CREATE TABLE IF NOT EXISTS secuencias_ncf (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            negocio_id INTEGER NOT NULL,
-            tipo_comprobante TEXT NOT NULL,
-            prefijo TEXT NOT NULL,
-            secuencia_actual INTEGER DEFAULT 0,
-            fecha_ultima_emision TEXT,
-            estado TEXT DEFAULT 'activo',
-            FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-            UNIQUE(negocio_id, tipo_comprobante)
-        )
-    `);
-
-    // ── Migracion Fiscal v1: estado_resultado_items (egresos) ────────────────
-    // ncf_suplidor : NCF del proveedor — permite compensar ITBIS en compras.
-    // itbis_pagado : ITBIS real pagado al suplidor (distinto del campo 'itbis'
-    //               que ya existia y refleja el ITBIS del documento completo).
-    // tipo_gasto   : Clasifica el egreso para reportes de compensacion DGII.
-    //               Valores validos: 'insumo' | 'fijo' | 'personal'
-    //               (CHECK aplicado en capa de rutas; SQLite no admite CHECK en ALTER TABLE)
-    const erFiscalCols = db.prepare("PRAGMA table_info(estado_resultado_items)").all();
-    const erFiscalColNames = erFiscalCols.map(c => c.name);
-
-    if (!erFiscalColNames.includes('ncf_suplidor')) {
-        db.exec("ALTER TABLE estado_resultado_items ADD COLUMN ncf_suplidor TEXT DEFAULT NULL");
-        console.log('Columna ncf_suplidor agregada a estado_resultado_items.');
-    }
-    if (!erFiscalColNames.includes('itbis_pagado')) {
-        db.exec("ALTER TABLE estado_resultado_items ADD COLUMN itbis_pagado REAL DEFAULT 0");
-        console.log('Columna itbis_pagado agregada a estado_resultado_items.');
-    }
-    if (!erFiscalColNames.includes('tipo_gasto')) {
-        db.exec("ALTER TABLE estado_resultado_items ADD COLUMN tipo_gasto TEXT DEFAULT NULL");
-        console.log('Columna tipo_gasto agregada a estado_resultado_items.');
-    }
-
-    // ── Migracion Fiscal v1: servicios ───────────────────────────────────────
-    // itbis_tasa           : Tasa ITBIS especifica del servicio (default 18).
-    //                        Permite servicios exentos (0) o con tasa reducida (16).
-    // costo_insumo_estimado: Costo estimado de insumos consumidos al prestar
-    //                        el servicio — base para calcular margen real.
-    const serviciosFiscalCols = db.prepare("PRAGMA table_info(servicios)").all();
-    const serviciosFiscalColNames = serviciosFiscalCols.map(c => c.name);
-
-    if (!serviciosFiscalColNames.includes('itbis_tasa')) {
-        db.exec("ALTER TABLE servicios ADD COLUMN itbis_tasa INTEGER DEFAULT 18");
-        console.log('Columna itbis_tasa agregada a servicios.');
-    }
-    if (!serviciosFiscalColNames.includes('costo_insumo_estimado')) {
-        db.exec("ALTER TABLE servicios ADD COLUMN costo_insumo_estimado REAL DEFAULT 0");
-        console.log('Columna costo_insumo_estimado agregada a servicios.');
-    }
-
-    // ── Migracion Fiscal v1: venta_detalles ──────────────────────────────────
-    // itbis_monto: ITBIS calculado y congelado por linea en el momento exacto
-    //             de la venta. Si la tasa del servicio cambia en el futuro,
-    //             las facturas historicas conservan el valor original.
-    const ventaDetFiscalCols = db.prepare("PRAGMA table_info(venta_detalles)").all();
-    const ventaDetFiscalColNames = ventaDetFiscalCols.map(c => c.name);
-
-    if (!ventaDetFiscalColNames.includes('itbis_monto')) {
-        db.exec("ALTER TABLE venta_detalles ADD COLUMN itbis_monto REAL DEFAULT 0");
-        console.log('Columna itbis_monto agregada a venta_detalles.');
-    }
-
-    // ── Migracion Fiscal v2: notas_credito ──────────────────────────────────
-    // Tabla para Notas de Credito (34) y Debito (33) referenciando ventas originales
-    const notasCols = db.prepare("PRAGMA table_info(notas_credito)").all();
-    if (notasCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS notas_credito (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                user_id INTEGER,
-                venta_original_id INTEGER NOT NULL,
-                tipo_nota TEXT NOT NULL CHECK(tipo_nota IN ('33', '34')),
-                secuencia_ecf TEXT NOT NULL,
-                codigo_seguridad TEXT NOT NULL,
-                monto REAL NOT NULL,
-                motivo TEXT NOT NULL,
-                estado_dgii TEXT DEFAULT 'pendiente',
-                xml_path TEXT,
-                fecha TEXT NOT NULL,
-                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-                FOREIGN KEY (venta_original_id) REFERENCES ventas(id)
-            )
-        `);
-        console.log('Tabla notas_credito creada.');
-    }
-
-    // ── Migracion v3: productos (inventario) ────────────────────────────────
-    const prodCols = db.prepare("PRAGMA table_info(productos)").all();
-    if (prodCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS productos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                nombre TEXT NOT NULL,
-                descripcion TEXT,
-                precio REAL NOT NULL,
-                costo REAL DEFAULT 0,
-                stock INTEGER DEFAULT 0,
-                stock_minimo INTEGER DEFAULT 5,
-                codigo_barras TEXT,
-                categoria TEXT,
-                itbis_tasa INTEGER DEFAULT 18,
-                estado TEXT DEFAULT 'activo',
-                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-            )
-        `);
-        console.log('Tabla productos creada.');
-    }
-
-    // ── Migracion v3: movimientos_inventario ────────────────────────────────
-    const movCols = db.prepare("PRAGMA table_info(movimientos_inventario)").all();
-    if (movCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS movimientos_inventario (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                producto_id INTEGER NOT NULL,
-                tipo TEXT NOT NULL CHECK(tipo IN ('entrada', 'salida', 'ajuste', 'venta')),
-                cantidad INTEGER NOT NULL,
-                costo_unitario REAL DEFAULT 0,
-                referencia TEXT,
-                user_id INTEGER,
-                fecha TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-                FOREIGN KEY (producto_id) REFERENCES productos(id)
-            )
-        `);
-        console.log('Tabla movimientos_inventario creada.');
-    }
-
-    // ── Migracion v7: tipo_negocio ──────────────────────────────────────────
-    const tipoNegCols = db.prepare("PRAGMA table_info(negocios)").all();
-    const tipoNegColNames = tipoNegCols.map(c => c.name);
-    if (!tipoNegColNames.includes('tipo_negocio')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN tipo_negocio TEXT DEFAULT 'ambos' CHECK(tipo_negocio IN ('servicios', 'comida', 'ambos'))");
-        console.log('Columna tipo_negocio agregada a negocios.');
-    }
-    if (!tipoNegColNames.includes('whatsapp_negocio')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN whatsapp_negocio TEXT");
-        console.log('Columna whatsapp_negocio agregada a negocios.');
-    }
-
-    // ── Migracion v3: venta_detalles puede incluir productos ────────────────
-    const vdProdCols = db.prepare("PRAGMA table_info(venta_detalles)").all();
-    const vdProdColNames = vdProdCols.map(c => c.name);
-    if (!vdProdColNames.includes('menu_item_id')) {
-        db.exec("ALTER TABLE venta_detalles ADD COLUMN menu_item_id INTEGER REFERENCES menu_items(id)");
-        console.log('Columna menu_item_id agregada a venta_detalles.');
-    }
-    if (!vdProdColNames.includes('producto_id')) {
-        db.exec("ALTER TABLE venta_detalles ADD COLUMN producto_id INTEGER REFERENCES productos(id)");
-        console.log('Columna producto_id agregada a venta_detalles.');
-    }
-    if (!vdProdColNames.includes('tipo_item')) {
-        db.exec("ALTER TABLE venta_detalles ADD COLUMN tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto', 'menu'))");
-        console.log('Columna tipo_item agregada a venta_detalles.');
-    }
-    if (!vdProdColNames.includes('tipo_item')) {
-        db.exec("ALTER TABLE venta_detalles ADD COLUMN tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto'))");
-        console.log('Columna tipo_item agregada a venta_detalles.');
-    }
-
-    // ── Migracion v3: comisiones ────────────────────────────────────────────
-    const comCols = db.prepare("PRAGMA table_info(comisiones)").all();
-    if (comCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS comisiones (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                user_id INTEGER NOT NULL,
-                venta_id INTEGER,
-                monto_base REAL NOT NULL,
-                porcentaje REAL NOT NULL,
-                monto_comision REAL NOT NULL,
-                fecha TEXT NOT NULL,
-                estado TEXT DEFAULT 'pendiente' CHECK(estado IN ('pendiente', 'pagada')),
-                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-                FOREIGN KEY (user_id) REFERENCES usuarios(id)
-            )
-        `);
-        console.log('Tabla comisiones creada.');
-    }
-
-    // ── Migracion v3b: detalle_id en comisiones ─────────────────────────────
-    const comisionCols = db.prepare("PRAGMA table_info(comisiones)").all().map(c => c.name);
-    if (!comisionCols.includes('detalle_id')) {
-        db.exec('ALTER TABLE comisiones ADD COLUMN detalle_id INTEGER');
-        console.log('Columna detalle_id agregada a comisiones.');
-    }
-
-    // ── Migracion v3: chatbot ───────────────────────────────────────────────
-    const chatCols = db.prepare("PRAGMA table_info(chatbot_reglas)").all();
-    if (chatCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS chatbot_reglas (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                palabra_clave TEXT NOT NULL,
-                respuesta TEXT NOT NULL,
-                activa INTEGER DEFAULT 1,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-            )
-        `);
-        console.log('Tabla chatbot_reglas creada.');
-    }
-    const chatMsgCols = db.prepare("PRAGMA table_info(chatbot_mensajes)").all();
-    if (chatMsgCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS chatbot_mensajes (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                cliente_id INTEGER,
-                mensaje TEXT NOT NULL,
-                origen TEXT DEFAULT 'cliente' CHECK(origen IN ('cliente', 'bot')),
-                regla_id INTEGER,
-                fecha TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-                FOREIGN KEY (cliente_id) REFERENCES clientes(id)
-            )
-        `);
-        console.log('Tabla chatbot_mensajes creada.');
-    }
-
-    // ── Migracion v5: log_auditoria ─────────────────────────────────────────
-    const auditCols = db.prepare("PRAGMA table_info(log_auditoria)").all();
-    if (auditCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS log_auditoria (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                user_id INTEGER,
-                accion TEXT NOT NULL,
-                tabla TEXT,
-                registro_id INTEGER,
-                detalle TEXT,
-                ip TEXT,
-                user_agent TEXT,
-                fecha TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-                FOREIGN KEY (user_id) REFERENCES usuarios(id)
-            )
-        `);
-        console.log('Tabla log_auditoria creada.');
-    }
-
-    // ── Migracion v5: puntos_lealtad ────────────────────────────────────────
-    const loyaltyCols = db.prepare("PRAGMA table_info(puntos_lealtad)").all();
-    if (loyaltyCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS puntos_lealtad (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                cliente_id INTEGER NOT NULL,
-                puntos INTEGER DEFAULT 0,
-                nivel TEXT DEFAULT 'bronce' CHECK(nivel IN ('bronce', 'plata', 'oro', 'platino')),
-                ultima_actividad TEXT,
-                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-                FOREIGN KEY (cliente_id) REFERENCES clientes(id),
-                UNIQUE(negocio_id, cliente_id)
-            )
-        `);
-        console.log('Tabla puntos_lealtad creada.');
-    }
-
-    // ── Migracion v5: historial_puntos ──────────────────────────────────────
-    const histPtsCols = db.prepare("PRAGMA table_info(historial_puntos)").all();
-    if (histPtsCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS historial_puntos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                cliente_id INTEGER NOT NULL,
-                puntos INTEGER NOT NULL,
-                tipo TEXT NOT NULL CHECK(tipo IN ('ganado', 'canjeado', 'ajuste')),
-                referencia TEXT,
-                fecha TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-                FOREIGN KEY (cliente_id) REFERENCES clientes(id)
-            )
-        `);
-        console.log('Tabla historial_puntos creada.');
-    }
-
-    // ── Migracion v5: horario_negocio ───────────────────────────────────────
-    const horarioCols = db.prepare("PRAGMA table_info(horario_negocio)").all();
-    if (horarioCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS horario_negocio (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL UNIQUE,
-                lunes_apertura TEXT DEFAULT '09:00',
-                lunes_cierre TEXT DEFAULT '18:00',
-                lunes_activo INTEGER DEFAULT 1,
-                martes_apertura TEXT DEFAULT '09:00',
-                martes_cierre TEXT DEFAULT '18:00',
-                martes_activo INTEGER DEFAULT 1,
-                miercoles_apertura TEXT DEFAULT '09:00',
-                miercoles_cierre TEXT DEFAULT '18:00',
-                miercoles_activo INTEGER DEFAULT 1,
-                jueves_apertura TEXT DEFAULT '09:00',
-                jueves_cierre TEXT DEFAULT '18:00',
-                jueves_activo INTEGER DEFAULT 1,
-                viernes_apertura TEXT DEFAULT '09:00',
-                viernes_cierre TEXT DEFAULT '18:00',
-                viernes_activo INTEGER DEFAULT 1,
-                sabado_apertura TEXT DEFAULT '09:00',
-                sabado_cierre TEXT DEFAULT '18:00',
-                sabado_activo INTEGER DEFAULT 1,
-                domingo_apertura TEXT DEFAULT '09:00',
-                domingo_cierre TEXT DEFAULT '18:00',
-                domingo_activo INTEGER DEFAULT 0,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-            )
-        `);
-        console.log('Tabla horario_negocio creada.');
-    }
-
-    // ── Migracion v5: sucursales ────────────────────────────────────────────
-    const sucCols = db.prepare("PRAGMA table_info(sucursales)").all();
-    if (sucCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS sucursales (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                nombre TEXT NOT NULL,
-                direccion TEXT,
-                telefono TEXT,
-                activa INTEGER DEFAULT 1,
-                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-            )
-        `);
-        console.log('Tabla sucursales creada.');
-    }
-
-    // ── Migracion v5: clientes.sucursal_id y clientes.puntos ────────────────
-    const cliNewCols = db.prepare("PRAGMA table_info(clientes)").all();
-    const cliNewColNames = cliNewCols.map(c => c.name);
-    if (!cliNewColNames.includes('sucursal_id')) {
-        db.exec("ALTER TABLE clientes ADD COLUMN sucursal_id INTEGER REFERENCES sucursales(id)");
-        console.log('Columna sucursal_id agregada a clientes.');
-    }
-    if (!cliNewColNames.includes('puntos')) {
-        db.exec("ALTER TABLE clientes ADD COLUMN puntos INTEGER DEFAULT 0");
-        console.log('Columna puntos agregada a clientes.');
-    }
-    if (!cliNewColNames.includes('nivel_lealtad')) {
-        db.exec("ALTER TABLE clientes ADD COLUMN nivel_lealtad TEXT DEFAULT 'bronce'");
-        console.log('Columna nivel_lealtad agregada a clientes.');
-    }
-
-    // ── Migracion v6: Menu Digital y Pedidos ────────────────────────────────
-    // Fix: Rebuild venta_detalles to include 'menu' in tipo_item CHECK constraint
-    // ALTER TABLE cannot modify CHECK constraints in SQLite
-    const vdCheckCols = db.prepare("PRAGMA table_info(venta_detalles)").all();
-    const vdCheckColNames = vdCheckCols.map(c => c.name);
-    const hasMenuItem = vdCheckColNames.includes('menu_item_id');
-    const hasTipoItem = vdCheckColNames.includes('tipo_item');
-    const hasProductoId = vdCheckColNames.includes('producto_id');
-    
-    // Always rebuild if tipo_item exists — we can't check the constraint text
-    // via PRAGMA, and the old constraint lacks 'menu'
-    if (hasTipoItem) {
-        try {
-            // Test if 'menu' is accepted
-            db.exec("INSERT INTO venta_detalles (venta_id, tipo_item, cantidad, precio, subtotal) VALUES (0, 'menu', 0, 0, 0)");
-            db.exec("DELETE FROM venta_detalles WHERE venta_id = 0 AND tipo_item = 'menu'");
-        } catch (e) {
-            // Constraint doesn't allow 'menu' — rebuild table
-            try {
-                db.exec(`
-                    CREATE TABLE venta_detalles_new (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        venta_id INTEGER NOT NULL,
-                        servicio_id INTEGER DEFAULT NULL,
-                        producto_id INTEGER DEFAULT NULL,
-                        menu_item_id INTEGER DEFAULT NULL,
-                        tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto', 'menu')),
-                        cantidad INTEGER DEFAULT 1,
-                        precio REAL NOT NULL,
-                        subtotal REAL NOT NULL,
-                        itbis_monto REAL DEFAULT 0
-                    )
-                `);
-                db.exec(`
-                    INSERT INTO venta_detalles_new (id, venta_id, servicio_id, producto_id, menu_item_id, tipo_item, cantidad, precio, subtotal, itbis_monto)
-                    SELECT id, venta_id, servicio_id, producto_id, NULL, tipo_item, cantidad, precio, subtotal, itbis_monto
-                    FROM venta_detalles
-                `);
-                db.exec('DROP TABLE venta_detalles');
-                db.exec('ALTER TABLE venta_detalles_new RENAME TO venta_detalles');
-                console.log('Tabla venta_detalles reconstruida con CHECK actualizado.');
-            } catch (e2) {
-                console.error('Error reconstruyendo venta_detalles:', e2.message);
-            }
-        }
-    }
-    
-    if (!hasMenuItem) {
-        try { db.exec("ALTER TABLE venta_detalles ADD COLUMN menu_item_id INTEGER REFERENCES menu_items(id)"); console.log('menu_item_id added.'); } catch(e) {}
-    }
-    if (!hasProductoId) {
-        try { db.exec("ALTER TABLE venta_detalles ADD COLUMN producto_id INTEGER REFERENCES productos(id)"); console.log('producto_id added.'); } catch(e) {}
-    }
-    if (!hasTipoItem) {
-        try { db.exec("ALTER TABLE venta_detalles ADD COLUMN tipo_item TEXT DEFAULT 'servicio' CHECK(tipo_item IN ('servicio', 'producto', 'menu'))"); console.log('tipo_item added.'); } catch(e) {}
-    }
-
-    // Menu categorias
-    const menuCatCols = db.prepare("PRAGMA table_info(menu_categorias)").all();
-    if (menuCatCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS menu_categorias (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                nombre TEXT NOT NULL,
-                orden INTEGER DEFAULT 0,
-                activa INTEGER DEFAULT 1,
-                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-            )
-        `);
-        console.log('Tabla menu_categorias creada.');
-    }
-
-    const menuItemCols = db.prepare("PRAGMA table_info(menu_items)").all();
-    if (menuItemCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS menu_items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                categoria_id INTEGER NOT NULL,
-                nombre TEXT NOT NULL,
-                descripcion TEXT,
-                precio REAL NOT NULL,
-                imagen TEXT,
-                disponible INTEGER DEFAULT 1,
-                destacado INTEGER DEFAULT 0,
-                itbis_tasa INTEGER DEFAULT 18,
-                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-                FOREIGN KEY (categoria_id) REFERENCES menu_categorias(id)
-            )
-        `);
-        console.log('Tabla menu_items creada.');
-    }
-
-    const pedidoCols = db.prepare("PRAGMA table_info(pedidos)").all();
-    if (pedidoCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS pedidos (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                cliente_nombre TEXT NOT NULL,
-                cliente_telefono TEXT,
-                cliente_direccion TEXT,
-                cliente_ubicacion TEXT,
-                tipo_entrega TEXT DEFAULT 'domicilio' CHECK(tipo_entrega IN ('domicilio', 'retiro')),
-                costo_envio REAL DEFAULT 0,
-                subtotal REAL NOT NULL,
-                descuento REAL DEFAULT 0,
-                itbis REAL DEFAULT 0,
-                total REAL NOT NULL,
-                estado TEXT DEFAULT 'pendiente' CHECK(estado IN ('pendiente', 'confirmado', 'preparando', 'listo', 'entregado', 'cancelado')),
-                notas TEXT,
-                venta_id INTEGER,
-                fecha TEXT DEFAULT CURRENT_TIMESTAMP,
-                fecha_creacion TEXT DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-                FOREIGN KEY (venta_id) REFERENCES ventas(id)
-            )
-        `);
-        console.log('Tabla pedidos creada.');
-    }
-
-    const pedidoItemCols = db.prepare("PRAGMA table_info(pedidos_items)").all();
-    if (pedidoItemCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS pedidos_items (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                pedido_id INTEGER NOT NULL,
-                menu_item_id INTEGER NOT NULL,
-                nombre_item TEXT NOT NULL,
-                cantidad INTEGER NOT NULL DEFAULT 1,
-                precio REAL NOT NULL,
-                subtotal REAL NOT NULL,
-                FOREIGN KEY (pedido_id) REFERENCES pedidos(id),
-                FOREIGN KEY (menu_item_id) REFERENCES menu_items(id)
-            )
-        `);
-        console.log('Tabla pedidos_items creada.');
-    }
-
-    // Fix: Add cliente_id and descuento to pedidos if missing
-    const pedidoFixCols = db.prepare("PRAGMA table_info(pedidos)").all();
-    const pedidoFixColNames = pedidoFixCols.map(c => c.name);
-    if (!pedidoFixColNames.includes('cliente_id')) {
-        db.exec("ALTER TABLE pedidos ADD COLUMN cliente_id INTEGER REFERENCES clientes(id)");
-        console.log('Columna cliente_id agregada a pedidos.');
-    }
-    if (!pedidoFixColNames.includes('descuento')) {
-        db.exec("ALTER TABLE pedidos ADD COLUMN descuento REAL DEFAULT 0");
-        console.log('Columna descuento agregada a pedidos.');
-    }
-    if (!pedidoFixColNames.includes('numero_pedido')) {
-        db.exec("ALTER TABLE pedidos ADD COLUMN numero_pedido INTEGER DEFAULT 0");
-        console.log('Columna numero_pedido agregada a pedidos.');
-    }
-    if (!pedidoFixColNames.includes('fecha_confirmado')) {
-        db.exec("ALTER TABLE pedidos ADD COLUMN fecha_confirmado TEXT");
-        console.log('Columna fecha_confirmado agregada a pedidos.');
-    }
-    if (!pedidoFixColNames.includes('fecha_preparando')) {
-        db.exec("ALTER TABLE pedidos ADD COLUMN fecha_preparando TEXT");
-        console.log('Columna fecha_preparando agregada a pedidos.');
-    }
-    if (!pedidoFixColNames.includes('fecha_listo')) {
-        db.exec("ALTER TABLE pedidos ADD COLUMN fecha_listo TEXT");
-        console.log('Columna fecha_listo agregada a pedidos.');
-    }
-    if (!pedidoFixColNames.includes('fecha_entregado')) {
-        db.exec("ALTER TABLE pedidos ADD COLUMN fecha_entregado TEXT");
-        console.log('Columna fecha_entregado agregada a pedidos.');
-    }
-    if (!pedidoFixColNames.includes('fecha_cancelado')) {
-        db.exec("ALTER TABLE pedidos ADD COLUMN fecha_cancelado TEXT");
-        console.log('Columna fecha_cancelado agregada a pedidos.');
-    }
-    // Always renumber pedidos with numero_pedido=0 on startup (per negocio)
-    const negociosForRenumber = db.prepare('SELECT DISTINCT negocio_id FROM pedidos WHERE numero_pedido = 0').all();
-    negociosForRenumber.forEach(n => {
-        const pedidos = db.prepare('SELECT id FROM pedidos WHERE negocio_id = ? ORDER BY id ASC').all(n.negocio_id);
-        pedidos.forEach((p, idx) => {
-            db.prepare('UPDATE pedidos SET numero_pedido = ? WHERE id = ?').run(idx + 1, p.id);
-        });
-        if (pedidos.length > 0) console.log(`  Renumbered ${pedidos.length} pedidos for negocio ${n.negocio_id}`);
-    });
-
-    // Config delivery en negocios
-    const negDeliveryCols = db.prepare("PRAGMA table_info(negocios)").all();
-    const negDeliveryColNames = negDeliveryCols.map(c => c.name);
-    if (!negDeliveryColNames.includes('delivery_activo')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN delivery_activo INTEGER DEFAULT 0");
-        console.log('Columna delivery_activo agregada a negocios.');
-    }
-    if (!negDeliveryColNames.includes('delivery_costo')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN delivery_costo REAL DEFAULT 0");
-        console.log('Columna delivery_costo agregada a negocios.');
-    }
-    if (!negDeliveryColNames.includes('delivery_tiempo')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN delivery_tiempo INTEGER DEFAULT 30");
-        console.log('Columna delivery_tiempo agregada a negocios.');
-    }
-    if (!negDeliveryColNames.includes('delivery_minimo')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN delivery_minimo REAL DEFAULT 0");
-        console.log('Columna delivery_minimo agregada a negocios.');
-    }
-
-    // ── Migracion v5: negocios.logo ─────────────────────────────────────────
-    const negCols = db.prepare("PRAGMA table_info(negocios)").all();
-    const negColNames = negCols.map(c => c.name);
-    if (!negColNames.includes('logo')) {
-        db.exec("ALTER TABLE negocios ADD COLUMN logo TEXT");
-        console.log('Columna logo agregada a negocios.');
-    }
-
-    // ── Migracion v3: whatsapp_config ───────────────────────────────────────
-    const waCols = db.prepare("PRAGMA table_info(whatsapp_config)").all();
-    if (waCols.length === 0) {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS whatsapp_config (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL UNIQUE,
-                token TEXT,
-                phone_number_id TEXT,
-                activo INTEGER DEFAULT 0,
-                plantilla_recordatorio TEXT DEFAULT 'recordatorio_cita',
-                plantilla_confirmacion TEXT DEFAULT 'confirmacion_cita',
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id)
-            )
-        `);
-        console.log('Tabla whatsapp_config creada.');
-    }
-
-    // ── Migracion v3: usuarios.comision_porcentaje ──────────────────────────
-    const userComCols = db.prepare("PRAGMA table_info(usuarios)").all();
-    const userComColNames = userComCols.map(c => c.name);
-    if (!userComColNames.includes('comision_porcentaje')) {
-        db.exec("ALTER TABLE usuarios ADD COLUMN comision_porcentaje REAL DEFAULT 0");
-        console.log('Columna comision_porcentaje agregada a usuarios.');
-    }
-
-    // ── Migracion v4: servicios.comision_porcentaje ─────────────────────────
-    const svcComCols = db.prepare("PRAGMA table_info(servicios)").all();
-    const svcComColNames = svcComCols.map(c => c.name);
-    if (!svcComColNames.includes('comision_porcentaje')) {
-        db.exec("ALTER TABLE servicios ADD COLUMN comision_porcentaje REAL DEFAULT 0");
-        console.log('Columna comision_porcentaje agregada a servicios.');
-    }
-
-    // ── platform_config (superadmin-editable system info) ──────────────────
-    try {
-        db.exec(`
-            CREATE TABLE IF NOT EXISTS platform_config (
-                id INTEGER PRIMARY KEY CHECK (id = 1),
-                system_name TEXT NOT NULL DEFAULT 'Nexora',
-                version TEXT NOT NULL DEFAULT '1.0.0',
-                edition TEXT NOT NULL DEFAULT 'Pro',
-                copyright_year INTEGER NOT NULL DEFAULT 2026,
-                show_footer INTEGER NOT NULL DEFAULT 1,
-                custom_text TEXT DEFAULT ''
-            )
-        `);
-        const existing = db.prepare('SELECT id FROM platform_config WHERE id = 1').get();
-        if (!existing) {
-            db.prepare(
-                'INSERT INTO platform_config (id, system_name, version, edition, copyright_year, show_footer, custom_text) VALUES (1, ?, ?, ?, ?, 1, ?)'
-            ).run('Nexora', '1.0.0', 'Pro', new Date().getFullYear(), '');
-        }
-    } catch (e) { console.error('Error init platform_config:', e.message); }
-
-    console.log('Base de datos inicializada');
-    return db;
+    return id;
 }
 
-function limpiarVentasAntiguas() {
-    try {
-        const hace30Dias = getRDDate();
-        hace30Dias.setDate(hace30Dias.getDate() - 30);
-        const fechaLimite = getRDDateString(hace30Dias);
-        
-        const ventasAntiguas = db.prepare(`
-            SELECT id FROM ventas WHERE fecha < ?
-        `).all(fechaLimite);
-        
-        if (ventasAntiguas.length > 0) {
-            const placeholders = ventasAntiguas.map(() => '?').join(',');
-            const idsAntiguos = ventasAntiguas.map(v => v.id);
-            
-            db.prepare(`DELETE FROM venta_detalles WHERE venta_id IN (${placeholders})`).run(...idsAntiguos);
-            db.prepare(`DELETE FROM ventas WHERE fecha < ?`).run(fechaLimite);
-            
-            console.log(`Limpiadas ${ventasAntiguas.length} ventas antiguas (>30 días)`);
-        }
-    } catch (error) {
-        console.error('Error limpiando ventas antiguas:', error);
+async function connectDB() {
+    if (isConnected && mongoose.connection.readyState === 1) {
+        return mongoose.connection;
+    }
+
+    const uri = process.env.MONGODB_URI;
+    if (!uri) {
+        throw new Error('MONGODB_URI no configurada en variables de entorno');
+    }
+
+    await mongoose.connect(uri, {
+        dbName: 'nexora_pos',
+        serverSelectionTimeoutMS: 10000,
+        socketTimeoutMS: 45000,
+    });
+
+    isConnected = true;
+    console.log('✅ MongoDB conectado (db: nexora_pos)');
+    return mongoose.connection;
+}
+
+async function disconnectDB() {
+    if (isConnected) {
+        await mongoose.disconnect();
+        isConnected = false;
+        console.log('MongoDB desconectado');
     }
 }
 
 function getDb() {
-    if (!db) {
-        return initDatabase();
-    }
-    return db;
+    return mongoose.connection;
 }
 
-function getLicenciaNegocio(negocioId) {
+// Helper para convertir ObjectId de MongoDB a numero (para compatibilidad con frontend)
+function toPlainId(doc) {
+    if (!doc) return null;
+    const obj = doc.toObject ? doc.toObject() : { ...doc };
+    if (obj._id !== undefined) {
+        obj.id = typeof obj._id === 'object' ? obj._id.toString() : obj._id;
+        delete obj._id;
+    }
+    return obj;
+}
+
+function toPlainArray(docs) {
+    return docs.map(toPlainId).filter(Boolean);
+}
+
+// ── Funciones de licencia ─────────────────────────────────────────────────
+
+async function getLicenciaNegocio(negocioId) {
     try {
-        const negocio = db.prepare(`
-            SELECT licencia_plan, licencia_fecha_inicio, licencia_fecha_expiracion, licencia_hardware_id
-            FROM negocios WHERE id = ?
-        `).get(negocioId);
-        
+        const db = getDb();
+        const normalizedId = normalizeId(negocioId);
+        const negocio = await db.collection('negocios').findOne(
+            { _id: normalizedId },
+            { projection: { licencia_plan: 1, licencia_fecha_inicio: 1, licencia_fecha_expiracion: 1, licencia_hardware_id: 1 } }
+        );
         if (!negocio) return null;
-        
         return {
             plan: negocio.licencia_plan,
             fechaInicio: negocio.licencia_fecha_inicio,
@@ -1069,19 +84,18 @@ function getLicenciaNegocio(negocioId) {
     }
 }
 
-function iniciarTrialNegocio(negocioId) {
+async function iniciarTrialNegocio(negocioId) {
     try {
-        const licencia = getLicenciaNegocio(negocioId);
-        
+        const licencia = await getLicenciaNegocio(negocioId);
         if (licencia && licencia.fechaInicio) {
             return licencia.fechaInicio;
         }
-        
         const fechaInicio = getRDDate().toISOString();
-        db.prepare(`
-            UPDATE negocios SET licencia_fecha_inicio = ? WHERE id = ?
-        `).run(fechaInicio, negocioId);
-        
+        const db = getDb();
+        await db.collection('negocios').updateOne(
+            { _id: normalizeId(negocioId) },
+            { $set: { licencia_fecha_inicio: fechaInicio } }
+        );
         return fechaInicio;
     } catch (error) {
         console.error('Error iniciarTrialNegocio:', error);
@@ -1089,23 +103,27 @@ function iniciarTrialNegocio(negocioId) {
     }
 }
 
-function activarLicenciaNegocio(negocioId, plan, dias, hardwareId) {
+async function activarLicenciaNegocio(negocioId, plan, dias, hardwareId) {
     try {
         const fechaInicio = getRDDate();
-        const fechaExpiracion = getRDDate();
+        const fechaExpiracion = new Date(fechaInicio);
         fechaExpiracion.setDate(fechaExpiracion.getDate() + dias);
-        
-        db.prepare(`
-            UPDATE negocios SET 
-                licencia_plan = ?,
-                licencia_fecha_inicio = ?,
-                licencia_fecha_expiracion = ?,
-                licencia_hardware_id = ?
-            WHERE id = ?
-        `).run(plan, fechaInicio.toISOString(), fechaExpiracion.toISOString(), hardwareId, negocioId);
-        
+
+        const db = getDb();
+        await db.collection('negocios').updateOne(
+            { _id: normalizeId(negocioId) },
+            {
+                $set: {
+                    licencia_plan: plan,
+                    licencia_fecha_inicio: fechaInicio.toISOString(),
+                    licencia_fecha_expiracion: fechaExpiracion.toISOString(),
+                    licencia_hardware_id: hardwareId
+                }
+            }
+        );
+
         return {
-            plan: plan,
+            plan,
             fechaInicio: fechaInicio.toISOString(),
             fechaExpiracion: fechaExpiracion.toISOString()
         };
@@ -1115,106 +133,83 @@ function activarLicenciaNegocio(negocioId, plan, dias, hardwareId) {
     }
 }
 
-function getDiasLicenciaNegocio(negocioId) {
-    const licencia = getLicenciaNegocio(negocioId);
-    
+async function getDiasLicenciaNegocio(negocioId) {
+    const licencia = await getLicenciaNegocio(negocioId);
     if (!licencia) return { valid: true, type: 'trial', daysRemaining: 7 };
-    
-    // Plan pagado (mensual, semestral, anual)
+
     if (licencia.plan && licencia.plan !== 'trial') {
-    if (licencia.fechaExpiracion) {
-        const expDate = new Date(licencia.fechaExpiracion);
-        const now = getRDDate();
-        const daysRemaining = Math.floor((expDate - now) / (1000 * 60 * 60 * 24));
-            return { 
-                valid: daysRemaining > 0, 
-                type: licencia.plan, 
+        if (licencia.fechaExpiracion) {
+            const expDate = new Date(licencia.fechaExpiracion);
+            const now = getRDDate();
+            const daysRemaining = Math.floor((expDate - now) / (1000 * 60 * 60 * 24));
+            return {
+                valid: daysRemaining > 0,
+                type: licencia.plan,
                 daysRemaining: Math.max(0, daysRemaining),
                 licenciaPlan: licencia.plan,
                 licenciaFechaInicio: licencia.fechaInicio,
                 licenciaFechaExpiracion: licencia.fechaExpiracion
             };
         }
-        // Plan pagado sin fecha de expiración = válido sin límite
-        return { 
-            valid: true, 
-            type: licencia.plan, 
+        return {
+            valid: true,
+            type: licencia.plan,
             daysRemaining: 999,
             licenciaPlan: licencia.plan,
             licenciaFechaInicio: licencia.fechaInicio,
             licenciaFechaExpiracion: null
         };
     }
-    
-    // Trial: calcular desde fecha de inicio
+
     if (licencia.fechaInicio) {
         const TRIAL_DAYS = 7;
         const startDate = new Date(licencia.fechaInicio);
         const now = getRDDate();
         const daysUsed = Math.floor((now - startDate) / (1000 * 60 * 60 * 24));
         const daysRemaining = TRIAL_DAYS - daysUsed;
-        return { 
-            valid: daysRemaining > 0, 
-            type: 'trial', 
+        return {
+            valid: daysRemaining > 0,
+            type: 'trial',
             daysRemaining: Math.max(0, daysRemaining),
             licenciaPlan: 'trial',
             licenciaFechaInicio: licencia.fechaInicio,
             licenciaFechaExpiracion: null
         };
     }
-    
-    // Sin datos = nuevo trial
+
     return { valid: true, type: 'trial', daysRemaining: 7 };
 }
 
-/**
- * Obtener siguiente secuencia NCF para un negocio y tipo de comprobante
- * @param {number} negocioId
- * @param {string} tipoComprobante - '31' (Consumo), '32' (Crédito Fiscal)
- * @returns {string} Secuencia NCF completa (ej: E310000000001)
- */
-function getNextNCF(negocioId, tipoComprobante) {
+// ── NCF ───────────────────────────────────────────────────────────────────
+
+async function getNextNCF(negocioId, tipoComprobante) {
     try {
-        const localDb = getDb();
-        
-        // Asegurar que la tabla existe
-        localDb.exec(`
-            CREATE TABLE IF NOT EXISTS secuencias_ncf (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                negocio_id INTEGER NOT NULL,
-                tipo_comprobante TEXT NOT NULL,
-                prefijo TEXT NOT NULL,
-                secuencia_actual INTEGER DEFAULT 0,
-                fecha_ultima_emision TEXT,
-                estado TEXT DEFAULT 'activo',
-                FOREIGN KEY (negocio_id) REFERENCES negocios(id),
-                UNIQUE(negocio_id, tipo_comprobante)
-            )
-        `);
-        
-        // Prefijos por tipo
+        const db = getDb();
         const prefijos = { '31': 'E31', '32': 'E32', '33': 'E33', '34': 'E34' };
         const prefijo = prefijos[tipoComprobante] || 'E31';
-        
-        // Verificar si existe la secuencia
-        const existente = localDb.prepare(
-            'SELECT * FROM secuencias_ncf WHERE negocio_id = ? AND tipo_comprobante = ?'
-        ).get(negocioId, tipoComprobante);
-        
+
+        const existente = await db.collection('secuencias_ncf').findOne(
+            { negocio_id: negocioId, tipo_comprobante: tipoComprobante }
+        );
+
         if (existente) {
             const nuevaSecuencia = existente.secuencia_actual + 1;
-            localDb.prepare(
-                'UPDATE secuencias_ncf SET secuencia_actual = ?, fecha_ultima_emision = ? WHERE id = ?'
-            ).run(nuevaSecuencia, getRDDate().toISOString(), existente.id);
-            
+            await db.collection('secuencias_ncf').updateOne(
+                { _id: existente._id },
+                { $set: { secuencia_actual: nuevaSecuencia, fecha_ultima_emision: getRDDate().toISOString() } }
+            );
             return `${prefijo}${String(nuevaSecuencia).padStart(10, '0')}`;
         }
-        
-        // Crear nueva secuencia
-        localDb.prepare(
-            'INSERT INTO secuencias_ncf (negocio_id, tipo_comprobante, prefijo, secuencia_actual, fecha_ultima_emision) VALUES (?, ?, ?, 1, ?)'
-        ).run(negocioId, tipoComprobante, prefijo, getRDDate().toISOString());
-        
+
+        await db.collection('secuencias_ncf').insertOne({
+            negocio_id: negocioId,
+            tipo_comprobante: tipoComprobante,
+            prefijo,
+            secuencia_actual: 1,
+            fecha_ultima_emision: getRDDate().toISOString(),
+            estado: 'activo'
+        });
+
         return `${prefijo}0000000001`;
     } catch (error) {
         console.error('Error getNextNCF:', error);
@@ -1222,13 +217,131 @@ function getNextNCF(negocioId, tipoComprobante) {
     }
 }
 
-module.exports = { 
-    getDb, 
-    initDatabase, 
+// ── Limpieza de ventas antiguas ──────────────────────────────────────────
+
+async function limpiarVentasAntiguas() {
+    try {
+        const hace30Dias = getRDDate();
+        hace30Dias.setDate(hace30Dias.getDate() - 30);
+        const fechaLimite = hace30Dias.toISOString();
+
+        const db = getDb();
+        const ventasAntiguas = await db.collection('ventas').find(
+            { fecha: { $lt: fechaLimite } },
+            { projection: { _id: 1 } }
+        ).toArray();
+
+        if (ventasAntiguas.length > 0) {
+            const idsAntiguos = ventasAntiguas.map(v => v._id);
+            await db.collection('venta_detalles').deleteMany({ venta_id: { $in: idsAntiguos } });
+            await db.collection('ventas').deleteMany({ fecha: { $lt: fechaLimite } });
+            console.log(`Limpiadas ${ventasAntiguas.length} ventas antiguas (>30 dias)`);
+        }
+    } catch (error) {
+        console.error('Error limpiando ventas antiguas:', error);
+    }
+}
+
+// ── Storage paths (compatibilidad, ya no se usa en MongoDB) ──────────────
+
+function getStoragePaths() {
+    return {
+        dbDir: process.env.DB_DIR || './server/db',
+        dbPath: 'mongodb',
+        backupDir: process.env.BACKUP_DIR || './backups'
+    };
+}
+
+// ── Init database (MongoDB no necesita schema, solo conexion) ────────────
+
+async function initDatabase() {
+    console.log('Inicializando MongoDB...');
+    const conn = await connectDB();
+
+    // Crear indexes si no existen
+    const collections = [
+        { name: 'usuarios', indexes: [{ key: { negocio_id: 1 } }, { key: { email: 1 }, unique: true }] },
+        { name: 'servicios', indexes: [{ key: { negocio_id: 1 } }] },
+        { name: 'categorias', indexes: [{ key: { negocio_id: 1 } }] },
+        { name: 'clientes', indexes: [{ key: { negocio_id: 1 } }] },
+        { name: 'ventas', indexes: [{ key: { negocio_id: 1 } }, { key: { fecha: -1 } }] },
+        { name: 'venta_detalles', indexes: [{ key: { venta_id: 1 } }] },
+        { name: 'citas', indexes: [{ key: { negocio_id: 1 } }, { key: { fecha: 1 } }] },
+        { name: 'notificaciones', indexes: [{ key: { negocio_id: 1 } }] },
+        { name: 'productos', indexes: [{ key: { negocio_id: 1 } }] },
+        { name: 'movimientos_inventario', indexes: [{ key: { negocio_id: 1 } }, { key: { producto_id: 1 } }] },
+        { name: 'comisiones', indexes: [{ key: { negocio_id: 1 } }, { key: { user_id: 1 } }] },
+        { name: 'pedidos', indexes: [{ key: { negocio_id: 1 } }] },
+        { name: 'pedidos_items', indexes: [{ key: { pedido_id: 1 } }] },
+        { name: 'secuencias_ncf', indexes: [{ key: { negocio_id: 1, tipo_comprobante: 1 }, unique: true }] },
+        { name: 'puntos_lealtad', indexes: [{ key: { negocio_id: 1, cliente_id: 1 }, unique: true }] },
+        { name: 'menu_categorias', indexes: [{ key: { negocio_id: 1 } }] },
+        { name: 'menu_items', indexes: [{ key: { negocio_id: 1 } }, { key: { categoria_id: 1 } }] },
+        { name: 'log_auditoria', indexes: [{ key: { negocio_id: 1 } }, { key: { fecha: -1 } }] },
+        { name: 'estado_resultado_items', indexes: [{ key: { negocio_id: 1 } }, { key: { fecha: -1 } }] },
+    ];
+
+    for (const col of collections) {
+        try {
+            const collection = conn.collection(col.name);
+            for (const idx of col.indexes) {
+                await collection.createIndex(idx.key, { unique: idx.unique || false });
+            }
+        } catch (e) {
+            // Index ya existe
+        }
+    }
+
+    // Crear platform_config si no existe
+    try {
+        const pc = await conn.collection('platform_config').findOne({ _id: 1 });
+        if (!pc) {
+            await conn.collection('platform_config').insertOne({
+                _id: 1,
+                system_name: 'Nexora',
+                version: '1.0.0',
+                edition: 'Pro',
+                copyright_year: new Date().getFullYear(),
+                show_footer: 1,
+                custom_text: ''
+            });
+        }
+    } catch (e) {
+        console.error('Error init platform_config:', e.message);
+    }
+
+    await limpiarVentasAntiguas();
+    console.log('✅ MongoDB inicializado');
+    return conn;
+}
+
+// ── Backup/restore (no aplica a MongoDB, pero mantener compatibilidad) ───
+
+function replaceActiveDbWithBackup() {
+    console.log('⚠️  replaceActiveDbWithBackup no aplica en MongoDB');
+    return false;
+}
+
+function restoreLatestBackupWithBusiness() {
+    console.log('⚠️  restoreLatestBackupWithBusiness no aplica en MongoDB');
+    return false;
+}
+
+module.exports = {
+    getDb,
+    connectDB,
+    disconnectDB,
+    initDatabase,
+    getStoragePaths,
+    replaceActiveDbWithBackup,
+    restoreLatestBackupWithBusiness,
     limpiarVentasAntiguas,
     getLicenciaNegocio,
     iniciarTrialNegocio,
     activarLicenciaNegocio,
     getDiasLicenciaNegocio,
-    getNextNCF
+    getNextNCF,
+    toPlainId,
+    toPlainArray,
+    normalizeId
 };

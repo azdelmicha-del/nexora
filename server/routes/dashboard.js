@@ -1,114 +1,122 @@
 const express = require('express');
-const { getDb } = require('../database');
+const { getDb , normalizeId } = require('../database');
 const { requireAuth } = require('../middleware/auth');
 const { getRDDateString } = require('../utils/timezone');
 
 const router = express.Router();
 
 // GET /api/dashboard — Datos para el dashboard principal
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
     try {
         const db = getDb();
-        const negocioId = req.session.negocioId;
+        const negocioId = normalizeId(req.session.negocioId);
         const hoy = getRDDateString();
         const mesActual = hoy.substring(0, 7); // YYYY-MM
 
+        // Date ranges for MongoDB queries
+        const hoyStart = new Date(`${hoy}T00:00:00.000Z`);
+        const hoyEnd = new Date(`${hoy}T23:59:59.999Z`);
+        const mesStart = new Date(`${mesActual}-01T00:00:00.000Z`);
+        const mesEnd = new Date(`${mesActual}-31T23:59:59.999Z`);
+
         // Ventas hoy
-        const ventasHoy = db.prepare(`
-            SELECT COALESCE(SUM(total), 0) as total, COUNT(*) as count
-            FROM ventas WHERE negocio_id = ? AND DATE(fecha) = ?
-        `).get(negocioId, hoy);
+        const ventasHoyAgg = await db.collection('ventas').aggregate([
+            { $match: { negocio_id: negocioId, fecha: { $gte: hoyStart, $lte: hoyEnd } } },
+            { $group: { _id: null, total: { $sum: '$total' }, count: { $sum: 1 } } }
+        ]).toArray();
+        const ventasHoy = ventasHoyAgg[0] || { total: 0, count: 0 };
 
         // Ventas mes
-        const ventasMes = db.prepare(`
-            SELECT COALESCE(SUM(total), 0) as total
-            FROM ventas WHERE negocio_id = ? AND strftime('%Y-%m', fecha) = ?
-        `).get(negocioId, mesActual);
+        const ventasMesAgg = await db.collection('ventas').aggregate([
+            { $match: { negocio_id: negocioId, fecha: { $gte: mesStart, $lte: mesEnd } } },
+            { $group: { _id: null, total: { $sum: '$total' } } }
+        ]).toArray();
+        const ventasMes = ventasMesAgg[0] || { total: 0 };
 
         // Citas hoy
-        const citasHoy = db.prepare(`
-            SELECT COUNT(*) as total,
-                   SUM(CASE WHEN estado = 'pendiente' THEN 1 ELSE 0 END) as pendientes
-            FROM citas WHERE negocio_id = ? AND fecha = ? AND estado != 'cancelada'
-        `).get(negocioId, hoy);
+        const citasHoyAgg = await db.collection('citas').aggregate([
+            { $match: { negocio_id: negocioId, fecha: { $gte: hoyStart, $lte: hoyEnd }, estado: { $ne: 'cancelada' } } },
+            { $group: { _id: null, total: { $sum: 1 }, pendientes: { $sum: { $cond: [{ $eq: ['$estado', 'pendiente'] }, 1, 0] } } } }
+        ]).toArray();
+        const citasHoy = citasHoyAgg[0] || { total: 0, pendientes: 0 };
 
         // Total clientes
-        const totalClientes = db.prepare(
-            'SELECT COUNT(*) as total FROM clientes WHERE negocio_id = ?'
-        ).get(negocioId);
+        const totalClientes = await db.collection('clientes').countDocuments({ negocio_id: negocioId });
 
         // Clientes nuevos este mes
-        const clientesNuevosMes = db.prepare(`
-            SELECT COUNT(*) as total FROM clientes
-            WHERE negocio_id = ? AND strftime('%Y-%m', fecha_registro) = ?
-        `).get(negocioId, mesActual);
+        const clientesNuevosMes = await db.collection('clientes').countDocuments({
+            negocio_id: negocioId,
+            fecha_registro: { $gte: mesStart, $lte: mesEnd }
+        });
 
         // Total productos
-        const totalProductos = db.prepare(
-            'SELECT COUNT(*) as total FROM productos WHERE negocio_id = ?'
-        ).get(negocioId);
+        const totalProductos = await db.collection('productos').countDocuments({ negocio_id: negocioId });
 
         // Stock bajo
-        const stockBajo = db.prepare(`
-            SELECT COUNT(*) as total FROM productos
-            WHERE negocio_id = ? AND stock <= stock_minimo AND estado = 'activo'
-        `).get(negocioId);
+        const stockBajo = await db.collection('productos').countDocuments({
+            negocio_id: negocioId,
+            $expr: { $lte: ['$stock', '$stock_minimo'] },
+            estado: 'activo'
+        });
 
-        const stockBajoList = db.prepare(`
-            SELECT nombre, stock, stock_minimo FROM productos
-            WHERE negocio_id = ? AND stock <= stock_minimo AND estado = 'activo'
-            ORDER BY stock ASC
-            LIMIT 10
-        `).all(negocioId);
+        const stockBajoList = await db.collection('productos').find({
+            negocio_id: negocioId,
+            $expr: { $lte: ['$stock', '$stock_minimo'] },
+            estado: 'activo'
+        }).sort({ stock: 1 }).limit(10).toArray();
 
         // ITBIS neto (cobrado - pagado) este mes
-        const itbisCobradoMes = db.prepare(`
-            SELECT COALESCE(SUM(itbis), 0) as total FROM ventas
-            WHERE negocio_id = ? AND strftime('%Y-%m', fecha) = ?
-        `).get(negocioId, mesActual);
+        const itbisCobradoAgg = await db.collection('ventas').aggregate([
+            { $match: { negocio_id: negocioId, fecha: { $gte: mesStart, $lte: mesEnd } } },
+            { $group: { _id: null, total: { $sum: '$itbis' } } }
+        ]).toArray();
+        const itbisCobradoMes = itbisCobradoAgg[0] || { total: 0 };
 
-        const itbisPagadoMes = db.prepare(`
-            SELECT COALESCE(SUM(itbis_pagado), 0) as total FROM estado_resultado_items
-            WHERE negocio_id = ? AND tipo = 'gasto' AND strftime('%Y-%m', fecha) = ?
-        `).get(negocioId, mesActual);
+        const itbisPagadoAgg = await db.collection('estado_resultado_items').aggregate([
+            { $match: { negocio_id: negocioId, tipo: 'gasto', fecha: { $gte: mesStart, $lte: mesEnd } } },
+            { $group: { _id: null, total: { $sum: '$itbis_pagado' } } }
+        ]).toArray();
+        const itbisPagadoMes = itbisPagadoAgg[0] || { total: 0 };
 
         const itbisNeto = (itbisCobradoMes.total || 0) - (itbisPagadoMes.total || 0);
 
         // Comisiones pendientes
-        const comisionesPendientes = db.prepare(`
-            SELECT COALESCE(SUM(monto_comision), 0) as total, COUNT(DISTINCT user_id) as count
-            FROM comisiones WHERE negocio_id = ? AND estado = 'pendiente'
-        `).get(negocioId);
+        const comisionesAgg = await db.collection('comisiones').aggregate([
+            { $match: { negocio_id: negocioId, estado: 'pendiente' } },
+            { $group: { _id: null, total: { $sum: '$monto_comision' }, count: { $sum: 1 }, user_ids: { $addToSet: '$user_id' } } }
+        ]).toArray();
+        const comisionesPendientes = comisionesAgg[0] || { total: 0, count: 0 };
+        comisionesPendientes.count = comisionesAgg[0]?.user_ids?.length || 0;
 
-        // Ultimas ventas
-        const ultimasVentas = db.prepare(`
-            SELECT v.id, v.total, v.metodo_pago, v.banco, v.fecha,
-                   c.nombre as cliente
-            FROM ventas v
-            LEFT JOIN clientes c ON v.cliente_id = c.id
-            WHERE v.negocio_id = ?
-            ORDER BY v.fecha DESC
-            LIMIT 10
-        `).all(negocioId);
+        // Ultimas ventas (with $lookup for clientes)
+        const ultimasVentas = await db.collection('ventas').aggregate([
+            { $match: { negocio_id: negocioId } },
+            { $lookup: { from: 'clientes', localField: 'cliente_id', foreignField: '_id', as: 'cliente' } },
+            { $unwind: { path: '$cliente', preserveNullAndEmptyArrays: true } },
+            { $sort: { fecha: -1 } },
+            { $limit: 10 },
+            { $project: { id: '$_id', total: 1, metodo_pago: 1, banco: 1, fecha: 1, cliente: '$cliente.nombre' } }
+        ]).toArray();
 
-        // Proximas citas
-        const proximasCitas = db.prepare(`
-            SELECT c.id, c.fecha, c.hora_inicio, c.estado,
-                   cl.nombre as cliente, s.nombre as servicio
-            FROM citas c
-            JOIN clientes cl ON c.cliente_id = cl.id
-            LEFT JOIN servicios s ON c.servicio_id = s.id
-            WHERE c.negocio_id = ? AND c.fecha >= ? AND c.estado = 'pendiente'
-            ORDER BY c.fecha ASC, c.hora_inicio ASC
-            LIMIT 10
-        `).all(negocioId, hoy);
+        // Proximas citas (with $lookup for clientes and servicios)
+        const proximasCitas = await db.collection('citas').aggregate([
+            { $match: { negocio_id: negocioId, fecha: { $gte: hoyStart }, estado: 'pendiente' } },
+            { $lookup: { from: 'clientes', localField: 'cliente_id', foreignField: '_id', as: 'cliente' } },
+            { $unwind: { path: '$cliente', preserveNullAndEmptyArrays: true } },
+            { $lookup: { from: 'servicios', localField: 'servicio_id', foreignField: '_id', as: 'servicio' } },
+            { $unwind: { path: '$servicio', preserveNullAndEmptyArrays: true } },
+            { $sort: { fecha: 1, hora_inicio: 1 } },
+            { $limit: 10 },
+            { $project: { id: '$_id', fecha: 1, hora_inicio: 1, estado: 1, cliente: '$cliente.nombre', servicio: '$servicio.nombre' } }
+        ]).toArray();
 
         // Resultado del mes
-        const resultadoMes = (ventasMes.total || 0) - 
-            (db.prepare(`
-                SELECT COALESCE(SUM(monto), 0) as total FROM estado_resultado_items
-                WHERE negocio_id = ? AND tipo = 'gasto' AND strftime('%Y-%m', fecha) = ?
-            `).get(negocioId, mesActual).total || 0);
+        const gastosMesAgg = await db.collection('estado_resultado_items').aggregate([
+            { $match: { negocio_id: negocioId, tipo: 'gasto', fecha: { $gte: mesStart, $lte: mesEnd } } },
+            { $group: { _id: null, total: { $sum: '$monto' } } }
+        ]).toArray();
+        const gastosMes = gastosMesAgg[0] || { total: 0 };
+        const resultadoMes = (ventasMes.total || 0) - (gastosMes.total || 0);
 
         res.json({
             ventasHoy: ventasHoy.total || 0,
@@ -116,10 +124,10 @@ router.get('/', requireAuth, (req, res) => {
             ventasMes: ventasMes.total || 0,
             citasHoy: citasHoy.total || 0,
             citasHoyPendientes: citasHoy.pendientes || 0,
-            totalClientes: totalClientes.total || 0,
-            clientesNuevosMes: clientesNuevosMes.total || 0,
-            totalProductos: totalProductos.total || 0,
-            stockBajo: stockBajo.total || 0,
+            totalClientes,
+            clientesNuevosMes,
+            totalProductos,
+            stockBajo,
             stockBajoList,
             itbisNeto,
             itbisCobradoMes: itbisCobradoMes.total || 0,

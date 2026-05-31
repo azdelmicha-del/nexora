@@ -1,43 +1,40 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { getDb } = require('../database');
+const { getDb , normalizeId } = require('../database');
 const { requireAdmin, requireAuth } = require('../middleware/auth');
 const { formatters, validators, errorMessages } = require('../utils/validators');
 const { getRDDateString, getRDDate } = require('../utils/timezone');
 
+
 const router = express.Router();
 
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
     try {
         const db = getDb();
-        const usuarios = db.prepare(`
-            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, comision_porcentaje, fecha_creacion
-            FROM usuarios
-            WHERE negocio_id = ?
-            ORDER BY fecha_creacion DESC
-        `).all(req.session.negocioId);
+        const usuarios = await db.collection('usuarios').find({
+            negocio_id: normalizeId(req.session.negocioId)
+        }).sort({ fecha_creacion: -1 }).toArray();
 
-        res.json(usuarios);
+        res.json(usuarios.map(u => ({ ...u, id: u._id.toString() })));
     } catch (error) {
         console.error('Error al obtener usuarios:', error);
         res.status(500).json({ error: 'Error al obtener usuarios' });
     }
 });
 
-router.get('/:id', requireAuth, (req, res) => {
+router.get('/:id', requireAuth, async (req, res) => {
     try {
         const db = getDb();
-        const usuario = db.prepare(`
-            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, comision_porcentaje, fecha_creacion
-            FROM usuarios
-            WHERE id = ? AND negocio_id = ?
-        `).get(req.params.id, req.session.negocioId);
+        const usuario = await db.collection('usuarios').findOne({
+            _id: normalizeId(req.params.id),
+            negocio_id: normalizeId(req.session.negocioId)
+        });
 
         if (!usuario) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
 
-        res.json(usuario);
+        res.json({ ...usuario, id: usuario._id.toString() });
     } catch (error) {
         console.error('Error al obtener usuario:', error);
         res.status(500).json({ error: 'Error al obtener usuario' });
@@ -68,12 +65,12 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
         if (rol === 'empleado') {
             const db = getDb();
             
-            const employeeCount = db.prepare(`
-                SELECT COUNT(*) as count FROM usuarios 
-                WHERE negocio_id = ? AND rol = 'empleado'
-            `).get(req.session.negocioId);
+            const employeeCount = await db.collection('usuarios').countDocuments({
+                negocio_id: normalizeId(req.session.negocioId),
+                rol: 'empleado'
+            });
             
-            if (employeeCount.count >= 3) {
+            if (employeeCount >= 3) {
                 return res.status(403).json({ error: 'Solo puedes crear máximo 3 empleados' });
             }
         }
@@ -91,24 +88,30 @@ router.post('/', requireAuth, requireAdmin, async (req, res) => {
 
         const db = getDb();
         
-        const existingUser = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(emailNormalizado);
+        const existingUser = await db.collection('usuarios').findOne({ email: emailNormalizado });
         if (existingUser) {
             return res.status(400).json({ error: 'El email ya está registrado' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
-        const result = db.prepare(`
-            INSERT INTO usuarios (negocio_id, nombre, email, password, rol, horario_tipo, hora_entrada, hora_salida, comision_porcentaje)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(req.session.negocioId, nombreNormalizado, emailNormalizado, hashedPassword, rol, horario_tipo || 'completo', hora_entrada || '08:00', hora_salida || '18:00', parseFloat(req.body.comision_porcentaje) || 0);
+        const result = await db.collection('usuarios').insertOne({
+            negocio_id: normalizeId(req.session.negocioId),
+            nombre: nombreNormalizado,
+            email: emailNormalizado,
+            password: hashedPassword,
+            rol,
+            horario_tipo: horario_tipo || 'completo',
+            hora_entrada: hora_entrada || '08:00',
+            hora_salida: hora_salida || '18:00',
+            comision_porcentaje: parseFloat(req.body.comision_porcentaje) || 0,
+            estado: 'activo',
+            fecha_creacion: new Date()
+        });
 
-        const usuario = db.prepare(`
-            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, comision_porcentaje, fecha_creacion
-            FROM usuarios WHERE id = ?
-        `).get(result.lastInsertRowid);
+        const usuario = await db.collection('usuarios').findOne({ _id: result.insertedId });
 
-        res.status(201).json(usuario);
+        res.status(201).json({ ...usuario, id: usuario._id.toString() });
     } catch (error) {
         console.error('Error al crear usuario:', error);
         res.status(500).json({ error: 'Error al crear usuario' });
@@ -131,7 +134,7 @@ router.put('/change-password', requireAuth, async (req, res) => {
         const db = getDb();
         
         // Obtener usuario actual
-        const user = db.prepare('SELECT id, password FROM usuarios WHERE id = ?').get(req.session.userId);
+        const user = await db.collection('usuarios').findOne({ _id: req.session.userId });
         
         if (!user) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
@@ -145,7 +148,10 @@ router.put('/change-password', requireAuth, async (req, res) => {
         
         // Actualizar contraseña
         const hashedPassword = await bcrypt.hash(newPassword, 10);
-        db.prepare('UPDATE usuarios SET password = ? WHERE id = ?').run(hashedPassword, user.id);
+        await db.collection('usuarios').updateOne(
+            { _id: user._id },
+            { $set: { password: hashedPassword } }
+        );
         
         res.json({ success: true, message: 'Contraseña actualizada correctamente' });
     } catch (error) {
@@ -157,7 +163,7 @@ router.put('/change-password', requireAuth, async (req, res) => {
 router.put('/:id', requireAdmin, async (req, res) => {
     try {
         let { nombre, email, rol, estado, password, horario_tipo, hora_entrada, hora_salida } = req.body;
-        const usuarioId = req.params.id;
+        const usuarioId = normalizeId(req.params.id);
 
         if (nombre) {
             nombre = formatters.toTitleCase(nombre.trim());
@@ -187,115 +193,127 @@ router.put('/:id', requireAdmin, async (req, res) => {
 
         const db = getDb();
         
-        const usuario = db.prepare('SELECT id FROM usuarios WHERE id = ? AND negocio_id = ?')
-            .get(usuarioId, req.session.negocioId);
+        const usuario = await db.collection('usuarios').findOne({
+            _id: usuarioId,
+            negocio_id: normalizeId(req.session.negocioId)
+        });
 
         if (!usuario) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
 
-        const isSelf = parseInt(usuarioId) === req.session.userId;
+        const isSelf = usuarioId === req.session.userId;
 
         if (rol && rol === 'admin' && !isSelf) {
             return res.status(403).json({ error: 'No puedes cambiar el rol a administrador' });
         }
 
         if (email) {
-            const existingUser = db.prepare('SELECT id FROM usuarios WHERE email = ? AND id != ?')
-                .get(email, usuarioId);
+            const existingUser = await db.collection('usuarios').findOne({
+                email,
+                _id: { $ne: usuarioId }
+            });
             if (existingUser) {
                 return res.status(400).json({ error: 'El email ya está en uso' });
             }
         }
 
-        let updates = [];
-        let params = [];
+        let updates = {};
         
         if (nombre) {
-            updates.push('nombre = ?');
-            params.push(nombre);
+            updates.nombre = nombre;
         }
         if (email) {
-            updates.push('email = ?');
-            params.push(email);
+            updates.email = email;
         }
         if (rol && ['admin', 'empleado'].includes(rol)) {
-            updates.push('rol = ?');
-            params.push(rol);
+            updates.rol = rol;
         }
         if (estado && ['activo', 'inactivo'].includes(estado)) {
-            updates.push('estado = ?');
-            params.push(estado);
+            updates.estado = estado;
         }
         if (password) {
-            const hashedPassword = bcrypt.hashSync(password, 10);
-            updates.push('password = ?');
-            params.push(hashedPassword);
+            updates.password = bcrypt.hashSync(password, 10);
         }
         if (horario_tipo) {
-            updates.push('horario_tipo = ?');
-            params.push(horario_tipo);
+            updates.horario_tipo = horario_tipo;
         }
         if (hora_entrada) {
-            updates.push('hora_entrada = ?');
-            params.push(hora_entrada);
+            updates.hora_entrada = hora_entrada;
         }
         if (hora_salida) {
-            updates.push('hora_salida = ?');
-            params.push(hora_salida);
+            updates.hora_salida = hora_salida;
         }
         if (req.body.comision_porcentaje !== undefined) {
-            updates.push('comision_porcentaje = ?');
-            params.push(parseFloat(req.body.comision_porcentaje) || 0);
+            updates.comision_porcentaje = parseFloat(req.body.comision_porcentaje) || 0;
         }
 
-        if (updates.length === 0) {
+        if (Object.keys(updates).length === 0) {
             return res.status(400).json({ error: 'No hay campos para actualizar' });
         }
 
-        params.push(usuarioId);
-        db.prepare(`UPDATE usuarios SET ${updates.join(', ')} WHERE id = ?`).run(...params);
+        await db.collection('usuarios').updateOne(
+            { _id: usuarioId, negocio_id: normalizeId(req.session.negocioId) },
+            { $set: updates }
+        );
 
-        const updatedUser = db.prepare(`
-            SELECT id, negocio_id, nombre, email, rol, estado, horario_tipo, hora_entrada, hora_salida, comision_porcentaje, fecha_creacion
-            FROM usuarios WHERE id = ?
-        `).get(usuarioId);
+        const updatedUser = await db.collection('usuarios').findOne({
+            _id: usuarioId,
+            negocio_id: normalizeId(req.session.negocioId)
+        });
 
-        res.json(updatedUser);
+        res.json({ ...updatedUser, id: updatedUser._id.toString() });
     } catch (error) {
         console.error('Error al actualizar usuario:', error);
         res.status(500).json({ error: 'Error al actualizar usuario' });
     }
 });
 
-router.delete('/:id', requireAdmin, (req, res) => {
+router.delete('/:id', requireAdmin, async (req, res) => {
     try {
-        const usuarioId = req.params.id;
+        const usuarioId = normalizeId(req.params.id);
         const db = getDb();
 
-        const usuario = db.prepare('SELECT id, rol FROM usuarios WHERE id = ? AND negocio_id = ?')
-            .get(usuarioId, req.session.negocioId);
+        const usuario = await db.collection('usuarios').findOne({
+            _id: usuarioId,
+            negocio_id: normalizeId(req.session.negocioId)
+        });
 
         if (!usuario) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
 
-        const isSelf = parseInt(usuarioId) === req.session.userId;
+        const isSelf = usuarioId === req.session.userId;
 
         if (!isSelf) {
-            db.prepare('DELETE FROM usuarios WHERE id = ?').run(usuarioId);
+            const session = await db.startSession();
+            await session.withTransaction(async () => {
+                await db.collection('usuarios').deleteOne({
+                    _id: usuarioId,
+                    negocio_id: normalizeId(req.session.negocioId)
+                });
+            });
+            await session.endSession();
             res.json({ success: true, message: 'Usuario eliminado' });
         } else {
-            const otherAdmins = db.prepare(`
-                SELECT COUNT(*) as count FROM usuarios 
-                WHERE negocio_id = ? AND rol = 'admin' AND id != ?
-            `).get(req.session.negocioId, usuarioId);
+            const otherAdmins = await db.collection('usuarios').countDocuments({
+                negocio_id: normalizeId(req.session.negocioId),
+                rol: 'admin',
+                _id: { $ne: usuarioId }
+            });
 
-            if (otherAdmins.count === 0) {
+            if (otherAdmins === 0) {
                 return res.status(400).json({ error: 'No puedes eliminarte, eres el único administrador' });
             }
 
-            db.prepare('DELETE FROM usuarios WHERE id = ?').run(usuarioId);
+            const session = await db.startSession();
+            await session.withTransaction(async () => {
+                await db.collection('usuarios').deleteOne({
+                    _id: usuarioId,
+                    negocio_id: normalizeId(req.session.negocioId)
+                });
+            });
+            await session.endSession();
             res.json({ success: true, message: 'Usuario eliminado' });
         }
     } catch (error) {
@@ -304,20 +322,24 @@ router.delete('/:id', requireAdmin, (req, res) => {
     }
 });
 
-router.post('/:id/reactivate', requireAdmin, (req, res) => {
+router.post('/:id/reactivate', requireAdmin, async (req, res) => {
     try {
-        const usuarioId = req.params.id;
+        const usuarioId = normalizeId(req.params.id);
         const db = getDb();
 
-        const usuario = db.prepare('SELECT id FROM usuarios WHERE id = ? AND negocio_id = ?')
-            .get(usuarioId, req.session.negocioId);
+        const usuario = await db.collection('usuarios').findOne({
+            _id: usuarioId,
+            negocio_id: normalizeId(req.session.negocioId)
+        });
 
         if (!usuario) {
             return res.status(404).json({ error: 'Usuario no encontrado' });
         }
 
-        db.prepare('UPDATE usuarios SET last_login = ?, estado = ? WHERE id = ?')
-            .run(getRDDate().toISOString(), 'activo', usuarioId);
+        await db.collection('usuarios').updateOne(
+            { _id: usuarioId },
+            { $set: { last_login: getRDDate().toISOString(), estado: 'activo' } }
+        );
 
         res.json({ success: true, message: 'Usuario reactivado correctamente' });
     } catch (error) {

@@ -1,77 +1,94 @@
 const express = require('express');
-const { getDb } = require('../database');
+const { getDb , normalizeId } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 const { getRDTimestamp } = require('../utils/timezone');
 const { toTitleCase, capitalizeFirst } = require('../utils/validators');
 
+
 const router = express.Router();
 
+// router.use(requireTurnoAbierto); // Turno obligatorio para operar egresos/estado de resultado (deshabilitado temporalmente)
+
 // Obtener items del estado de resultado por rango de fechas
-router.get('/', requireAuth, requireAdmin, (req, res) => {
+router.get('/', requireAuth, requireAdmin, async (req, res) => {
     try {
         const db = getDb();
         const { desde, hasta, turno } = req.query;
-        
-        let query = `
-            SELECT * FROM estado_resultado_items 
-            WHERE negocio_id = ?
-        `;
-        const params = [req.session.negocioId];
-        
+
+        const filter = { negocio_id: normalizeId(req.session.negocioId) };
+
         if (turno === 'actual') {
-            query += ' AND cuadre_id IS NULL';
+            filter.cuadre_id = null;
         }
-        
-        if (desde) {
-            query += ' AND fecha >= ?';
-            params.push(desde);
+
+        if (desde || hasta) {
+            filter.fecha = {};
+            if (desde) {
+                filter.fecha.$gte = desde;
+            }
+            if (hasta) {
+                filter.fecha.$lte = hasta;
+            }
         }
-        if (hasta) {
-            query += ' AND fecha <= ?';
-            params.push(hasta);
-        }
-        
-        query += ' ORDER BY fecha DESC, created_at DESC';
-        
-        const items = db.prepare(query).all(...params);
-        
+
+        const items = await db.collection('estado_resultado_items')
+            .find(filter)
+            .sort({ fecha: -1, created_at: -1 })
+            .toArray();
+
         // Obtener ventas automáticas del POS
         // venta_id = id real de la venta para cargar detalles desde /api/sales/:id
-        let ventasQuery = `
-            SELECT id, id as venta_id, total as monto, subtotal, itbis, descuento,
-                   fecha, metodo_pago, secuencia_ecf,
-                   'venta_pos' as categoria, 'ingreso' as tipo,
-                   'Venta #' || id as descripcion, 'ingreso' as subtipo
-            FROM ventas 
-            WHERE negocio_id = ?
-        `;
-        const ventasParams = [req.session.negocioId];
-        
+        const ventasFilter = { negocio_id: normalizeId(req.session.negocioId) };
+
         if (turno === 'actual') {
-            ventasQuery += ' AND cuadre_id IS NULL';
+            ventasFilter.cuadre_id = null;
         }
-        
-        if (desde) {
-            ventasQuery += ' AND date(fecha) >= ?';
-            ventasParams.push(desde);
+
+        if (desde || hasta) {
+            ventasFilter.fecha = {};
+            if (desde) {
+                ventasFilter.fecha.$gte = desde;
+            }
+            if (hasta) {
+                ventasFilter.fecha.$lte = hasta + 'T23:59:59.999Z';
+            }
         }
-        if (hasta) {
-            ventasQuery += ' AND date(fecha) <= ?';
-            ventasParams.push(hasta);
-        }
-        
-        ventasQuery += ' ORDER BY fecha DESC';
-        
-        const ventasPOS = db.prepare(ventasQuery).all(...ventasParams);
-        const totalVentasPOS = ventasPOS.reduce((sum, v) => sum + v.monto, 0);
-        
+
+        const ventasPOS = await db.collection('ventas')
+            .find(ventasFilter)
+            .sort({ fecha: -1 })
+            .toArray();
+
+        const ventasPOSMapped = ventasPOS.map(v => ({
+            id: v._id.toString(),
+            venta_id: v._id.toString(),
+            monto: v.total,
+            subtotal: v.subtotal,
+            itbis: v.itbis,
+            descuento: v.descuento,
+            fecha: v.fecha,
+            metodo_pago: v.metodo_pago,
+            secuencia_ecf: v.secuencia_ecf,
+            categoria: 'venta_pos',
+            tipo: 'ingreso',
+            descripcion: `Venta #${v._id.toString()}`,
+            subtipo: 'ingreso'
+        }));
+
+        const totalVentasPOS = ventasPOSMapped.reduce((sum, v) => sum + v.monto, 0);
+
         // Combinar items manuales + ventas POS
-        const todosLosItems = [...items, ...ventasPOS].sort((a, b) => {
+        const itemsMapped = items.map(item => ({
+            ...item,
+            id: item._id.toString()
+        }));
+
+        const todosLosItems = [...itemsMapped, ...ventasPOSMapped].sort((a, b) => {
             if (b.fecha > a.fecha) return 1;
             if (b.fecha < a.fecha) return -1;
             return 0;
         });
-        
+
         // Calcular totales por categoría
         const totales = {
             ventas: 0,
@@ -81,30 +98,30 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
             otros_gastos: 0,
             gastos_personales: 0
         };
-        
+
         // Sumar ventas manuales
-        items.forEach(item => {
+        itemsMapped.forEach(item => {
             if (totales.hasOwnProperty(item.categoria)) {
                 totales[item.categoria] += item.monto;
             }
         });
-        
+
         // Sumar ventas del POS al total de ventas
         totales.ventas += totalVentasPOS;
-        
+
         // Calcular resultados
         const ingresosTotales = totales.ventas;
         const totalCostos = totales.costo_ventas + totales.gastos_operativos + totales.otros_gastos;
-        const totalGastos = items.filter(i => i.tipo === 'gasto' && i.subtipo === 'gasto').reduce((s, i) => s + i.monto, 0);
+        const totalGastos = itemsMapped.filter(i => i.tipo === 'gasto' && i.subtipo === 'gasto').reduce((s, i) => s + i.monto, 0);
         const utilidadBruta = ingresosTotales - totales.costo_ventas;
         const utilidadOperativa = utilidadBruta - totales.gastos_operativos;
         const resultadoNeto = utilidadOperativa + totales.otros_ingresos - totales.otros_gastos - totalGastos;
-        
+
         res.json({
             items: todosLosItems,
             ventasPOS: {
                 total: totalVentasPOS,
-                cantidad: ventasPOS.length
+                cantidad: ventasPOSMapped.length
             },
             totales,
             resumen: {
@@ -127,7 +144,7 @@ router.get('/', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Agregar item al estado de resultado
-router.post('/', requireAuth, requireAdmin, (req, res) => {
+router.post('/', requireAuth, requireAdmin, async (req, res) => {
     try {
         const {
             tipo, subtipo, categoria, descripcion,
@@ -135,20 +152,20 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
             // Campos fiscales para compensacion de ITBIS
             ncf_suplidor, itbis_pagado, tipo_gasto
         } = req.body;
-        
+
         if (!tipo || !categoria || !descripcion || !monto || !fecha) {
             return res.status(400).json({ error: 'Todos los campos son requeridos' });
         }
-        
+
         if (!['ingreso', 'gasto'].includes(tipo)) {
             return res.status(400).json({ error: 'Tipo debe ser ingreso o gasto' });
         }
-        
+
         const categoriasValidas = ['ventas', 'costo_ventas', 'gastos_operativos', 'otros_ingresos', 'otros_gastos', 'gastos_personales'];
         if (!categoriasValidas.includes(categoria)) {
             return res.status(400).json({ error: 'Categoría no válida' });
         }
-        
+
         if (monto <= 0) {
             return res.status(400).json({ error: 'El monto debe ser mayor a 0' });
         }
@@ -178,7 +195,7 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
         if (itbisPagadoFinal < 0) {
             return res.status(400).json({ error: 'itbis_pagado no puede ser negativo' });
         }
-        
+
         // Determinar subtipo automáticamente según la categoría
         let subtipoFinal = subtipo;
         if (tipo === 'gasto') {
@@ -188,44 +205,39 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
                 subtipoFinal = 'costo';
             }
         }
-        
+
         // Obtener hora actual
         const horaActual = getRDTimestamp().split(' ')[1];
-        
+
         const metodoPago = metodo_pago || 'efectivo';
-        
+
         const db = getDb();
-        
-        const result = db.prepare(`
-            INSERT INTO estado_resultado_items (
-                negocio_id, tipo, subtipo, categoria, descripcion,
-                subtotal, itbis, descuento, monto, metodo_pago,
-                fecha, hora, notas,
-                ncf_suplidor, itbis_pagado, tipo_gasto
-            )
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-            req.session.negocioId,
+
+        const result = await db.collection('estado_resultado_items').insertOne({
+            negocio_id: normalizeId(req.session.negocioId),
             tipo,
-            subtipoFinal,
+            subtipo: subtipoFinal,
             categoria,
-            toTitleCase(descripcion.trim()),
-            parseFloat(subtotal) || 0,
-            parseFloat(itbis) || 0,
-            parseFloat(descuento) || 0,
-            parseFloat(monto),
-            metodoPago,
+            descripcion: toTitleCase(descripcion.trim()),
+            subtotal: parseFloat(subtotal) || 0,
+            itbis: parseFloat(itbis) || 0,
+            descuento: parseFloat(descuento) || 0,
+            monto: parseFloat(monto),
+            metodo_pago: metodoPago,
             fecha,
-            horaActual,
-            notas ? notas.trim() : null,
-            ncf_suplidor ? ncf_suplidor.trim().toUpperCase() : null,
-            itbisPagadoFinal,
-            tipo_gasto || null
-        );
-        
-        const item = db.prepare('SELECT * FROM estado_resultado_items WHERE id = ?').get(result.lastInsertRowid);
-        
-        res.json(item);
+            hora: horaActual,
+            notas: notas ? notas.trim() : null,
+            ncf_suplidor: ncf_suplidor ? ncf_suplidor.trim().toUpperCase() : null,
+            itbis_pagado: itbisPagadoFinal,
+            tipo_gasto: tipo_gasto || null
+        });
+
+        const item = await db.collection('estado_resultado_items').findOne({ _id: result.insertedId });
+
+        res.json({
+            ...item,
+            id: item._id.toString()
+        });
     } catch (error) {
         console.error('Error al agregar item:', error);
         res.status(500).json({ error: 'Error al agregar item' });
@@ -233,7 +245,7 @@ router.post('/', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Actualizar item
-router.put('/:id', requireAuth, requireAdmin, (req, res) => {
+router.put('/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
         const {
             tipo, categoria, descripcion,
@@ -241,66 +253,63 @@ router.put('/:id', requireAuth, requireAdmin, (req, res) => {
             // Campos fiscales para compensacion de ITBIS
             ncf_suplidor, itbis_pagado, tipo_gasto
         } = req.body;
-        const itemId = req.params.id;
-        
+        const itemId = normalizeId(req.params.id);
+
         const db = getDb();
+
         
-        const item = db.prepare('SELECT id FROM estado_resultado_items WHERE id = ? AND negocio_id = ?')
-            .get(itemId, req.session.negocioId);
-        
+        let objectId;
+        try {
+            objectId = itemId;
+        } catch (e) {
+            return res.status(400).json({ error: 'ID de item inválido' });
+        }
+
+        const item = await db.collection('estado_resultado_items').findOne({
+            _id: objectId,
+            negocio_id: normalizeId(req.session.negocioId)
+        });
+
         if (!item) {
             return res.status(404).json({ error: 'Item no encontrado' });
         }
-        
-        const updates = [];
-        const values = [];
-        
+
+        const updates = {};
+
         if (tipo) {
-            updates.push('tipo = ?');
-            values.push(tipo);
+            updates.tipo = tipo;
         }
         if (categoria) {
-            updates.push('categoria = ?');
-            values.push(categoria);
+            updates.categoria = categoria;
             if (categoria === 'gastos_personales') {
-                updates.push('subtipo = ?');
-                values.push('gasto');
+                updates.subtipo = 'gasto';
             } else {
-                updates.push('subtipo = ?');
-                values.push('costo');
+                updates.subtipo = 'costo';
             }
         }
         if (descripcion) {
-            updates.push('descripcion = ?');
-            values.push(toTitleCase(descripcion.trim()));
+            updates.descripcion = toTitleCase(descripcion.trim());
         }
         if (subtotal !== undefined) {
-            updates.push('subtotal = ?');
-            values.push(parseFloat(subtotal) || 0);
+            updates.subtotal = parseFloat(subtotal) || 0;
         }
         if (itbis !== undefined) {
-            updates.push('itbis = ?');
-            values.push(parseFloat(itbis) || 0);
+            updates.itbis = parseFloat(itbis) || 0;
         }
         if (descuento !== undefined) {
-            updates.push('descuento = ?');
-            values.push(parseFloat(descuento) || 0);
+            updates.descuento = parseFloat(descuento) || 0;
         }
         if (monto !== undefined) {
-            updates.push('monto = ?');
-            values.push(parseFloat(monto));
+            updates.monto = parseFloat(monto);
         }
         if (metodo_pago) {
-            updates.push('metodo_pago = ?');
-            values.push(metodo_pago);
+            updates.metodo_pago = metodo_pago;
         }
         if (fecha) {
-            updates.push('fecha = ?');
-            values.push(fecha);
+            updates.fecha = fecha;
         }
         if (notas !== undefined) {
-            updates.push('notas = ?');
-            values.push(notas ? notas.trim() : null);
+            updates.notas = notas ? notas.trim() : null;
         }
 
         // Campos fiscales — opcionales en cada PUT
@@ -312,11 +321,9 @@ router.put('/:id', requireAuth, requireAdmin, (req, res) => {
                         error: 'Formato de NCF suplidor inválido. Ejemplos válidos: B0100000001 (físico), E310000000001 (e-CF)'
                     });
                 }
-                updates.push('ncf_suplidor = ?');
-                values.push(ncf_suplidor.trim().toUpperCase());
+                updates.ncf_suplidor = ncf_suplidor.trim().toUpperCase();
             } else {
-                updates.push('ncf_suplidor = ?');
-                values.push(null);
+                updates.ncf_suplidor = null;
             }
         }
         if (itbis_pagado !== undefined) {
@@ -324,8 +331,7 @@ router.put('/:id', requireAuth, requireAdmin, (req, res) => {
             if (itbisPagadoPUT < 0) {
                 return res.status(400).json({ error: 'itbis_pagado no puede ser negativo' });
             }
-            updates.push('itbis_pagado = ?');
-            values.push(itbisPagadoPUT);
+            updates.itbis_pagado = itbisPagadoPUT;
         }
         if (tipo_gasto !== undefined) {
             if (tipo_gasto !== null && tipo_gasto !== '') {
@@ -335,24 +341,30 @@ router.put('/:id', requireAuth, requireAdmin, (req, res) => {
                         error: 'tipo_gasto debe ser uno de: insumo, fijo, personal'
                     });
                 }
-                updates.push('tipo_gasto = ?');
-                values.push(tipo_gasto);
+                updates.tipo_gasto = tipo_gasto;
             } else {
-                updates.push('tipo_gasto = ?');
-                values.push(null);
+                updates.tipo_gasto = null;
             }
         }
 
-        if (updates.length === 0) {
+        if (Object.keys(updates).length === 0) {
             return res.status(400).json({ error: 'No hay campos para actualizar' });
         }
-        
-        values.push(itemId);
-        db.prepare(`UPDATE estado_resultado_items SET ${updates.join(', ')} WHERE id = ?`).run(...values);
-        
-        const updated = db.prepare('SELECT * FROM estado_resultado_items WHERE id = ?').get(itemId);
-        
-        res.json(updated);
+
+        await db.collection('estado_resultado_items').updateOne(
+            { _id: objectId, negocio_id: normalizeId(req.session.negocioId) },
+            { $set: updates }
+        );
+
+        const updated = await db.collection('estado_resultado_items').findOne({
+            _id: objectId,
+            negocio_id: normalizeId(req.session.negocioId)
+        });
+
+        res.json({
+            ...updated,
+            id: updated._id.toString()
+        });
     } catch (error) {
         console.error('Error al actualizar item:', error);
         res.status(500).json({ error: 'Error al actualizar item' });
@@ -360,20 +372,33 @@ router.put('/:id', requireAuth, requireAdmin, (req, res) => {
 });
 
 // Eliminar item
-router.delete('/:id', requireAuth, requireAdmin, (req, res) => {
+router.delete('/:id', requireAuth, requireAdmin, async (req, res) => {
     try {
         const db = getDb();
-        const itemId = req.params.id;
-        
-        const item = db.prepare('SELECT id FROM estado_resultado_items WHERE id = ? AND negocio_id = ?')
-            .get(itemId, req.session.negocioId);
-        
+        const itemId = normalizeId(req.params.id);
+
+        const { ObjectId } = require('mongodb');
+        let objectId;
+        try {
+            objectId = itemId;
+        } catch (e) {
+            return res.status(400).json({ error: 'ID de item inválido' });
+        }
+
+        const item = await db.collection('estado_resultado_items').findOne({
+            _id: objectId,
+            negocio_id: normalizeId(req.session.negocioId)
+        });
+
         if (!item) {
             return res.status(404).json({ error: 'Item no encontrado' });
         }
-        
-        db.prepare('DELETE FROM estado_resultado_items WHERE id = ?').run(itemId);
-        
+
+        await db.collection('estado_resultado_items').deleteOne({
+            _id: objectId,
+            negocio_id: normalizeId(req.session.negocioId)
+        });
+
         res.json({ success: true, message: 'Item eliminado correctamente' });
     } catch (error) {
         console.error('Error al eliminar item:', error);

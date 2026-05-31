@@ -1,6 +1,7 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
-const { getDb } = require('../database');
+const { getDb , normalizeId } = require('../database');
+const { autoBackup } = require('../backup-protection');
 const { getRDDateString, getRDDate } = require('../utils/timezone');
 
 const router = express.Router();
@@ -21,9 +22,23 @@ function toUpperCase(str) {
     return String(str).toUpperCase();
 }
 
+function normalizeSelectedPlan(rawPlan) {
+    const plan = String(rawPlan || 'trial').toLowerCase().trim();
+    const planMap = {
+        trial: 'trial',
+        mensual: 'monthly',
+        monthly: 'monthly',
+        semestral: 'semiannual',
+        semiannual: 'semiannual',
+        anual: 'annual',
+        annual: 'annual'
+    };
+    return planMap[plan] || 'trial';
+}
+
 router.post('/registrar', async (req, res) => {
     try {
-        const { nombreNegocio, rncNegocio, nombreAdmin, email, telefono, password } = req.body;
+        const { nombreNegocio, rncNegocio, nombreAdmin, email, telefono, password, selectedPlan } = req.body;
         
         if (!nombreNegocio || !nombreAdmin || !email || !password) {
             return res.status(400).json({ error: 'Todos los campos son requeridos' });
@@ -33,7 +48,6 @@ router.post('/registrar', async (req, res) => {
             return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
         }
 
-        // Validar RNC si se proporcionó
         if (rncNegocio) {
             const rncClean = String(rncNegocio).replace(/[\s\-]/g, '');
             if (rncClean.length !== 9 && rncClean.length !== 11) {
@@ -74,70 +88,97 @@ router.post('/registrar', async (req, res) => {
 
         const db = getDb();
         
-        const existingEmail = db.prepare('SELECT id FROM usuarios WHERE email = ?').get(email);
+        const existingEmail = await db.collection('usuarios').findOne({ email: email }, { projection: { _id: 1 } });
         if (existingEmail) {
             return res.status(400).json({ error: 'El email ya está registrado' });
         }
         
-        const existingTelefono = db.prepare('SELECT id FROM negocios WHERE telefono = ?').get(telefono);
+        const existingTelefono = await db.collection('negocios').findOne({ telefono: telefono }, { projection: { _id: 1 } });
         if (telefono && existingTelefono) {
             return res.status(400).json({ error: 'El número de teléfono ya está registrado' });
         }
         
-        const existingNegocio = db.prepare('SELECT id FROM negocios WHERE nombre = ?').get(nombreNegocio);
+        const negocioNombreNormalizado = toUpperCase(nombreNegocio.trim());
+        const existingNegocio = await db.collection('negocios').findOne({ nombre: negocioNombreNormalizado }, { projection: { _id: 1 } });
         if (existingNegocio) {
             return res.status(400).json({ error: 'El nombre del negocio ya está registrado' });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
         
-        const negocioNombreNormalizado = toUpperCase(nombreNegocio.trim());
         const adminNombreNormalizado = toTitleCase(nombreAdmin.trim());
         const emailNormalizado = email.toLowerCase().trim();
+        const planSeleccionado = normalizeSelectedPlan(selectedPlan);
         
         const fechaInicio = getRDDate().toISOString();
         
-        // Generar slug automatico
         let slug = createSlug(nombreNegocio);
-        const existSlug = db.prepare("SELECT id FROM negocios WHERE slug = ?").get(slug);
+        const existSlug = await db.collection('negocios').findOne({ slug: slug }, { projection: { _id: 1 } });
         if (existSlug) slug = slug + "-" + Date.now();
         
-        const result = db.prepare(`
-            INSERT INTO negocios (nombre, slug, telefono, email, rnc, licencia_fecha_inicio) 
-            VALUES (?, ?, ?, ?, ?, ?)
-        `).run(negocioNombreNormalizado, slug, telefono || null, emailNormalizado, rncNegocio || null, fechaInicio);
-
-        const negocioId = result.lastInsertRowid;
-
-        db.prepare(`
-            INSERT INTO usuarios (negocio_id, nombre, email, password, rol) 
-            VALUES (?, ?, ?, ?, 'admin')
-        `).run(negocioId, adminNombreNormalizado, emailNormalizado, hashedPassword);
-
-        const user = db.prepare('SELECT id, nombre, email, rol FROM usuarios WHERE email = ?').get(email);
+        const session = await db.startSession();
+        let negocioId;
         
-        req.session.userId = user.id;
-        req.session.negocioId = negocioId;
+        try {
+            await session.withTransaction(async () => {
+                const negocioResult = await db.collection('negocios').insertOne({
+                    nombre: negocioNombreNormalizado,
+                    slug: slug,
+                    telefono: telefono || null,
+                    email: emailNormalizado,
+                    rnc: rncNegocio || null,
+                    licencia_plan: 'trial',
+                    plan_seleccionado: planSeleccionado,
+                    licencia_fecha_inicio: fechaInicio
+                }, { session });
+
+                negocioId = negocioResult.insertedId;
+
+                await db.collection('usuarios').insertOne({
+                    negocio_id: negocioId,
+                    nombre: adminNombreNormalizado,
+                    email: emailNormalizado,
+                    password: hashedPassword,
+                    rol: 'admin'
+                }, { session });
+            });
+        } finally {
+            await session.endSession();
+        }
+
+        const user = await db.collection('usuarios').findOne(
+            { email: emailNormalizado },
+            { projection: { _id: 1, nombre: 1, email: 1, rol: 1 } }
+        );
+        
+        req.session.userId = user._id.toString();
+        req.session.negocioId = negocioId.toString();
         req.session.rol = user.rol;
         req.session.nombre = user.nombre;
-        req.session.email = email;
+        req.session.email = emailNormalizado;
 
-        // Obtener tipo de negocio para el sidebar
-        const negocioConfig = db.prepare('SELECT tipo_negocio FROM negocios WHERE id = ?').get(negocioId);
+        const negocioConfig = await db.collection('negocios').findOne(
+            { _id: negocioId },
+            { projection: { tipo_negocio: 1 } }
+        );
         req.session.tipo_negocio = (negocioConfig && negocioConfig.tipo_negocio) || 'ambos';
 
         const license = require('../license');
         license.recordTrialStart(negocioId);
 
+        autoBackup();
+
         res.json({
             success: true,
             user: {
-                id: user.id,
+                id: user._id.toString(),
                 nombre: user.nombre,
                 email: user.email,
                 rol: user.rol
             },
-            negocioId: negocioId
+            negocioId: negocioId.toString(),
+            selectedPlan: planSeleccionado,
+            licenseStatus: 'trial'
         });
     } catch (error) {
         console.error('Error en registro:', error);
@@ -157,32 +198,25 @@ router.post('/login', async (req, res) => {
         
         const emailLower = email.toLowerCase().trim();
         
-        const user = db.prepare(`
-            SELECT u.id, u.nombre, u.email, u.password, u.rol, u.negocio_id, u.estado, u.last_login, u.fecha_creacion,
-                   u.login_attempts, u.last_attempt,
-                   n.estado as negocio_estado
-            FROM usuarios u
-            JOIN negocios n ON u.negocio_id = n.id
-            WHERE u.email = ?
-        `).get(emailLower);
+        const user = await db.collection('usuarios').findOne({ email: emailLower });
 
         if (!user) {
             return res.status(401).json({ error: 'Credenciales incorrectas' });
         }
 
-        if (user.estado !== 'activo') {
+        if (user.estado && user.estado !== 'activo') {
             return res.status(401).json({ error: 'Usuario desactivado' });
         }
 
-        if (user.negocio_estado !== 'activo') {
+        const negocio = await db.collection('negocios').findOne({ _id: user.negocio_id });
+        if (!negocio || (negocio.estado && negocio.estado !== 'activo')) {
             return res.status(401).json({ error: 'Negocio suspendido' });
         }
         
-        // Verificar bloqueo por intentos fallidos
         const MAX_ATTEMPTS = 3;
         const LOCKOUT_MINUTES = 15;
         
-        if (user.login_attempts >= MAX_ATTEMPTS && user.last_attempt) {
+        if ((user.login_attempts || 0) >= MAX_ATTEMPTS && user.last_attempt) {
             const lastAttempt = new Date(user.last_attempt);
             const minutesSince = (getRDDate() - lastAttempt) / (1000 * 60);
             
@@ -195,17 +229,18 @@ router.post('/login', async (req, res) => {
                     locked: true
                 });
             } else {
-                db.prepare('UPDATE usuarios SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(user.id);
+                await db.collection('usuarios').updateOne(
+                    { _id: user._id },
+                    { $set: { login_attempts: 0, last_attempt: null } }
+                );
                 user.login_attempts = 0;
             }
         }
         
         const license = require('../license');
-        let licenseStatus = license.isLicenseValid(user.negocio_id);
-        // NOTA: No bloqueamos el login por licencia expirada
-        // Solo se muestra advertencia en el frontend
+        let licenseStatus = await license.isLicenseValid(user.negocio_id);
         
-        const INACTIVITY_DAYS = 30;
+        const INACTIVITY_DAYS = 365;
         const lastLogin = user.last_login ? new Date(user.last_login) : new Date(user.fecha_creacion);
         const daysSinceLastLogin = Math.floor((getRDDate() - lastLogin) / (1000 * 60 * 60 * 24));
         
@@ -219,8 +254,10 @@ router.post('/login', async (req, res) => {
         const validPassword = await bcrypt.compare(password, user.password);
         if (!validPassword) {
             const newAttempts = (user.login_attempts || 0) + 1;
-            db.prepare('UPDATE usuarios SET login_attempts = ?, last_attempt = ? WHERE id = ?')
-                .run(newAttempts, getRDDate().toISOString(), user.id);
+            await db.collection('usuarios').updateOne(
+                { _id: user._id },
+                { $set: { login_attempts: newAttempts, last_attempt: getRDDate().toISOString() } }
+            );
             
             if (newAttempts >= MAX_ATTEMPTS) {
                 return res.status(429).json({
@@ -237,13 +274,18 @@ router.post('/login', async (req, res) => {
             });
         }
         
-        // Resetear intentos en login exitoso
-        db.prepare('UPDATE usuarios SET login_attempts = 0, last_attempt = NULL WHERE id = ?').run(user.id);
+        await db.collection('usuarios').updateOne(
+            { _id: user._id },
+            { $set: { login_attempts: 0, last_attempt: null } }
+        );
         
-        db.prepare('UPDATE usuarios SET last_login = ? WHERE id = ?').run(getRDDate().toISOString(), user.id);
+        await db.collection('usuarios').updateOne(
+            { _id: user._id },
+            { $set: { last_login: getRDDate().toISOString() } }
+        );
 
-        req.session.userId = user.id;
-        req.session.negocioId = user.negocio_id;
+        req.session.userId = user._id.toString();
+        req.session.negocioId = user.negocio_id.toString();
         req.session.rol = user.rol;
         req.session.nombre = user.nombre;
         req.session.email = user.email;
@@ -253,12 +295,12 @@ router.post('/login', async (req, res) => {
         res.json({
             success: true,
             user: {
-                id: user.id,
+                id: user._id.toString(),
                 nombre: user.nombre,
                 email: user.email,
                 rol: user.rol
             },
-            negocioId: user.negocio_id,
+            negocioId: user.negocio_id.toString(),
             license: {
                 daysRemaining: licenseStatus.daysRemaining,
                 type: licenseStatus.type
@@ -270,20 +312,32 @@ router.post('/login', async (req, res) => {
     }
 });
 
-router.post('/logout', (req, res) => {
+router.post('/logout', async (req, res) => {
+    const db = getDb();
+    const userId = req.session.userId;
+    
     req.session.destroy();
+    
+    if (userId) {
+        try {
+            await db.collection('usuarios').updateOne(
+                { _id: userId },
+                { $set: { login_attempts: 0, last_attempt: null } }
+            );
+        } catch (e) { /* no bloquear logout por error de DB */ }
+    }
+    
     res.json({ success: true });
 });
 
-router.get('/session', (req, res) => {
+router.get('/session', async (req, res) => {
     if (!req.session.userId) {
         return res.json({ authenticated: false });
     }
-    
-    // Obtener días restantes de licencia
+
     const license = require('../license');
-    const licenseStatus = license.isLicenseValid(req.session.negocioId);
-    
+    const licenseStatus = await license.isLicenseValid(normalizeId(req.session.negocioId));
+
     res.json({
         authenticated: true,
         user: {
@@ -292,7 +346,7 @@ router.get('/session', (req, res) => {
             email: req.session.email,
             rol: req.session.rol
         },
-        negocioId: req.session.negocioId,
+        negocioId: normalizeId(req.session.negocioId),
         license: {
             daysRemaining: licenseStatus.daysRemaining,
             type: licenseStatus.type,
@@ -301,24 +355,27 @@ router.get('/session', (req, res) => {
     });
 });
 
-// Endpoint para obtener info de licencia
-router.get('/license-info', (req, res) => {
+router.get('/license-info', async (req, res) => {
     if (!req.session.userId) {
         return res.status(401).json({ error: 'No autenticado' });
     }
     
-    const userEmail = req.session.email;
-    
-    // Todos los usuarios pasan por validación de licencia normal
-    
+    const db = getDb();
     const license = require('../license');
-    const licenseStatus = license.isLicenseValid(req.session.negocioId);
-    
+    const licenseStatus = await license.isLicenseValid(normalizeId(req.session.negocioId));
+
+    const negocio = await db.collection('negocios').findOne(
+        { _id: normalizeId(req.session.negocioId) },
+        { projection: { plan_seleccionado: 1 } }
+    );
+    const planSeleccionado = negocio ? (negocio.plan_seleccionado || 'trial') : 'trial';
+
     res.json({
         daysRemaining: licenseStatus.daysRemaining,
         type: licenseStatus.type,
         valid: licenseStatus.valid,
         isOwner: false,
+        planSeleccionado,
         licenciaPlan: licenseStatus.licenciaPlan,
         licenciaFechaInicio: licenseStatus.licenciaFechaInicio,
         licenciaFechaExpiracion: licenseStatus.licenciaFechaExpiracion

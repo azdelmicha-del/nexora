@@ -1,96 +1,37 @@
-const fs = require('fs');
-const path = require('path');
-const { getDb } = require('./database');
-const { getRDDate } = require('./utils/timezone');
+/**
+ * Backup protection - deshabilitado para MongoDB
+ * MongoDB Atlas maneja backups automaticamente
+ */
 
 function getBackupDir() {
-    if (process.env.BACKUP_DIR) {
-        return process.env.BACKUP_DIR;
-    }
-
-    const baseDbDir = process.env.DB_DIR || path.join(__dirname, 'db');
-    return path.join(baseDbDir, 'backups');
+    return './backups';
 }
 
-// Función para hacer backup automático de la BD
 function autoBackup() {
-    try {
-        const db = getDb();
-        const backupDir = getBackupDir();
-        
-        // Crear directorio de backups si no existe
-        if (!fs.existsSync(backupDir)) {
-            fs.mkdirSync(backupDir, { recursive: true });
-        }
-        
-        // Nombre del backup con timestamp
-        const timestamp = getRDDate().toISOString().replace(/[:.]/g, '-');
-        const backupPath = path.join(backupDir, `nexora-backup-${timestamp}.db`);
-        
-        // Hacer backup usando el método de better-sqlite3
-        db.backup(backupPath);
-        
-        console.log(`✅ Backup automático creado: ${backupPath}`);
-        
-        // Eliminar backups más antiguos de 7 días
-        cleanOldBackups(backupDir);
-        
-        return backupPath;
-    } catch (error) {
-        console.error('Error en backup automático:', error.message);
-        return null;
-    }
+    console.log('ℹ️  Backup automatico: MongoDB Atlas maneja backups automaticamente');
+    return null;
 }
 
-// Función para limpiar backups antiguos
-function cleanOldBackups(backupDir) {
-    try {
-        const files = fs.readdirSync(backupDir);
-        const now = Date.now();
-        const sevenDaysAgo = now - (7 * 24 * 60 * 60 * 1000);
-        
-        files.forEach(file => {
-            if (file.endsWith('.db')) {
-                const filePath = path.join(backupDir, file);
-                const stats = fs.statSync(filePath);
-                
-                if (stats.mtime.getTime() < sevenDaysAgo) {
-                    fs.unlinkSync(filePath);
-                    console.log(`Backup antiguo eliminado: ${file}`);
-                }
-            }
-        });
-    } catch (error) {
-        console.error('Error limpiando backups:', error.message);
-    }
+function cleanOldBackups() {
+    // No aplica para MongoDB
 }
 
-// Función para verificar integridad de la BD
 function checkDatabaseIntegrity() {
     try {
-        const db = getDb();
-        
-        // Verificar que las tablas principales existen
-        const tables = ['negocios', 'usuarios', 'servicios', 'clientes', 'ventas', 'citas'];
-        
-        for (const table of tables) {
-            const result = db.prepare(`SELECT name FROM sqlite_master WHERE type='table' AND name=?`).get(table);
-            if (!result) {
-                console.error(`❌ Tabla ${table} no existe`);
-                return false;
-            }
+        const db = require('./database').getDb();
+        if (db && db.readyState === 1) {
+            console.log('✅ MongoDB conectado y operativo');
+            return true;
         }
-        
-        console.log('✅ Integridad de BD verificada');
-        return true;
+        return false;
     } catch (error) {
-        console.error('Error verificando integridad:', error.message);
+        console.error('Error verificando MongoDB:', error.message);
         return false;
     }
 }
 
-module.exports = { 
-    autoBackup, 
+module.exports = {
+    autoBackup,
     cleanOldBackups,
     checkDatabaseIntegrity,
     getBackupDir

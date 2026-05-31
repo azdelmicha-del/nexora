@@ -1,11 +1,9 @@
 const express = require('express');
-const { getDb } = require('../database');
+const { getDb , normalizeId } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
-// Ruta para obtener detalles de un recurso por id (intencion General)
-// Prioriza tablas comunes: citas, usuarios, clientes, negocios, servicios
 router.get('/details/:id', async (req, res) => {
   const db = getDb();
   const isSuperAdmin = !!req.session?.superAdminId;
@@ -15,28 +13,27 @@ router.get('/details/:id', async (req, res) => {
     return res.status(401).json({ error: 'No autorizado' });
   }
   
-  const id = req.params.id;
-  const tablesToCheck = ['citas', 'usuarios', 'clientes', 'negocios', 'servicios'];
+  const id = normalizeId(req.params.id);
+  const collectionsToCheck = ['citas', 'usuarios', 'clientes', 'negocios', 'servicios'];
   let found = null;
-  for (const table of tablesToCheck) {
+  for (const collection of collectionsToCheck) {
     try {
-      // Usamos parámetro para evitar inyección; tabla dinámica controlada por lista
-      const row = db.prepare(`SELECT * FROM ${table} WHERE id = ?`).get(id);
+      const row = await db.collection(collection).findOne({ id });
       if (row) {
-        found = { table, data: row };
+        const { _id, ...data } = row;
+        found = { collection, data: { id: _id.toString(), ...data } };
         break;
       }
     } catch (e) {
-      // Saltar si la tabla no existe o falla
+      // Skip if collection does not exist or fails
     }
   }
 
   if (found) {
-    return res.json({ id, found: found.table, data: found.data });
+    return res.json({ id, found: found.collection, data: found.data });
   }
 
-  // No se encontró en estas tablas; devolver un fallback seguro
-  res.json({ id, found: null, data: null, note: 'No data found in known tables' });
+  res.json({ id, found: null, data: null, note: 'No data found in known collections' });
 });
 
 module.exports = router;

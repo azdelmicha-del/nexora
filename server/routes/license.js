@@ -3,6 +3,7 @@ const router = express.Router();
 const license = require('../license');
 const { LICENSE_MASTER_KEY } = require('../config');
 const { getRDDateString, getRDDate } = require('../utils/timezone');
+const { normalizeId } = require('../database');
 
 function isAuthorized(req) {
     const masterKey = req.headers['x-master-key'];
@@ -15,79 +16,82 @@ function isAuthorized(req) {
     return masterKey === LICENSE_MASTER_KEY || !!req.session?.superAdminId;
 }
 
-router.get('/status', (req, res) => {
-    const negocioId = req.session.negocioId;
-    const isLocal = license.isLocalInstallation();
-    const status = license.isLicenseValid(negocioId);
-    const plans = license.getPlans();
-    let planName = 'Prueba';
-    let licenseInfo = {};
-    
-    if (isLocal) {
-        const info = license.getLicense();
-        if (info && info.plan && plans[info.plan]) {
-            planName = plans[info.plan].name;
-        }
-        licenseInfo = {
-            installDate: info?.installDate,
-            isPaid: info?.isPaid,
-            plan: info?.plan,
-            expirationDate: info?.expirationDate
-        };
-    } else {
+router.get('/status', async (req, res) => {
+    try {
+        const negocioId = normalizeId(req.session.negocioId);
+        const status = await license.isLicenseValid(negocioId);
+        const plans = license.getPlans();
+        let planName = 'Prueba';
         if (status.type !== 'trial') {
             planName = plans[status.type]?.name || status.type;
         }
+        res.json({
+            valid: status.valid,
+            type: status.type,
+            daysRemaining: status.daysRemaining,
+            trialDays: license.TRIAL_DAYS,
+            planName: planName,
+            plans: plans,
+            message: status.message || null,
+            isOwner: false,
+            licenseType: 'database',
+            debug: {
+                negocioId: negocioId,
+                licenciaPlan: status.licenciaPlan,
+                licenciaFechaInicio: status.licenciaFechaInicio,
+                licenciaFechaExpiracion: status.licenciaFechaExpiracion
+            },
+            plan: status.type,
+            expirationDate: status.licenciaFechaExpiracion,
+            isPaid: status.type !== 'trial',
+            installDate: status.licenciaFechaInicio
+        });
+    } catch (error) {
+        console.error('Error /api/license/status:', error);
+        res.json({
+            valid: true,
+            type: 'trial',
+            daysRemaining: 7,
+            trialDays: 7,
+            planName: 'Prueba',
+            plans: license.getPlans(),
+            message: null,
+            isOwner: false,
+            licenseType: 'database',
+            plan: 'trial',
+            expirationDate: null,
+            isPaid: false,
+            installDate: null
+        });
     }
-    
-    res.json({
-        valid: status.valid,
-        type: status.type,
-        daysRemaining: status.daysRemaining,
-        trialDays: license.TRIAL_DAYS,
-        planName: planName,
-        plans: plans,
-        message: status.message || null,
-        isOwner: false,
-        licenseType: isLocal ? 'local' : 'database',
-        debug: {
-            negocioId: negocioId,
-            licenciaPlan: status.licenciaPlan,
-            licenciaFechaInicio: status.licenciaFechaInicio,
-            licenciaFechaExpiracion: status.licenciaFechaExpiracion
-        },
-        ...licenseInfo
-    });
 });
 
 router.post('/start-trial', (req, res) => {
     const userEmail = req.session?.email;
     const negocioId = req.session?.negocioId;
     
-    // Todos los usuarios pasan por validación de licencia
-    
     const trialStartDate = license.recordTrialStart(negocioId);
     res.json({ success: true, trialStartDate });
 });
 
-router.post('/activate', (req, res) => {
+router.post('/activate', async (req, res) => {
     const { key, plan } = req.body;
     const negocioId = req.session?.negocioId;
-    
+
     if (!key || !plan) {
         return res.status(400).json({ error: 'Clave y plan requeridos' });
     }
-    
+
     if (plan === 'trial') {
         return res.status(400).json({ error: 'Plan inválido' });
     }
-    
-    const result = license.activateLicense(key, plan, negocioId);
-    
+
+    const result = await license.activateLicense(key, plan, negocioId);
+
     if (!result.success) {
         return res.status(400).json({ error: result.message });
     }
-    
+
     res.json(result);
 });
 
@@ -146,7 +150,7 @@ router.delete('/keys/:key', (req, res) => {
     res.json({ success: true, message: 'Clave eliminada' });
 });
 
-router.get('/businesses', (req, res) => {
+router.get('/businesses', async (req, res) => {
     if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
@@ -154,67 +158,185 @@ router.get('/businesses', (req, res) => {
     const db = require('../database').getDb();
     const { buscar } = req.query;
     
-    let query = `
-        SELECT 
-            n.id,
-            n.nombre,
-            n.telefono,
-            n.email,
-            n.licencia_plan,
-            n.licencia_fecha_inicio,
-            n.licencia_fecha_expiracion,
-            n.licencia_hardware_id,
-            n.estado,
-            (SELECT COUNT(*) FROM usuarios u WHERE u.negocio_id = n.id) as total_usuarios,
-            (SELECT COUNT(*) FROM clientes c WHERE c.negocio_id = n.id) as total_clientes,
-            (SELECT COUNT(*) FROM servicios s WHERE s.negocio_id = n.id AND s.estado = 'activo') as total_servicios,
-            (SELECT COALESCE(SUM(v.total), 0) FROM ventas v WHERE v.negocio_id = n.id) as total_ventas,
-            (SELECT COUNT(*) FROM ventas v WHERE v.negocio_id = n.id AND DATE(v.fecha) = DATE('now')) as ventas_hoy,
-            (SELECT MAX(v.fecha) FROM ventas v WHERE v.negocio_id = n.id) as ultima_actividad
-        FROM negocios n
-    `;
-    
-    let params = [];
+    let matchStage = {};
     if (buscar) {
-        query += ` WHERE n.nombre LIKE ? OR n.email LIKE ? OR n.telefono LIKE ?`;
-        const term = `%${buscar}%`;
-        params = [term, term, term];
+        const term = new RegExp(buscar, 'i');
+        matchStage = {
+            $or: [
+                { nombre: term },
+                { email: term },
+                { telefono: term }
+            ]
+        };
     }
     
-    query += ` ORDER BY n.id DESC`;
+    const negocios = await db.collection('negocios').aggregate([
+        ...(Object.keys(matchStage).length > 0 ? [{ $match: matchStage }] : []),
+        {
+            $lookup: {
+                from: 'usuarios',
+                let: { negocioId: '$id' },
+                pipeline: [{ $match: { $expr: { $eq: ['$negocio_id', '$$negocioId'] } } }],
+                as: 'usuarios'
+            }
+        },
+        {
+            $lookup: {
+                from: 'clientes',
+                let: { negocioId: '$id' },
+                pipeline: [{ $match: { $expr: { $eq: ['$negocio_id', '$$negocioId'] } } }],
+                as: 'clientes'
+            }
+        },
+        {
+            $lookup: {
+                from: 'servicios',
+                let: { negocioId: '$id' },
+                pipeline: [{ $match: { $expr: { $eq: ['$negocio_id', '$$negocioId'] }, estado: 'activo' } }],
+                as: 'servicios'
+            }
+        },
+        {
+            $lookup: {
+                from: 'ventas',
+                let: { negocioId: '$id' },
+                pipeline: [{ $match: { $expr: { $eq: ['$negocio_id', '$$negocioId'] } } }],
+                as: 'ventas'
+            }
+        },
+        {
+            $addFields: {
+                total_usuarios: { $size: '$usuarios' },
+                total_clientes: { $size: '$clientes' },
+                total_servicios: { $size: '$servicios' },
+                total_ventas: { $sum: '$ventas.total' },
+                ventas_hoy: {
+                    $size: {
+                        $filter: {
+                            input: '$ventas',
+                            as: 'v',
+                            cond: {
+                                $eq: [
+                                    { $dateToString: { format: '%Y-%m-%d', date: '$$v.fecha' } },
+                                    { $dateToString: { format: '%Y-%m-%d', date: new Date() } }
+                                ]
+                            }
+                        }
+                    }
+                },
+                ultima_actividad: { $max: '$ventas.fecha' }
+            }
+        },
+        {
+            $project: {
+                usuarios: 0,
+                clientes: 0,
+                servicios: 0,
+                ventas: 0
+            }
+        },
+        { $sort: { id: -1 } }
+    ]).toArray();
     
-    const negocios = db.prepare(query).all(...params);
+    const result = negocios.map(n => ({
+        id: n.id,
+        nombre: n.nombre,
+        telefono: n.telefono,
+        email: n.email,
+        licencia_plan: n.licencia_plan,
+        licencia_fecha_inicio: n.licencia_fecha_inicio,
+        licencia_fecha_expiracion: n.licencia_fecha_expiracion,
+        licencia_hardware_id: n.licencia_hardware_id,
+        estado: n.estado,
+        total_usuarios: n.total_usuarios,
+        total_clientes: n.total_clientes,
+        total_servicios: n.total_servicios,
+        total_ventas: n.total_ventas,
+        ventas_hoy: n.ventas_hoy,
+        ultima_actividad: n.ultima_actividad
+    }));
     
-    res.json(negocios);
+    res.json(result);
 });
 
-// Must be defined BEFORE /businesses/:id to avoid Express treating "stats" as :id
-router.get('/businesses/stats/growth', (req, res) => {
+router.get('/businesses/stats/growth', async (req, res) => {
     if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
     const db = require('../database').getDb();
     
-    const ultimosMeses = db.prepare(`
-        SELECT 
-            strftime('%Y-%m', fecha_creacion) as mes,
-            COUNT(*) as cantidad
-        FROM negocios
-        WHERE fecha_creacion >= DATE('now', '-12 months')
-        GROUP BY strftime('%Y-%m', fecha_creacion)
-        ORDER BY mes ASC
-    `).all();
+    const twelveMonthsAgo = new Date();
+    twelveMonthsAgo.setMonth(twelveMonthsAgo.getMonth() - 12);
     
-    const resumen = db.prepare(`
-        SELECT 
-            COUNT(*) as total,
-            SUM(CASE WHEN licencia_plan != 'trial' AND licencia_plan IS NOT NULL THEN 1 ELSE 0 END) as activos,
-            SUM(CASE WHEN licencia_plan = 'trial' OR licencia_plan IS NULL THEN 1 ELSE 0 END) as en_trial,
-            SUM(CASE WHEN estado = 'suspendido' THEN 1 ELSE 0 END) as suspendidos
-        FROM negocios
-        WHERE estado != 'eliminado'
-    `).get();
+    const ultimosMeses = await db.collection('negocios').aggregate([
+        {
+            $match: {
+                fecha_creacion: { $gte: twelveMonthsAgo }
+            }
+        },
+        {
+            $group: {
+                _id: { $dateToString: { format: '%Y-%m', date: '$fecha_creacion' } },
+                cantidad: { $sum: 1 }
+            }
+        },
+        {
+            $sort: { _id: 1 }
+        },
+        {
+            $project: {
+                _id: 0,
+                mes: '$_id',
+                cantidad: 1
+            }
+        }
+    ]).toArray();
+    
+    const resumenDoc = await db.collection('negocios').aggregate([
+        {
+            $match: {
+                estado: { $ne: 'eliminado' }
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                total: { $sum: 1 },
+                activos: {
+                    $sum: {
+                        $cond: [
+                            { $and: [
+                                { $ne: ['$licencia_plan', 'trial'] },
+                                { $ne: ['$licencia_plan', null] }
+                            ]},
+                            1,
+                            0
+                        ]
+                    }
+                },
+                en_trial: {
+                    $sum: {
+                        $cond: [
+                            { $or: [
+                                { $eq: ['$licencia_plan', 'trial'] },
+                                { $eq: ['$licencia_plan', null] }
+                            ]},
+                            1,
+                            0
+                        ]
+                    }
+                },
+                suspendidos: {
+                    $sum: {
+                        $cond: [{ $eq: ['$estado', 'suspendido'] }, 1, 0]
+                    }
+                }
+            }
+        }
+    ]).toArray();
+    
+    const resumen = resumenDoc[0] || { total: 0, activos: 0, en_trial: 0, suspendidos: 0 };
     
     res.json({
         mensual: ultimosMeses,
@@ -222,98 +344,132 @@ router.get('/businesses/stats/growth', (req, res) => {
     });
 });
 
-router.get('/businesses/:id', (req, res) => {
+router.get('/businesses/:id', async (req, res) => {
     if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
     const db = require('../database').getDb();
-    const negocioId = parseInt(req.params.id);
+    const negocioId = parseInt(normalizeId(req.params.id));
     
-    const negocio = db.prepare(`
-        SELECT * FROM negocios WHERE id = ?
-    `).get(negocioId);
+    const negocio = await db.collection('negocios').findOne({ id: negocioId });
     
     if (!negocio) {
         return res.status(404).json({ error: 'Negocio no encontrado' });
     }
     
-    const usuarios = db.prepare(`
-        SELECT id, nombre, email, rol, estado, fecha_creacion FROM usuarios WHERE negocio_id = ?
-    `).all(negocioId);
+    const usuarios = await db.collection('usuarios')
+        .find({ negocio_id: negocioId })
+        .project({ id: 1, nombre: 1, email: 1, rol: 1, estado: 1, fecha_creacion: 1 })
+        .toArray();
     
-    const ventasRecientes = db.prepare(`
-        SELECT v.id, v.total, v.metodo_pago, v.fecha, c.nombre as cliente
-        FROM ventas v
-        LEFT JOIN clientes c ON v.cliente_id = c.id
-        WHERE v.negocio_id = ?
-        ORDER BY v.fecha DESC
-        LIMIT 10
-    `).all(negocioId);
+    const ventasRecientes = await db.collection('ventas').aggregate([
+        { $match: { negocio_id: negocioId } },
+        {
+            $lookup: {
+                from: 'clientes',
+                localField: 'cliente_id',
+                foreignField: 'id',
+                as: 'clienteDoc'
+            }
+        },
+        {
+            $addFields: {
+                cliente: { $arrayElemAt: ['$clienteDoc.nombre', 0] }
+            }
+        },
+        {
+            $project: {
+                id: 1,
+                total: 1,
+                metodo_pago: 1,
+                fecha: 1,
+                cliente: 1
+            }
+        },
+        { $sort: { fecha: -1 } },
+        { $limit: 10 }
+    ]).toArray();
     
     res.json({
-        ...negocio,
+        id: negocio.id,
+        nombre: negocio.nombre,
+        telefono: negocio.telefono,
+        email: negocio.email,
+        licencia_plan: negocio.licencia_plan,
+        licencia_fecha_inicio: negocio.licencia_fecha_inicio,
+        licencia_fecha_expiracion: negocio.licencia_fecha_expiracion,
+        licencia_hardware_id: negocio.licencia_hardware_id,
+        estado: negocio.estado,
+        fecha_creacion: negocio.fecha_creacion,
         usuarios,
         ventasRecientes
     });
 });
 
-router.put('/businesses/:id/suspend', (req, res) => {
+router.put('/businesses/:id/suspend', async (req, res) => {
     if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
     const db = require('../database').getDb();
-    const negocioId = parseInt(req.params.id);
+    const negocioId = parseInt(normalizeId(req.params.id));
     const { suspendido } = req.body;
     
-    const negocio = db.prepare('SELECT id FROM negocios WHERE id = ?').get(negocioId);
+    const negocio = await db.collection('negocios').findOne({ id: negocioId }, { projection: { id: 1 } });
     if (!negocio) {
         return res.status(404).json({ error: 'Negocio no encontrado' });
     }
     
     const nuevoEstado = suspendido ? 'suspendido' : 'activo';
-    db.prepare('UPDATE negocios SET estado = ? WHERE id = ?').run(nuevoEstado, negocioId);
+    await db.collection('negocios').updateOne(
+        { id: negocioId },
+        { $set: { estado: nuevoEstado } }
+    );
     
     res.json({ success: true, message: suspendido ? 'Negocio suspendido' : 'Negocio reactivado' });
 });
 
-router.delete('/businesses/:id', (req, res) => {
+router.delete('/businesses/:id', async (req, res) => {
     if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
     const db = require('../database').getDb();
-    const negocioId = parseInt(req.params.id);
+    const negocioId = parseInt(normalizeId(req.params.id));
     
-    const negocio = db.prepare('SELECT id, nombre FROM negocios WHERE id = ?').get(negocioId);
+    const negocio = await db.collection('negocios').findOne({ id: negocioId }, { projection: { id: 1, nombre: 1 } });
     if (!negocio) {
         return res.status(404).json({ error: 'Negocio no encontrado' });
     }
     
-    // Soft delete - cambiar estado a eliminado
-    db.prepare('UPDATE negocios SET estado = ? WHERE id = ?').run('eliminado', negocioId);
+    await db.collection('negocios').updateOne(
+        { id: negocioId },
+        { $set: { estado: 'eliminado' } }
+    );
     
-    // Desactivar todos los usuarios del negocio
-    db.prepare('UPDATE usuarios SET estado = ? WHERE negocio_id = ?').run('inactivo', negocioId);
+    await db.collection('usuarios').updateMany(
+        { negocio_id: negocioId },
+        { $set: { estado: 'inactivo' } }
+    );
     
     res.json({ success: true, message: `Negocio "${negocio.nombre}" eliminado (soft delete)` });
 });
 
-router.post('/businesses/:id/renew', (req, res) => {
+router.post('/businesses/:id/renew', async (req, res) => {
     if (!isAuthorized(req)) {
         return res.status(403).json({ error: 'Acceso denegado' });
     }
     
     const { plan, dias } = req.body;
-    const negocioId = parseInt(req.params.id);
+    const negocioId = parseInt(normalizeId(req.params.id));
     
     if (!plan || !dias) {
         return res.status(400).json({ error: 'Plan y días requeridos' });
     }
     
     const db = require('../database').getDb();
-    const negocio = db.prepare('SELECT id FROM negocios WHERE id = ?').get(negocioId);
+    const negocio = await db.collection('negocios').findOne({ id: negocioId }, { projection: { id: 1 } });
     if (!negocio) {
         return res.status(404).json({ error: 'Negocio no encontrado' });
     }
@@ -323,14 +479,17 @@ router.post('/businesses/:id/renew', (req, res) => {
     expiracion.setDate(expiracion.getDate() + parseInt(dias));
     const fechaExpiracion = getRDDateString(expiracion);
     
-    db.prepare(`
-        UPDATE negocios 
-        SET licencia_plan = ?, 
-            licencia_fecha_inicio = ?, 
-            licencia_fecha_expiracion = ?,
-            estado = 'activo'
-        WHERE id = ?
-    `).run(plan, hoy, fechaExpiracion, negocioId);
+    await db.collection('negocios').updateOne(
+        { id: negocioId },
+        {
+            $set: {
+                licencia_plan: plan,
+                licencia_fecha_inicio: hoy,
+                licencia_fecha_expiracion: fechaExpiracion,
+                estado: 'activo'
+            }
+        }
+    );
     
     res.json({ 
         success: true, 

@@ -1,41 +1,71 @@
 const express = require('express');
-const { getDb } = require('../database');
+const { getDb , normalizeId } = require('../database');
 const { requireAuth, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 
 // GET /api/audit — Log de auditoria
-router.get('/', requireAuth, (req, res) => {
+router.get('/', requireAuth, async (req, res) => {
     try {
         const db = getDb();
-        const negocioId = req.session.negocioId;
+        const negocioId = normalizeId(req.session.negocioId);
         const { tabla, user_id, desde, hasta, limit } = req.query;
 
-        let where = 'WHERE l.negocio_id = ?';
-        const params = [negocioId];
+        const filter = { negocio_id: negocioId };
 
-        if (tabla) { where += ' AND l.tabla = ?'; params.push(tabla); }
-        if (user_id) { where += ' AND l.user_id = ?'; params.push(user_id); }
-        if (desde) { where += ' AND DATE(l.fecha) >= ?'; params.push(desde); }
-        if (hasta) { where += ' AND DATE(l.fecha) <= ?'; params.push(hasta); }
+        if (tabla) { filter.tabla = tabla; }
+        if (user_id) { filter.user_id = user_id; }
+        if (desde || hasta) {
+            filter.fecha = {};
+            if (desde) { filter.fecha.$gte = new Date(desde); }
+            if (hasta) { filter.fecha.$lte = new Date(hasta + 'T23:59:59.999Z'); }
+        }
 
-        const logs = db.prepare(`
-            SELECT l.id, l.accion, l.tabla, l.registro_id, l.detalle, l.ip, l.fecha,
-                   u.nombre as usuario
-            FROM log_auditoria l
-            LEFT JOIN usuarios u ON l.user_id = u.id
-            ${where}
-            ORDER BY l.fecha DESC
-            LIMIT ?
-        `).all(...params, parseInt(limit) || 100);
+        const logs = await db.collection('log_auditoria')
+            .aggregate([
+                { $match: filter },
+                {
+                    $lookup: {
+                        from: 'usuarios',
+                        localField: 'user_id',
+                        foreignField: '_id',
+                        as: 'usuarioDoc'
+                    }
+                },
+                { $unwind: { path: '$usuarioDoc', preserveNullAndEmptyArrays: true } },
+                {
+                    $project: {
+                        id: '$_id',
+                        accion: 1,
+                        tabla: 1,
+                        registro_id: 1,
+                        detalle: 1,
+                        ip: 1,
+                        fecha: 1,
+                        usuario: '$usuarioDoc.nombre'
+                    }
+                },
+                { $sort: { fecha: -1 } },
+                { $limit: parseInt(limit) || 100 }
+            ])
+            .toArray();
 
-        const stats = db.prepare(`
-            SELECT accion, COUNT(*) as count
-            FROM log_auditoria
-            WHERE negocio_id = ? AND DATE(fecha) >= date('now', '-30 days')
-            GROUP BY accion
-            ORDER BY count DESC
-        `).all(negocioId);
+        const thirtyDaysAgo = new Date();
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+        const stats = await db.collection('log_auditoria')
+            .aggregate([
+                {
+                    $match: {
+                        negocio_id: negocioId,
+                        fecha: { $gte: thirtyDaysAgo }
+                    }
+                },
+                { $group: { _id: '$accion', count: { $sum: 1 } } },
+                { $project: { accion: '$_id', count: 1, _id: 0 } },
+                { $sort: { count: -1 } }
+            ])
+            .toArray();
 
         res.json({ logs, stats });
     } catch (error) {
@@ -45,24 +75,22 @@ router.get('/', requireAuth, (req, res) => {
 });
 
 // POST /api/audit — Registrar accion (usado internamente)
-router.post('/', requireAuth, (req, res) => {
+router.post('/', requireAuth, async (req, res) => {
     try {
         const { accion, tabla, registro_id, detalle } = req.body;
         const db = getDb();
 
-        db.prepare(`
-            INSERT INTO log_auditoria (negocio_id, user_id, accion, tabla, registro_id, detalle, ip, user_agent)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        `).run(
-            req.session.negocioId,
-            req.session.userId,
+        await db.collection('log_auditoria').insertOne({
+            negocio_id: normalizeId(req.session.negocioId),
+            user_id: req.session.userId,
             accion,
-            tabla || null,
-            registro_id || null,
-            detalle || null,
-            req.ip,
-            req.headers['user-agent']
-        );
+            tabla: tabla || null,
+            registro_id: registro_id || null,
+            detalle: detalle || null,
+            ip: req.ip,
+            user_agent: req.headers['user-agent'],
+            fecha: new Date()
+        });
 
         res.json({ success: true });
     } catch (error) {

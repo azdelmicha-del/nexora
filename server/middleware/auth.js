@@ -41,44 +41,44 @@ function requireSuperAdmin(req, res, next) {
     next();
 }
 
-function requireActiveLicense(req, res, next) {
+async function requireActiveLicense(req, res, next) {
     const url = req.originalUrl || req.url;
-    
+
     // Rutas exentas de verificación de licencia
     if (url === '/' || url === '/actualizar' || url.startsWith('/actualizar?') ||
-        url.startsWith('/api/auth') || url.startsWith('/api/license') || 
+        url.startsWith('/api/auth') || url.startsWith('/api/license') ||
         url.startsWith('/api/superadmin') || url.startsWith('/api/public') ||
-        url.startsWith('/superadmin') || url.startsWith('/booking') || 
+        url.startsWith('/superadmin') || url.startsWith('/booking') ||
         url.startsWith('/api/booking') || url.startsWith('/registro') ||
-        url.startsWith('/css/') || url.startsWith('/js/') || 
+        url.startsWith('/css/') || url.startsWith('/js/') ||
         url.startsWith('/api/debug')) {
         return next();
     }
-    
+
     // Solo verificar si tiene negocio
     if (!req.session.negocioId) {
         return next();
     }
-    
+
     try {
         const license = require('../license');
-        const status = license.isLicenseValid(req.session.negocioId);
-        
+        const status = await license.isLicenseValid(req.session.negocioId);
+
         // Licencia válida con días restantes → continuar
         if (status.valid && status.daysRemaining > 0) {
             return next();
         }
-        
+
         // Licencia expirada → bloquear
         if (url.startsWith('/api/')) {
-            return res.status(403).json({ 
-                error: 'Licencia expirada', 
+            return res.status(403).json({
+                error: 'Licencia expirada',
                 redirect: '/actualizar',
                 daysRemaining: status.daysRemaining || 0,
                 type: status.type
             });
         }
-        
+
         return res.redirect('/actualizar');
     } catch (error) {
         console.error('Error verificando licencia:', error);
