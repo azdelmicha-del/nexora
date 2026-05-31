@@ -70,25 +70,48 @@ const TABLES = [
     'platform_config'
 ];
 
-async function cleanupNexoraPos(sqlite) {
-    console.log('=== Paso 1: Limpieza de nexora_pos (datos previos) ===\n');
+const NEGOCIO_IDS_V2 = [1, 16, 18]; // IDs de negocios de Nexora V_0.2
 
-    const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
-    let totalDeleted = 0;
+async function cleanupNexoraPos(sqlite) {
+    console.log('=== Paso 1: Limpieza de nexora_pos (datos de V_0.2) ===\n');
+
+    // Obtener IDs de ventas y pedidos de V_0.2 para limpiar tablas hijas
+    const ventaIds = sqlite.prepare('SELECT id FROM ventas').all().map(r => r.id);
+    const pedidoIds = sqlite.prepare('SELECT id FROM pedidos').all().map(r => r.id);
 
     await mongoose.connect(MONGODB_URI, { dbName: 'nexora_pos' });
+    let totalDeleted = 0;
 
-    for (const t of tables) {
-        const tableName = t.name;
-        const ids = sqlite.prepare(`SELECT id FROM "${tableName}"`).all().map(r => r.id);
-        if (ids.length === 0) continue;
+    // Tablas con negocio_id (seguro: filtrar por IDs de V_0.2)
+    const conNegocioId = [
+        'negocios','usuarios','categorias','servicios','clientes','ventas',
+        'citas','notificaciones','conversaciones','cajas_cerradas',
+        'estado_resultado_items','secuencias_ncf','certificados_dgii','notas_credito',
+        'productos','movimientos_inventario','comisiones','chatbot_reglas',
+        'chatbot_mensajes','puntos_lealtad','historial_puntos','horario_negocio',
+        'sucursales','whatsapp_config','menu_categorias','menu_items','pedidos'
+    ];
 
-        const col = mongoose.connection.collection(tableName);
-        const result = await col.deleteMany({ _id: { $in: ids } });
-        if (result.deletedCount > 0) {
-            console.log(`  🗑️  ${tableName}: ${result.deletedCount} eliminados`);
-            totalDeleted += result.deletedCount;
+    for (const name of conNegocioId) {
+        const col = mongoose.connection.collection(name);
+        const filter = name === 'negocios'
+            ? { _id: { $in: NEGOCIO_IDS_V2 } }
+            : { negocio_id: { $in: NEGOCIO_IDS_V2 } };
+        const r = await col.deleteMany(filter);
+        if (r.deletedCount > 0) {
+            console.log(`  🗑️  ${name}: ${r.deletedCount} eliminados`);
+            totalDeleted += r.deletedCount;
         }
+    }
+
+    // Tablas hijas (sin negocio_id, se limpian por ID de padre)
+    if (ventaIds.length > 0) {
+        const r = await mongoose.connection.collection('venta_detalles').deleteMany({ venta_id: { $in: ventaIds } });
+        if (r.deletedCount > 0) { console.log(`  🗑️  venta_detalles: ${r.deletedCount} eliminados`); totalDeleted += r.deletedCount; }
+    }
+    if (pedidoIds.length > 0) {
+        const r = await mongoose.connection.collection('pedidos_items').deleteMany({ pedido_id: { $in: pedidoIds } });
+        if (r.deletedCount > 0) { console.log(`  🗑️  pedidos_items: ${r.deletedCount} eliminados`); totalDeleted += r.deletedCount; }
     }
 
     console.log(`\n✅ Total eliminado de nexora_pos: ${totalDeleted} documentos\n`);
@@ -102,7 +125,7 @@ async function migrate() {
     const sqlite = new Database(SQLITE_PATH, { readonly: true });
     console.log('✅ SQLite conectado:', SQLITE_PATH);
 
-    // Limpiar nexora_pos primero (si tiene datos de migraciones previas)
+    // Limpiar nexora_pos (datos de V_0.2 que se migraron por error en la primera ejecucion)
     await cleanupNexoraPos(sqlite);
 
     // Conectar a MongoDB (db: nexora)
