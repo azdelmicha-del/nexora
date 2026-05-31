@@ -96,7 +96,9 @@
                         </div>
                         <div class="form-group">
                             <label for="categoria">Categoria</label>
-                            <input type="text" id="categoria" placeholder="Shampoo, Tinte, etc.">
+                            <select id="categoria">
+                                <option value="">Seleccionar categoria...</option>
+                            </select>
                         </div>
                     </div>
                     <div class="form-row">
@@ -140,9 +142,34 @@
             if (!licenseOk) return;
             const session = await checkSession();
             if (!session || !session.authenticated) { window.location.href = '/'; return; }
-            await loadProductos();
+            await Promise.all([loadProductos(), loadCategorias()]);
             document.getElementById('productoForm').addEventListener('submit', handleSubmit);
         });
+
+        async function loadCategorias() {
+            try {
+                const categorias = await apiCall('/categories');
+                const select = document.getElementById('categoria');
+                const filtroSelect = document.getElementById('filtroCategoria');
+                const currentVal = select.value;
+                const currentFiltro = filtroSelect.value;
+
+                select.innerHTML = '<option value="">Seleccionar categoria...</option>';
+                filtroSelect.innerHTML = '<option value="">Todas las categorias</option>';
+
+                categorias.forEach(c => {
+                    if (c.estado === 'activo') {
+                        select.innerHTML += `<option value="${escapeHtml(c.nombre)}">${escapeHtml(c.nombre)}</option>`;
+                        filtroSelect.innerHTML += `<option value="${escapeHtml(c.nombre)}">${escapeHtml(c.nombre)}</option>`;
+                    }
+                });
+
+                select.value = currentVal;
+                filtroSelect.value = currentFiltro;
+            } catch (error) {
+                console.error('Error cargando categorias:', error);
+            }
+        }
 
         function debouncedSearch() {
             clearTimeout(searchTimeout);
@@ -207,12 +234,14 @@
             document.getElementById('modalTitle').textContent = id ? 'Editar Producto' : 'Nuevo Producto';
             document.getElementById('estadoGroup').style.display = id ? 'block' : 'none';
             document.getElementById('productoForm').reset();
+            document.getElementById('categoria').value = '';
             if (id) loadProducto(id);
             document.getElementById('modalOverlay').classList.add('active');
         }
 
         function closeModal() {
             document.getElementById('modalOverlay').classList.remove('active');
+            document.getElementById('categoria').value = '';
             editingId = null;
         }
 
@@ -226,10 +255,20 @@
                 document.getElementById('stock').value = p.stock;
                 document.getElementById('stock_minimo').value = p.stock_minimo;
                 document.getElementById('codigo_barras').value = p.codigo_barras || '';
-                document.getElementById('categoria').value = p.categoria || '';
                 document.getElementById('itbis_tasa').value = (p.itbis_tasa !== null && p.itbis_tasa !== undefined) ? p.itbis_tasa : 18;
                 document.getElementById('estado').value = p.estado;
                 document.getElementById('descripcion').value = p.descripcion || '';
+                const catSelect = document.getElementById('categoria');
+                if (p.categoria) {
+                    const opt = Array.from(catSelect.options).find(o => o.value === p.categoria);
+                    if (opt) {
+                        catSelect.value = p.categoria;
+                    } else {
+                        catSelect.innerHTML += `<option value="${escapeHtml(p.categoria)}" selected>${escapeHtml(p.categoria)}</option>`;
+                    }
+                } else {
+                    catSelect.value = '';
+                }
             } catch (error) { showToast(error.message, 'error'); }
         }
 
@@ -237,6 +276,7 @@
 
         async function handleSubmit(e) {
             e.preventDefault();
+            const catSelect = document.getElementById('categoria');
             const data = {
                 nombre: document.getElementById('nombre').value.trim(),
                 precio: parseFloat(document.getElementById('precio').value),
@@ -244,7 +284,7 @@
                 stock: parseInt(document.getElementById('stock').value) || 0,
                 stock_minimo: parseInt(document.getElementById('stock_minimo').value) || 5,
                 codigo_barras: document.getElementById('codigo_barras').value.trim() || null,
-                categoria: document.getElementById('categoria').value.trim() || null,
+                categoria: catSelect.value || null,
                 itbis_tasa: parseInt(document.getElementById('itbis_tasa').value, 10),
                 descripcion: document.getElementById('descripcion').value.trim() || null,
                 estado: document.getElementById('estado').value

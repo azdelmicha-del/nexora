@@ -343,6 +343,7 @@
             <button class="tab" onclick="mostrarSeccion('clientes')">Clientes</button>
             <button class="tab" onclick="mostrarSeccion('citas')">Citas</button>
             <button class="tab" onclick="mostrarSeccion('fiscal')" id="tabFiscal">ITBIS Fiscal</button>
+            <button class="tab" onclick="mostrarSeccion('e31e32')" id="tabE31E32">E31 / E32</button>
             <button class="tab" onclick="mostrarCuadre()" id="tabCuadre" style="display: none;">Cuadro de Caja</button>
         </div>
 
@@ -480,6 +481,82 @@
                 <div class="seccion-reporte" style="margin-top:1.5rem;">
                     <h3>Detalle ITBIS por Venta (período seleccionado)</h3>
                     <div id="fiscalDetalleVentas" style="max-height:400px; overflow-y:auto;"></div>
+                </div>
+            </div>
+
+            <!-- ── SECCIÓN E31 / E32 ──────────────────────────────────── -->
+            <div id="seccion-e31e32" style="display: none;">
+                <div style="background:linear-gradient(135deg,#0f172a 0%,#1e293b 100%); border-radius:20px; padding:2rem; margin-bottom:1.5rem; color:white;">
+                    <div style="font-size:0.75rem; text-transform:uppercase; letter-spacing:2px; color:rgba(255,255,255,0.55); margin-bottom:0.4rem;">Resumen Fiscal DGII — E31 / E32</div>
+                    <div style="display:grid; grid-template-columns:repeat(auto-fit,minmax(160px,1fr)); gap:1rem; margin-top:1rem;">
+                        <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:1rem; text-align:center;">
+                            <div style="font-size:0.65rem; opacity:0.6; margin-bottom:4px;">E-CF-31 (Crédito Fiscal)</div>
+                            <div style="font-size:1.8rem; font-weight:800; color:#3b82f6;" id="e31Count">0</div>
+                            <div style="font-size:0.7rem; opacity:0.7; margin-top:4px;">Comprobantes emitidos</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.1); border-radius:12px; padding:1rem; text-align:center;">
+                            <div style="font-size:0.65rem; opacity:0.6; margin-bottom:4px;">E-CF-32 (Consumidor Final)</div>
+                            <div style="font-size:1.8rem; font-weight:800; color:#10b981;" id="e32Count">0</div>
+                            <div style="font-size:0.7rem; opacity:0.7; margin-top:4px;">Comprobantes emitidos</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.15); border-radius:12px; padding:1rem; text-align:center; border:1px solid rgba(255,255,255,0.2);">
+                            <div style="font-size:0.65rem; opacity:0.6; margin-bottom:4px;">ITBIS Total</div>
+                            <div style="font-size:1.6rem; font-weight:800; color:#f59e0b;" id="e31e32Itbis">$0.00</div>
+                            <div style="font-size:0.7rem; opacity:0.7; margin-top:4px;">ITBIS cobrado</div>
+                        </div>
+                        <div style="background:rgba(255,255,255,0.15); border-radius:12px; padding:1rem; text-align:center; border:1px solid rgba(255,255,255,0.2);">
+                            <div style="font-size:0.65rem; opacity:0.6; margin-bottom:4px;">Ticket Promedio</div>
+                            <div style="font-size:1.6rem; font-weight:800; color:#a78bfa;" id="e31e32Ticket">$0.00</div>
+                            <div style="font-size:0.7rem; opacity:0.7; margin-top:4px;">Por comprobante</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="background:white; border-radius:16px; padding:1.25rem; margin-bottom:1.5rem; box-shadow:0 2px 12px rgba(0,0,0,0.06);">
+                    <div style="display:flex; gap:1rem; align-items:center; flex-wrap:wrap; margin-bottom:1rem;">
+                        <div style="flex:1; min-width:200px;">
+                            <label style="display:block; font-size:0.75rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; margin-bottom:0.35rem;">Tipo de Comprobante</label>
+                            <select id="e31e32TipoSelect" onchange="cargarE31E32()" style="width:100%; padding:0.6rem 0.75rem; border:1px solid var(--gray-300); border-radius:8px; font-size:0.9rem; background:white; cursor:pointer;">
+                                <option value="31">E-CF-31 (Crédito Fiscal)</option>
+                                <option value="32">E-CF-32 (Consumidor Final)</option>
+                            </select>
+                        </div>
+                        <div style="flex:1; min-width:200px;">
+                            <label style="display:block; font-size:0.75rem; font-weight:600; color:var(--gray-500); text-transform:uppercase; margin-bottom:0.35rem;">Período</label>
+                            <div style="display:flex; gap:0.4rem; flex-wrap:wrap;">
+                                <button class="filtro-btn" id="e31e32BtnHoy" onclick="setFiltroE31E32('hoy')">Hoy</button>
+                                <button class="filtro-btn" id="e31e32BtnSemana" onclick="setFiltroE31E32('semana')">Semana</button>
+                                <button class="filtro-btn" id="e31e32BtnMes" onclick="setFiltroE31E32('mes')">Mes</button>
+                                <button class="filtro-btn" id="e31e32BtnPersonalizado" onclick="setFiltroE31E32('personalizado')">Personalizado</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="e31e32FechasPersonalizadas" style="display:none; gap:0.75rem; align-items:flex-end; flex-wrap:wrap; margin-bottom:1rem;">
+                        <div>
+                            <label style="display:block; font-size:0.7rem; color:var(--gray-500); margin-bottom:0.25rem;">Desde</label>
+                            <input type="date" id="e31e32Desde" style="padding:0.5rem; border:1px solid var(--gray-300); border-radius:6px;">
+                        </div>
+                        <div>
+                            <label style="display:block; font-size:0.7rem; color:var(--gray-500); margin-bottom:0.25rem;">Hasta</label>
+                            <input type="date" id="e31e32Hasta" style="padding:0.5rem; border:1px solid var(--gray-300); border-radius:6px;">
+                        </div>
+                        <button class="btn btn-primary btn-sm" onclick="cargarE31E32()">Aplicar</button>
+                    </div>
+                    <div style="display:flex; gap:0.5rem; justify-content:flex-end;">
+                        <button class="btn btn-secondary btn-sm" onclick="exportE31E32CSV()">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                            Exportar CSV
+                        </button>
+                        <button class="btn btn-secondary btn-sm" onclick="imprimirE31E32()">
+                            <svg width="14" height="14" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/></svg>
+                            Imprimir Todo
+                        </button>
+                    </div>
+                </div>
+
+                <div class="seccion-reporte">
+                    <h3 id="e31e32TituloTabla">Detalle E-CF-31 (Crédito Fiscal)</h3>
+                    <div id="e31e32TablaCompleta" style="max-height:600px; overflow-y:auto;"></div>
                 </div>
             </div>
 
@@ -775,20 +852,23 @@
         
         function mostrarSeccion(seccion) {
             document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
-            // Marcar el tab activo
             const tabBtn = document.querySelector(`.tab[onclick*="'${seccion}'"]`);
             if (tabBtn) tabBtn.classList.add('active');
 
             document.querySelectorAll('[id^="seccion-"]').forEach(s => s.style.display = 'none');
+            document.getElementById('seccion-historial-cuadre').style.display = 'none';
 
             const targetSection = document.getElementById('seccion-' + seccion);
             if (targetSection) {
                 targetSection.style.display = 'block';
             }
 
-            // Cargar datos fiscales al entrar al tab
             if (seccion === 'fiscal') {
                 renderReporteFiscal();
+            }
+            if (seccion === 'e31e32') {
+                document.getElementById('e31e32FechasPersonalizadas').style.display = 'none';
+                setFiltroE31E32('mes');
             }
         }
 
@@ -834,6 +914,7 @@
             document.getElementById('tabCuadre').classList.add('active');
             
             document.querySelectorAll('[id^="seccion-"]').forEach(s => s.style.display = 'none');
+            document.getElementById('seccion-historial-cuadre').style.display = 'none';
             document.getElementById('seccion-cuadre').style.display = 'block';
             
             await cargarCuadre();
@@ -1434,6 +1515,260 @@
                 console.error('Error cargando reporte fiscal:', err);
                 showToast('Error al cargar reporte fiscal: ' + err.message, 'error');
             }
+        }
+
+        let e31e32Filtro = 'mes';
+        let e31e32DataActual = null;
+
+        function setFiltroE31E32(tipo) {
+            e31e32Filtro = tipo;
+            document.querySelectorAll('#e31e32BtnHoy, #e31e32BtnSemana, #e31e32BtnMes, #e31e32BtnPersonalizado').forEach(b => b.classList.remove('active'));
+            document.getElementById('e31e32Btn' + tipo.charAt(0).toUpperCase() + tipo.slice(1)).classList.add('active');
+
+            const fechasDiv = document.getElementById('e31e32FechasPersonalizadas');
+            const hoy = new Date();
+
+            if (tipo === 'personalizado') {
+                fechasDiv.style.display = 'flex';
+                return;
+            }
+
+            fechasDiv.style.display = 'none';
+
+            let desde, hasta;
+            switch(tipo) {
+                case 'hoy':
+                    desde = hasta = formatDateISO(hoy);
+                    break;
+                case 'semana': {
+                    const diaSemana = hoy.getDay();
+                    const inicio = new Date(hoy);
+                    inicio.setDate(hoy.getDate() - diaSemana);
+                    desde = formatDateISO(inicio);
+                    hasta = formatDateISO(hoy);
+                    break;
+                }
+                case 'mes': {
+                    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                    const finMes = new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0);
+                    desde = formatDateISO(inicioMes);
+                    hasta = formatDateISO(finMes);
+                    break;
+                }
+            }
+
+            document.getElementById('e31e32Desde').value = desde;
+            document.getElementById('e31e32Hasta').value = hasta;
+            cargarE31E32();
+        }
+
+        async function cargarE31E32() {
+            const tipo = document.getElementById('e31e32TipoSelect').value;
+            const desde = document.getElementById('e31e32Desde').value;
+            const hasta = document.getElementById('e31e32Hasta').value;
+            const params = desde || hasta ? '?desde=' + (desde || '') + '&hasta=' + (hasta || '') : '';
+
+            const titulo = document.getElementById('e31e32TituloTabla');
+            titulo.textContent = tipo === '31' ? 'Detalle E-CF-31 (Crédito Fiscal)' : 'Detalle E-CF-32 (Consumidor Final)';
+
+            try {
+                const data = await apiCall('/reports/e31e32' + params);
+                e31e32DataActual = data;
+
+                document.getElementById('e31Count').textContent = data.e31?.cantidad || 0;
+                document.getElementById('e32Count').textContent = data.e32?.cantidad || 0;
+                document.getElementById('e31e32Itbis').textContent = formatCurrency(data.itbisTotal || 0);
+                document.getElementById('e31e32Ticket').textContent = formatCurrency(data.ticketPromedio || 0);
+
+                const ventas = tipo === '31' ? (data.e31?.ventas || []) : (data.e32?.ventas || []);
+                const resumen = tipo === '31' ? data.e31 : data.e32;
+
+                if (ventas.length === 0) {
+                    document.getElementById('e31e32TablaCompleta').innerHTML = '<div class="no-data"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path></svg><p>No hay comprobantes en este período</p></div>';
+                    return;
+                }
+
+                let html = `
+                    <table class="tabla-simple" style="font-size:0.82rem;">
+                        <thead>
+                            <tr>
+                                <th># ID</th>
+                                <th>NCF / Secuencia</th>
+                                <th>Fecha</th>
+                                <th>Cliente</th>
+                                <th>RNC / Cédula</th>
+                                <th>Subtotal</th>
+                                <th>Descuento</th>
+                                <th>ITBIS</th>
+                                <th>Total</th>
+                                <th>Método Pago</th>
+                                <th>Banco</th>
+                                <th>Estado DGII</th>
+                                <th>Items</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                for (const v of ventas) {
+                    const ventaCompleta = await apiCall(`/api/sales/${v.id}`).catch(() => null);
+                    const items = ventaCompleta?.detalles || [];
+                    const itemsText = Array.isArray(items) && items.length > 0
+                        ? items.map(i => `${i.servicio} x${i.cantidad} = ${formatCurrency(i.subtotal)}`).join('<br>')
+                        : '—';
+
+                    html += `
+                        <tr style="vertical-align:top;">
+                            <td style="font-family:monospace; color:var(--gray-500);">${v.id}</td>
+                            <td><span style="font-family:monospace; font-weight:600; color:${tipo === '31' ? '#3b82f6' : '#10b981'};">${escapeHtml(v.ncf || '—')}</span></td>
+                            <td style="white-space:nowrap;">${formatDate(v.fecha)}</td>
+                            <td>${escapeHtml(v.cliente || 'Consumidor Final')}</td>
+                            <td style="font-family:monospace; font-size:0.75rem;">${escapeHtml(v.rnc || '—')}</td>
+                            <td style="text-align:right;">${formatCurrency(v.subtotal || 0)}</td>
+                            <td style="text-align:right;">${formatCurrency(v.descuento || 0)}</td>
+                            <td style="text-align:right; font-weight:600; color:#f59e0b;">${formatCurrency(v.itbis || 0)}</td>
+                            <td style="text-align:right; font-weight:700;">${formatCurrency(v.total)}</td>
+                            <td style="text-transform:capitalize;">${escapeHtml(v.metodo_pago || '—')}</td>
+                            <td>${escapeHtml(v.banco || '—')}</td>
+                            <td><span style="font-size:0.7rem; padding:2px 6px; border-radius:4px; background:#d1fae5; color:#065f46;">${escapeHtml(v.estado_dgii || 'registrada')}</span></td>
+                            <td style="font-size:0.75rem; max-width:200px;">${itemsText}</td>
+                        </tr>
+                    `;
+                }
+
+                html += `
+                        <tr style="background:${tipo === '31' ? '#eff6ff' : '#ecfdf5'}; font-weight:700;">
+                            <td colspan="5">TOTALES (${ventas.length} comprobante${ventas.length !== 1 ? 's' : ''})</td>
+                            <td style="text-align:right;">${formatCurrency(resumen.total - resumen.itbisTotal)}</td>
+                            <td style="text-align:right;">—</td>
+                            <td style="text-align:right; color:#f59e0b;">${formatCurrency(resumen.itbisTotal)}</td>
+                            <td style="text-align:right;">${formatCurrency(resumen.total)}</td>
+                            <td colspan="4"></td>
+                        </tr>
+                        </tbody>
+                    </table>
+                `;
+
+                document.getElementById('e31e32TablaCompleta').innerHTML = html;
+
+            } catch (err) {
+                console.error('Error cargando E31/E32:', err);
+                showToast('Error al cargar reporte: ' + err.message, 'error');
+            }
+        }
+
+        function exportE31E32CSV() {
+            if (!e31e32DataActual) {
+                showToast('No hay datos para exportar', 'error');
+                return;
+            }
+
+            const tipo = document.getElementById('e31e32TipoSelect').value;
+            const ventas = tipo === '31' ? (e31e32DataActual.e31?.ventas || []) : (e31e32DataActual.e32?.ventas || []);
+            const tipoLabel = tipo === '31' ? 'E-CF-31' : 'E-CF-32';
+
+            const headers = ['ID','NCF','Fecha','Cliente','RNC_Cedula','Subtotal','Descuento','ITBIS','Total','Metodo_Pago','Banco','Estado_DGII'];
+            let csv = '\uFEFF' + headers.join(';') + '\n';
+
+            ventas.forEach(v => {
+                const row = [
+                    v.id, v.ncf || '', v.fecha, v.cliente || 'Consumidor Final', v.rnc || '',
+                    v.subtotal || 0, v.descuento || 0, v.itbis || 0, v.total,
+                    v.metodo_pago || '', v.banco || '', v.estado_dgii || 'registrada'
+                ];
+                csv += row.map(val => `"${String(val || '').replace(/"/g, '""')}"`).join(';') + '\n';
+            });
+
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${tipoLabel}_${document.getElementById('e31e32Desde').value || 'todo'}_${document.getElementById('e31e32Hasta').value || 'hoy'}.csv`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        function imprimirE31E32() {
+            if (!e31e32DataActual) {
+                showToast('No hay datos para imprimir', 'error');
+                return;
+            }
+
+            const tipo = document.getElementById('e31e32TipoSelect').value;
+            const ventas = tipo === '31' ? (e31e32DataActual.e31?.ventas || []) : (e31e32DataActual.e32?.ventas || []);
+            const tipoLabel = tipo === '31' ? 'E-CF-31 (Crédito Fiscal)' : 'E-CF-32 (Consumidor Final)';
+            const desde = document.getElementById('e31e32Desde').value || '—';
+            const hasta = document.getElementById('e31e32Hasta').value || '—';
+
+            let rowsHtml = ventas.map(v => `
+                <tr>
+                    <td>${v.id}</td>
+                    <td>${escapeHtml(v.ncf || '—')}</td>
+                    <td>${formatDate(v.fecha)}</td>
+                    <td>${escapeHtml(v.cliente || 'Consumidor Final')}</td>
+                    <td>${escapeHtml(v.rnc || '—')}</td>
+                    <td style="text-align:right;">${formatCurrency(v.subtotal || 0)}</td>
+                    <td style="text-align:right;">${formatCurrency(v.descuento || 0)}</td>
+                    <td style="text-align:right;">${formatCurrency(v.itbis || 0)}</td>
+                    <td style="text-align:right; font-weight:bold;">${formatCurrency(v.total)}</td>
+                    <td>${escapeHtml(v.metodo_pago || '—')}</td>
+                    <td>${escapeHtml(v.banco || '—')}</td>
+                </tr>
+            `).join('');
+
+            const resumen = tipo === '31' ? e31e32DataActual.e31 : e31e32DataActual.e32;
+
+            const printContent = `
+                <html>
+                <head>
+                    <title>${tipoLabel} - ${desde} al ${hasta}</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; font-size: 10px; padding: 20px; }
+                        h1 { font-size: 16px; margin-bottom: 4px; }
+                        .subtitle { font-size: 11px; color: #666; margin-bottom: 16px; }
+                        table { width: 100%; border-collapse: collapse; }
+                        th { background: #f3f4f6; text-align: left; padding: 6px 8px; font-size: 9px; text-transform: uppercase; border-bottom: 2px solid #ddd; }
+                        td { padding: 6px 8px; border-bottom: 1px solid #eee; }
+                        .totals-row { background: #f9fafb; font-weight: bold; }
+                        .footer { margin-top: 20px; font-size: 9px; color: #999; text-align: center; }
+                        @media print { @page { margin: 10mm; } }
+                    </style>
+                </head>
+                <body>
+                    <h1>${tipoLabel}</h1>
+                    <div class="subtitle">Período: ${desde} al ${hasta} | Total comprobantes: ${ventas.length}</div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th><th>NCF</th><th>Fecha</th><th>Cliente</th><th>RNC</th>
+                                <th>Subtotal</th><th>Desc.</th><th>ITBIS</th><th>Total</th>
+                                <th>Método</th><th>Banco</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${rowsHtml}
+                            <tr class="totals-row">
+                                <td colspan="5">TOTALES</td>
+                                <td style="text-align:right;">${formatCurrency(resumen.total - resumen.itbisTotal)}</td>
+                                <td style="text-align:right;">—</td>
+                                <td style="text-align:right;">${formatCurrency(resumen.itbisTotal)}</td>
+                                <td style="text-align:right;">${formatCurrency(resumen.total)}</td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div class="footer">Nexora - Sistema de Gestión | Generado: ${new Date().toLocaleString('es-DO')}</div>
+                </body>
+                </html>
+            `;
+
+            const win = window.open('', '_blank');
+            win.document.write(printContent);
+            win.document.close();
+            win.focus();
+            win.print();
         }
         
         function renderReporteCitas(data) {

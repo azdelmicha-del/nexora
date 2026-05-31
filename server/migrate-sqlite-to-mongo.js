@@ -70,6 +70,31 @@ const TABLES = [
     'platform_config'
 ];
 
+async function cleanupNexoraPos(sqlite) {
+    console.log('=== Paso 1: Limpieza de nexora_pos (datos previos) ===\n');
+
+    const tables = sqlite.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").all();
+    let totalDeleted = 0;
+
+    await mongoose.connect(MONGODB_URI, { dbName: 'nexora_pos' });
+
+    for (const t of tables) {
+        const tableName = t.name;
+        const ids = sqlite.prepare(`SELECT id FROM "${tableName}"`).all().map(r => r.id);
+        if (ids.length === 0) continue;
+
+        const col = mongoose.connection.collection(tableName);
+        const result = await col.deleteMany({ _id: { $in: ids } });
+        if (result.deletedCount > 0) {
+            console.log(`  🗑️  ${tableName}: ${result.deletedCount} eliminados`);
+            totalDeleted += result.deletedCount;
+        }
+    }
+
+    console.log(`\n✅ Total eliminado de nexora_pos: ${totalDeleted} documentos\n`);
+    await mongoose.disconnect();
+}
+
 async function migrate() {
     console.log('=== Migracion SQLite → MongoDB ===\n');
 
@@ -77,7 +102,10 @@ async function migrate() {
     const sqlite = new Database(SQLITE_PATH, { readonly: true });
     console.log('✅ SQLite conectado:', SQLITE_PATH);
 
-    // Conectar a MongoDB
+    // Limpiar nexora_pos primero (si tiene datos de migraciones previas)
+    await cleanupNexoraPos(sqlite);
+
+    // Conectar a MongoDB (db: nexora)
     await mongoose.connect(MONGODB_URI, {
         dbName: 'nexora'
     });
